@@ -1,0 +1,20 @@
+{
+  "name": "sofra",
+  "version": "0.1.0",
+  "description": "Diversity-aware lunch matching for hybrid offices. Works with any desk-booking system.",
+  "license": "MIT",
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "simulate": "tsx src/sim/run.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}
