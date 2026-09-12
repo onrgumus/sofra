@@ -244,7 +244,11 @@ function TableCard({
 
       <div className="row" style={{ marginTop: 8 }}>
         <span className="faint">speaks {group.commonLanguages.join(', ')}</span>
-        {group.invitesSentAt ? (
+        {group.cancelled && group.cancellationSentAt ? (
+          <Pill tone="neutral">cancellation sent</Pill>
+        ) : group.cancelled && group.invitesSentAt ? (
+          <Pill tone="warn">cancellation pending</Pill>
+        ) : group.invitesSentAt ? (
           <Pill tone="good">invite sent</Pill>
         ) : group.sequence > 0 ? (
           <Pill tone="warn">reseated — needs a fresh invite</Pill>

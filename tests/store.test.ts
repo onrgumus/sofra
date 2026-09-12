@@ -180,7 +180,7 @@ describe('DemoStore', () => {
 
   it('marks a table that gained someone as needing a fresh invite', async () => {
     await planLunches();
-    store.markInvitesSent(date, OFFICE);
+    for (const group of store.listGroups(date, OFFICE)) store.markInviteSent(group.id);
 
     const group = store.listGroups(date, OFFICE).find((g) => g.members.length === 4)!;
     store.setRsvp(group.id, group.members[0]!.id, 'declined');
@@ -248,17 +248,15 @@ describe('DemoStore', () => {
     expect(store.getGroup(group.id)?.members).toHaveLength(4);
   });
 
-  it('does not mark cancelled tables as invited', async () => {
+  it('a cancelled table that was never announced needs no cancellation', async () => {
     await planLunches();
     const group = store.listGroups(date, OFFICE).find((g) => g.members.length === 4)!;
     store.setRsvp(group.id, group.members[0]!.id, 'declined');
     store.setRsvp(group.id, group.members[1]!.id, 'declined');
 
-    store.markInvitesSent(date, OFFICE);
+    // Nothing went out for this table, so there is nothing to take back.
     expect(store.getGroup(group.id)?.invitesSentAt).toBeNull();
-    expect(
-      store.listGroups(date, OFFICE).filter((g) => g.invitesSentAt !== null).length,
-    ).toBeGreaterThan(0);
+    expect(store.getGroup(group.id)?.cancellationSentAt).toBeNull();
   });
 
   it('records who could not be seated, and forgets it when cleared', async () => {

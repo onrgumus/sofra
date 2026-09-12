@@ -1,12 +1,11 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { buildInvite } from '../src/notify/invite';
-import { ConsoleTransport, sendInvite } from '../src/notify/transport';
+import { ConsoleTransport } from '../src/notify/transport';
 import { getStore } from '../src/store/instance';
 import { planDay } from '../src/lib/nightly';
-import { toVenue } from '../src/lib/venue';
-import { confirmUrl } from '../src/lib/config';
+import { deliverPending } from '../src/lib/notifications';
+const FROM_EMAIL = process.env.SOFRA_FROM_EMAIL ?? 'Sofra <sofra@example.com>';
 import { setCurrentEmployeeId } from '../src/lib/session';
 import { SLOT } from '../src/store/demo';
 import type { RsvpStatus } from '../src/store/types';
@@ -74,35 +73,37 @@ export async function clearMatching(formData: FormData): Promise<void> {
 }
 
 export async function sendInvites(formData: FormData): Promise<void> {
-  const store = getStore();
-  const date = required(formData, 'date');
-  const officeId = required(formData, 'officeId');
-
-  const office = store.getOffice(officeId);
-  if (!office) return;
-
-  const transport = new ConsoleTransport();
-  for (const group of store.listGroups(date, officeId)) {
-    if (group.cancelled) continue;
-    const invite = buildInvite({
-      group,
-      venue: toVenue(office),
-      organizer: { name: 'Sofra', email: 'sofra@example.com' },
-      confirmUrl: confirmUrl(group.id),
-      sequence: group.sequence,
-    });
-    await sendInvite(transport, invite, { from: 'Sofra <sofra@example.com>' });
-  }
-
-  store.markInvitesSent(date, officeId);
+  await deliverPending({
+    store: getStore(),
+    transport: new ConsoleTransport(),
+    from: FROM_EMAIL,
+    date: required(formData, 'date'),
+    officeId: required(formData, 'officeId'),
+  });
   refresh();
 }
 
 export async function respondToInvite(formData: FormData): Promise<void> {
-  getStore().setRsvp(
-    required(formData, 'groupId'),
+  const store = getStore();
+  const groupId = required(formData, 'groupId');
+  const group = store.getGroup(groupId);
+  if (!group) return;
+
+  store.setRsvp(
+    groupId,
     required(formData, 'employeeId'),
     required(formData, 'status') as RsvpStatus,
   );
+
+  // A reply can collapse a table and move people to other ones. Both the
+  // cancellation and the reseated tables' new invites go out now, not whenever
+  // an admin next remembers to press a button.
+  await deliverPending({
+    store,
+    transport: new ConsoleTransport(),
+    from: FROM_EMAIL,
+    date: group.date,
+    officeId: group.officeId,
+  });
   refresh();
 }

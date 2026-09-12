@@ -1,11 +1,9 @@
 import { matchLunches } from '../core/matcher';
-import { buildInvite } from '../notify/invite';
-import { sendInvite, type EmailTransport } from '../notify/transport';
+import type { EmailTransport } from '../notify/transport';
+import { deliverPending } from './notifications';
 import type { Store } from '../store/types';
 import type { MatchResult } from '../core/types';
 import { SLOT } from '../store/demo';
-import { toVenue } from './venue';
-import { confirmUrl } from './config';
 import { todayInZone, upcomingWeekdays } from './dates';
 
 export interface NightlyOptions {
@@ -71,23 +69,7 @@ export async function runNightlyMatching(options: NightlyOptions): Promise<Offic
 
     const result = await planDay(store, office.id, date);
 
-    let invitesSent = 0;
-    for (const group of store.listGroups(date, office.id)) {
-      if (group.cancelled) continue;
-      await sendInvite(
-        transport,
-        buildInvite({
-          group,
-          venue: toVenue(office),
-          organizer: { name: 'Sofra', email: from },
-          confirmUrl: confirmUrl(group.id),
-          sequence: group.sequence,
-        }),
-        { from },
-      );
-      invitesSent++;
-    }
-    store.markInvitesSent(date, office.id);
+    const delivered = await deliverPending({ store, transport, from, date, officeId: office.id });
 
     outcomes.push({
       officeId: office.id,
@@ -97,7 +79,7 @@ export async function runNightlyMatching(options: NightlyOptions): Promise<Offic
       tables: result.groups.length,
       seated: result.groups.reduce((sum, g) => sum + g.members.length, 0),
       unseated: result.unmatched.length,
-      invitesSent,
+      invitesSent: delivered.invitesSent,
     });
   }
 

@@ -192,6 +192,7 @@ export class DemoStore implements Store {
         ...group,
         rsvps: Object.fromEntries(group.members.map((m) => [m.id, 'pending' as RsvpStatus])),
         invitesSentAt: null,
+        cancellationSentAt: null,
         cancelled: false,
         sequence: 0,
       });
@@ -207,11 +208,14 @@ export class DemoStore implements Store {
     this.unmatched.delete(key(date, officeId));
   }
 
-  markInvitesSent(date: string, officeId: string): void {
-    const now = new Date().toISOString();
-    for (const group of this.listGroups(date, officeId)) {
-      if (!group.cancelled) group.invitesSentAt = now;
-    }
+  markInviteSent(groupId: string): void {
+    const group = this.groups.get(groupId);
+    if (group) group.invitesSentAt = new Date().toISOString();
+  }
+
+  markCancellationSent(groupId: string): void {
+    const group = this.groups.get(groupId);
+    if (group) group.cancellationSentAt = new Date().toISOString();
   }
 
   setRsvp(groupId: string, employeeId: string, status: RsvpStatus): void {
@@ -262,6 +266,7 @@ export class DemoStore implements Store {
       // as an update to the same event, not a second one.
       host.sequence += 1;
       host.invitesSentAt = null;
+      host.cancellationSentAt = null;
 
       group.members = group.members.filter((m) => m.id !== person.id);
       delete group.rsvps[person.id];

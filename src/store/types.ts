@@ -20,7 +20,13 @@ export interface Office {
 
 export interface StoredGroup extends MatchedGroup {
   rsvps: Record<string, RsvpStatus>;
+  /** Null once the table has changed and the new invite has not gone out yet. */
   invitesSentAt: string | null;
+  /**
+   * When the cancellation went out. A cancelled table whose invite was already
+   * sent leaves a stale entry in four calendars until this happens.
+   */
+  cancellationSentAt: string | null;
   /** Set when too many people dropped out to keep the table worth having. */
   cancelled: boolean;
   /**
@@ -81,7 +87,8 @@ export interface Store {
   /** Anyone the engine could not seat, so the admin sees it rather than guessing. */
   listUnmatched(date: string, officeId: string): Unmatched[];
   clearGroups(date: string, officeId: string): void;
-  markInvitesSent(date: string, officeId: string): void;
+  markInviteSent(groupId: string): void;
+  markCancellationSent(groupId: string): void;
   /**
    * Records a reply and, when a decline leaves the table too small, moves the
    * people still coming to other tables that have room. Returns the group each

@@ -22,6 +22,11 @@ export interface InviteOptions {
    * update the existing event instead of adding a second one.
    */
   sequence?: number;
+  /**
+   * 'CANCEL' produces the mail and the calendar message that take a cancelled
+   * lunch back off everyone's calendar.
+   */
+  method?: 'REQUEST' | 'CANCEL';
   /** Overrides the language picked from the group's shared languages. */
   language?: SupportedLanguage;
 }
@@ -51,7 +56,8 @@ export function buildInvite(options: InviteOptions): Invite {
   const lang = options.language ?? pickLanguage(group.commonLanguages);
   const t = STRINGS[lang];
   const topic = pickTopic(group.id, lang);
-  const subject = t.subject(group.members.length);
+  const cancelling = options.method === 'CANCEL';
+  const subject = cancelling ? t.cancelledSubject : t.subject(group.members.length);
 
   const attendees: IcsAttendee[] = group.members.map((m) => ({
     name: m.displayName,
@@ -61,6 +67,10 @@ export function buildInvite(options: InviteOptions): Invite {
   const roster = group.members
     .map((m) => `• ${m.displayName} — ${m.title}, ${m.department} (${teamName(m.team)})`)
     .join('\n');
+
+  if (cancelling) {
+    return buildCancellation({ ...options, lang, subject, roster, attendees });
+  }
 
   const sections = [
     t.intro(group.members.length, group.slot),
@@ -109,6 +119,41 @@ export function buildInvite(options: InviteOptions): Invite {
   });
 
   return { subject, text, html: toHtml(text), ics, to: attendees, topic };
+}
+
+/**
+ * The mail that takes a cancelled lunch off everyone's calendar. Short on
+ * purpose: nobody wants three paragraphs about a lunch that is not happening.
+ */
+function buildCancellation(
+  options: InviteOptions & {
+    lang: SupportedLanguage;
+    subject: string;
+    roster: string;
+    attendees: IcsAttendee[];
+  },
+): Invite {
+  const { group, venue, organizer, lang, subject, roster, attendees } = options;
+  const t = STRINGS[lang];
+
+  const text = [t.cancelledBody(group.slot), '', t.whoHeading, roster, '', t.footer].join('\n');
+
+  const ics = buildIcs({
+    uid: `${group.id}@sofra`,
+    date: group.date,
+    startTime: group.slot,
+    durationMinutes: options.durationMinutes ?? 60,
+    timeZone: venue.timeZone,
+    summary: subject,
+    description: text,
+    location: `${venue.displayName} — ${venue.meetingPoint}`,
+    organizer,
+    attendees,
+    sequence: options.sequence ?? 0,
+    method: 'CANCEL',
+  });
+
+  return { subject, text, html: toHtml(text), ics, to: attendees, topic: '' };
 }
 
 /**
@@ -185,6 +230,9 @@ const TR_TOGETHER: Record<number, string> = { 3: 'üçünüz', 4: 'dördünüz',
 const STRINGS = {
   en: {
     subject: (count: number) => `Lunch today at 12:00 — the ${EN_NUMBERS[count] ?? count} of you`,
+    cancelledSubject: 'Lunch cancelled — today at 12:00',
+    cancelledBody: (slot: string) =>
+      `Too many people dropped out, so the ${slot} lunch is off and it has been taken off your calendar. Anyone who still wanted to go was offered a seat at another table first; if you did not get one, there was genuinely nowhere to put you today. Tick the box again tomorrow.`,
     intro: (count: number, slot: string) =>
       `The ${count} of you are having lunch together at ${slot} today. You work at the same company, you are all in the building, and none of you have had lunch together before. This mail went to all ${count} of you at once, so just reply here to sort out where you are going.`,
     whereHeading: 'Where',
@@ -235,6 +283,9 @@ const STRINGS = {
   tr: {
     subject: (count: number) =>
       `Bugün 12:00 öğle yemeği — ${TR_TOGETHER[count] ?? `${count} kişi`}`,
+    cancelledSubject: 'Öğle yemeği iptal — bugün 12:00',
+    cancelledBody: (slot: string) =>
+      `Çok fazla kişi çıktığı için ${slot} yemeği iptal oldu ve takviminizden kaldırıldı. Hâlâ gelmek isteyenlere önce başka bir masada yer arandı; size bir yer çıkmadıysa bugün gerçekten yerleştirecek yer kalmamıştı. Yarın kutucuğu tekrar işaretleyebilirsiniz.`,
     intro: (count: number, slot: string) =>
       `Bugün saat ${slot}'de ${count} kişi birlikte yemek yiyeceksiniz. Aynı şirkette çalışıyorsunuz, hepiniz bugün ofistesiniz ve daha önce hiç birlikte yemek yemediniz. Bu mail ${count}'inize aynı anda gitti; nereye gideceğinizi buradan yanıtlayarak kararlaştırabilirsiniz.`,
     whereHeading: 'Nerede',
