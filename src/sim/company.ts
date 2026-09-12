@@ -93,7 +93,6 @@ export function generateCompany(options: CompanyOptions): Employee[] {
       languages,
       tenureMonths: Math.floor(rng() ** 2 * 120), // skewed towards recent hires
       interests: pickMany(INTERESTS, 1 + Math.floor(rng() * 3), rng),
-      dietary: rng() < 0.18 ? [pick(['vegetarian', 'vegan', 'halal', 'gluten-free'], rng)] : [],
     });
   }
 

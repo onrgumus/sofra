@@ -134,13 +134,10 @@ describe('matchLunches', () => {
     expect(matchedCrossDept).toBeGreaterThan(0.9);
   });
 
-  it('collects dietary needs for the whole table', () => {
-    const people = distinctPeople(8);
-    people[0]!.dietary = ['vegan'];
-    people[1]!.dietary = ['halal'];
-    const result = run(people);
-    const withNeeds = result.groups.filter((g) => g.dietary.length > 0);
-    expect(withNeeds.flatMap((g) => g.dietary).sort()).toEqual(['halal', 'vegan']);
+  it('carries no special-category data on the group it produces', () => {
+    const group = run(distinctPeople(8)).groups[0]!;
+    expect(Object.keys(group)).not.toContain('dietary');
+    expect(Object.keys(group.members[0]!)).not.toContain('gender');
   });
 });
 

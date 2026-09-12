@@ -83,12 +83,10 @@ export default async function ConfirmPage({ params }: { params: Promise<{ groupI
             ))}
           </div>
 
-          {group.dietary.length > 0 ? (
-            <p className="faint" style={{ marginTop: 10 }}>
-              Dietary needs at this table: {group.dietary.join(', ')}. Pick somewhere that works for
-              everyone.
-            </p>
-          ) : null}
+          <p className="faint" style={{ marginTop: 10 }}>
+            Sort out where to go between yourselves — reply to the invite mail, it went to all of
+            you.
+          </p>
         </article>
       </section>
 

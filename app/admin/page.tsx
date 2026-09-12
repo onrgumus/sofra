@@ -226,9 +226,6 @@ function TableCard({
 
       <div className="row" style={{ marginTop: 8 }}>
         <span className="faint">speaks {group.commonLanguages.join(', ')}</span>
-        {group.dietary.length > 0 ? (
-          <span className="faint">· dietary: {group.dietary.join(', ')}</span>
-        ) : null}
         {group.invitesSentAt ? <Pill tone="good">invite sent</Pill> : null}
       </div>
 

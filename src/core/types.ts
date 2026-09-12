@@ -34,8 +34,6 @@ export interface Employee {
   languages: string[];
   tenureMonths: number;
   interests: string[];
-  /** e.g. ['vegetarian', 'halal'] — carried to the invite as venue guidance. */
-  dietary: string[];
 }
 
 /**
@@ -113,8 +111,6 @@ export interface MatchedGroup {
   members: Employee[];
   score: number;
   relaxation: Relaxation;
-  /** Union of members' dietary needs, for venue selection. */
-  dietary: string[];
   /** Languages every member speaks. The invite is written in the first one. */
   commonLanguages: string[];
 }

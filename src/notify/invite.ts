@@ -68,6 +68,7 @@ export function buildInvite(options: InviteOptions): Invite {
     '',
     t.startHeading,
     t.startBody,
+    t.startPrompts.map((prompt) => `• ${prompt}`).join('\n'),
     '',
     t.topicHeading,
     topic,
@@ -76,11 +77,11 @@ export function buildInvite(options: InviteOptions): Invite {
     buildIcebreakers(group, lang)
       .map((q) => `• ${q}`)
       .join('\n'),
+    '',
+    t.socialHeading,
+    t.socialBody,
   ];
 
-  if (group.dietary.length > 0) {
-    sections.push('', t.dietaryHeading, group.dietary.join(', '));
-  }
   if (options.confirmUrl) {
     sections.push('', t.confirm(options.confirmUrl));
   }
@@ -183,11 +184,20 @@ const STRINGS = {
     whereHeading: 'Where',
     whoHeading: 'Who',
     startHeading: 'How to start',
-    startBody:
-      'Go round the table before you order. Name, which team you are on, what you actually work on day to day, and what you were doing before you got here. That last one is usually where the interesting part is.',
+    startBody: 'Go round the table before you order. Everyone answers:',
+    startPrompts: [
+      'How long you have been here, and what you actually do day to day',
+      'Which project you are on right now',
+      'What you were doing in your career before this job',
+      'Your hobbies — what you spend time on when you are not here',
+      'What would make you happier about coming into the office',
+      'One thing you genuinely think we could be doing better',
+    ],
     topicHeading: "Today's topic",
     icebreakerHeading: 'If the conversation stalls',
-    dietaryHeading: 'Dietary needs at this table',
+    socialHeading: 'And do not let it turn into a work meeting',
+    socialBody:
+      'Leave room for the rest of it — sport, music and films, the city, where you grew up, what you actually care about. You can get a status update over Slack. The point of this table is the people sitting at it.',
     confirm: (url: string) =>
       `Cannot make it? Let us know by 10:00 so we can reseat the table: ${url}`,
     footer: 'Sent by Sofra. You asked for this one day; you are not signed up for anything else.',
@@ -209,6 +219,10 @@ const STRINGS = {
       'The tool or habit you could not do your job without.',
       'What you would work on here if nobody assigned you anything for a month.',
       'The part of your job that would surprise someone outside your department.',
+      'The last thing you read, watched or listened to that you would recommend.',
+      'Where you grew up, and what people usually get wrong about it.',
+      'A sport or a team you follow, and how you ended up caring about it.',
+      'Something outside work you have got noticeably better at this year.',
     ],
   },
   tr: {
@@ -218,11 +232,20 @@ const STRINGS = {
     whereHeading: 'Nerede',
     whoHeading: 'Kimler',
     startHeading: 'Nasıl başlanır',
-    startBody:
-      'Sipariş vermeden önce masayı bir tur dolaşın. Adınız, hangi ekipte olduğunuz, gün içinde gerçekte ne yaptığınız ve buraya gelmeden önce nerede çalıştığınız. İşin ilginç kısmı genelde bu sonuncusunda çıkar.',
+    startBody: 'Sipariş vermeden önce masayı bir tur dolaşın. Herkes sırayla:',
+    startPrompts: [
+      'Ne kadar zamandır buradasın ve gün içinde gerçekte ne yapıyorsun',
+      'Şu anda hangi projede çalışıyorsun',
+      'Bu işten önce kariyerinde neler yaptın',
+      'Hobilerin neler — burada değilken vaktini neye ayırıyorsun',
+      'Ofise gelmeyi senin için daha keyifli hale getirecek şey ne olurdu',
+      'Sence gerçekten daha iyi yapabileceğimiz bir şey ne',
+    ],
     topicHeading: 'Bugünün konusu',
     icebreakerHeading: 'Sohbet tıkanırsa',
-    dietaryHeading: 'Bu masadaki beslenme tercihleri',
+    socialHeading: 'Ve bunu bir iş toplantısına çevirmeyin',
+    socialBody:
+      'Gerisine de yer bırakın — spor, müzik ve filmler, şehir, nerede büyüdüğünüz, gerçekten önemsediğiniz şeyler. Durum güncellemesini zaten Slack üzerinden alabilirsiniz. Bu masanın amacı, masada oturan insanlar.',
     confirm: (url: string) =>
       `Gelemiyor musun? Masayı yeniden kurabilmemiz için 10:00'a kadar haber ver: ${url}`,
     footer:
@@ -246,6 +269,10 @@ const STRINGS = {
       'Onsuz işini yapamayacağın araç ya da alışkanlık hangisi?',
       'Bir ay boyunca kimse sana iş vermese burada neyin üzerinde çalışırdın?',
       'İşinin, departmanın dışındaki birini en çok şaşırtacak kısmı hangisi?',
+      'Son okuduğun, izlediğin ya da dinlediğin, tavsiye edeceğin şey neydi?',
+      'Nerede büyüdün ve insanlar orayla ilgili genelde neyi yanlış biliyor?',
+      'Takip ettiğin bir spor ya da takım var mı, nasıl başladı bu?',
+      'İş dışında bu yıl gözle görülür şekilde geliştiğin bir şey ne?',
     ],
   },
 } as const;

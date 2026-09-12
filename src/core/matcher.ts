@@ -325,7 +325,6 @@ function toMatchedGroup(
   request: MatchRequest,
   ctx: ScoringContext,
 ): MatchedGroup {
-  const dietary = [...new Set(group.members.flatMap((m) => m.dietary))].sort();
   return {
     id: `${request.date}-${request.officeId}-${request.slot}-${index + 1}`,
     date: request.date,
@@ -334,7 +333,6 @@ function toMatchedGroup(
     members: group.members,
     score: scoreGroup(group.members, ctx).total,
     relaxation: group.relaxation,
-    dietary,
     commonLanguages: sharedLanguages(group.members),
   };
 }

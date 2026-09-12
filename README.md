@@ -100,23 +100,32 @@ Where
 Istanbul HQ — Ground floor cafeteria, by the coffee bar
 
 Who
-• Ada Yılmaz — Specialist, Engineering (Platform)
-• Bruno Costa — Associate, Sales (SMB)
-• Chloe Kaya — Lead, Design (Research)
-• Deniz Novak — Manager, Finance (FP&A)
+• Selin Kaya — Intern, Sales (SMB)
+• Omar Demir — Manager, Product (Growth)
+• Elif Novak — Associate, Engineering (Mobile)
+• Quinn Schmidt — Specialist, Design (Research)
 
 How to start
-Go round the table before you order. Name, which team you are on, what you
-actually work on day to day, and what you were doing before you got here. That
-last one is usually where the interesting part is.
+Go round the table before you order. Everyone answers:
+• How long you have been here, and what you actually do day to day
+• Which project you are on right now
+• What you were doing in your career before this job
+• Your hobbies — what you spend time on when you are not here
+• What would make you happier about coming into the office
+• One thing you genuinely think we could be doing better
 
 Today's topic
-What other teams consistently misunderstand about yours.
+The part of your job that would surprise someone outside your department.
 
 If the conversation stalls
-• Engineering, Sales, Design, Finance are at this table. What does each of you
+• You all put "photography" on your profile. Start there.
+• Sales, Product, Engineering, Design are at this table. What does each of you
   think the others actually do all day?
-...
+
+And do not let it turn into a work meeting
+Leave room for the rest of it — sport, music and films, the city, where you grew
+up, what you actually care about. You can get a status update over Slack. The
+point of this table is the people sitting at it.
 ```
 
 Flags: `--size`, `--weeks`, `--participation`, `--seed`, `--office`.
@@ -127,11 +136,16 @@ Flags: `--size`, `--weeks`, `--participation`, `--seed`, `--office`.
 names at the same moment, can reply to each other beforehand, and nobody has to
 wonder whether the others got it.
 
-It carries an **introduction round** — name, team, what you actually do, and what
-you were doing before this job — and a **topic** for the table, picked stably per
-group so re-sending does not change what people turned up prepared for, and
-varied across tables so four departments are not all having the same
-conversation.
+It carries an **introduction round** — how long you have been here, what you
+actually do, the project you are on, what you did before this job, your hobbies,
+what would make the office better, and one thing we could genuinely be doing
+better. Then a **topic** for the table, picked stably per group so re-sending
+does not change what people turned up prepared for, and varied across tables so
+four departments are not all having the same conversation.
+
+It closes by telling the table **not to spend the hour on work**. Left alone,
+four colleagues will produce a status meeting with food; the mail explicitly asks
+for sport, music, the city, where people grew up, what they care about.
 
 The calendar invite is an RFC 5545 `.ics` with `METHOD:REQUEST` rather than a
 call to the Teams or Google Calendar API. An `.ics` is accepted by Outlook,
@@ -143,19 +157,26 @@ Icebreakers are derived from the table itself: a shared interest first, then the
 widest gap in the room. The invite is written in a language everyone at the table
 speaks (`en` and `tr` ship; the matcher guarantees at least one is shared).
 
-## There is no gender field
+## No special-category data, anywhere
 
-The obvious version of this product balances each table by gender. Sofra has no
-gender data at all — not optional, not consent-gated, not weighted. In an
-employment context, automated grouping by gender or age invites both GDPR/KVKK
-scrutiny and discrimination claims, and European works councils will block it
-outright.
+Sofra holds no gender, no age, and no dietary information.
 
-It turns out not to be a loss. The diversity that makes the lunch worth having
-comes from department, team, seniority and tenure — all already in the org chart,
-all with an obvious business justification, none of them a protected
-characteristic. A test asserts the score has no gender term. See
-[docs/privacy.md](docs/privacy.md).
+The obvious version of this product balances each table by gender, and prints
+everyone's dietary needs in the invite. Sofra does neither.
+
+Automated grouping by gender or age in an employment context invites both
+GDPR/KVKK scrutiny and discrimination claims, and European works councils will
+block it outright. Dietary needs are worse: they reveal religion and health,
+explicitly special categories under GDPR Art. 9 and KVKK Art. 6 — and this mail
+goes to three colleagues at once, so printing "halal" next to somebody's name
+publishes it to people who never needed to know. The table sorts the venue out by
+replying to each other instead.
+
+None of it turns out to be a loss. The diversity that makes the lunch worth
+having comes from department, team, seniority and tenure — all already in the org
+chart, all with an obvious business justification, none of them a protected
+characteristic. Tests assert that the score has no gender term and that the
+invite never mentions what anyone eats. See [docs/privacy.md](docs/privacy.md).
 
 ## What is here, and what is not
 
@@ -163,7 +184,7 @@ Built and tested: the matching engine, the provider abstraction with five
 implementations, ICS generation, bilingual invite content with topics, the email
 transport layer, the simulator, and a Next.js app — per-day opt-in, a matching
 console that shows the score behind every table, and the confirm-by-10:00 flow
-that cancels a table when too many people drop out. 73 tests.
+that cancels a table when too many people drop out. 74 tests.
 
 Run it with `npm run dev`. The app is seeded with a synthetic company through an
 in-memory store, so it needs no database and no API keys; swap

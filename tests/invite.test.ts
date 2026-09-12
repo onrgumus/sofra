@@ -25,7 +25,6 @@ function group(overrides: Partial<MatchedGroup> = {}): MatchedGroup {
     ],
     score: 3,
     relaxation: 'none',
-    dietary: [],
     commonLanguages: ['en'],
     ...overrides,
   };
@@ -42,10 +41,21 @@ describe('buildInvite', () => {
     expect(invite.text).toContain('This mail went to all 4 of you at once');
   });
 
-  it('tells people to introduce themselves and their team first', () => {
+  it('opens with a round of introductions covering work, history and hobbies', () => {
     expect(invite.text).toContain('How to start');
-    expect(invite.text).toContain('which team you are on');
-    expect(invite.text).toContain('what you were doing before you got here');
+    expect(invite.text).toContain('How long you have been here');
+    expect(invite.text).toContain('Which project you are on right now');
+    expect(invite.text).toContain('before this job');
+    expect(invite.text).toContain('Your hobbies');
+    expect(invite.text).toContain('happier about coming into the office');
+    expect(invite.text).toContain('we could be doing better');
+  });
+
+  it('tells the table not to spend the hour on work', () => {
+    expect(invite.text).toContain('do not let it turn into a work meeting');
+    expect(invite.text).toMatch(/sport/i);
+    expect(invite.text).toMatch(/music and films/i);
+    expect(invite.text).toContain('what you actually care about');
   });
 
   it('gives the table a topic', () => {
@@ -68,14 +78,16 @@ describe('buildInvite', () => {
     expect(turkish.subject).toContain('öğle yemeği');
     expect(turkish.subject).toContain('dördünüz');
     expect(turkish.text).toContain('Bugünün konusu');
-    expect(turkish.text).toContain('hangi ekipte olduğunuz');
+    expect(turkish.text).toContain('Hobilerin neler');
+    expect(turkish.text).toContain('Ne kadar zamandır buradasın');
+    expect(turkish.text).toContain('spor, müzik ve filmler');
   });
 
-  it('mentions dietary needs only when the table has some', () => {
-    expect(invite.text).not.toContain('Dietary needs');
-    const withNeeds = buildInvite({ group: group({ dietary: ['vegan'] }), venue: VENUE, organizer });
-    expect(withNeeds.text).toContain('Dietary needs at this table');
-    expect(withNeeds.text).toContain('vegan');
+  it('never publishes what anyone eats', () => {
+    // Dietary needs reveal religion and health — special categories under GDPR
+    // Art. 9 and KVKK Art. 6 — and this mail goes to three colleagues at once.
+    // The table sorts the venue out by replying to each other instead.
+    expect(invite.text).not.toMatch(/dietary|vegan|vegetarian|halal|gluten/i);
   });
 
   it('says how many people are at the table in the subject', () => {

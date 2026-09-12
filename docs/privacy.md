@@ -59,11 +59,20 @@ The matcher needs surprisingly little, and takes nothing beyond it:
 | Tenure (months) | Tenure spread, and an icebreaker | Org chart |
 | Office, date | Only match people in the same building on the same day | Attendance provider |
 | Languages | Hard constraint; a table must be able to talk | Directory or self-declared |
-| Interests, dietary | Icebreakers and venue choice | Self-declared, optional |
+| Interests | Icebreakers | Self-declared, optional |
 
 No location beyond building, no desk number, no meeting-title content, no
 calendar contents, and no free text from anyone's calendar. The Graph provider
 reads calendar entries only to answer "office or not" and keeps nothing else.
+
+**No dietary information either.** It is the field every tool like this collects
+without thinking, and it is the most sensitive thing on the list: vegetarian,
+halal and gluten-free reveal religion or health, which GDPR Art. 9 and KVKK Art.
+6 both name explicitly. The invite goes to the whole table at once, so printing
+it would publish one person's religion to three colleagues who never asked. The
+mail tells the table to settle the venue by replying to each other, which is
+where that conversation belongs. A test asserts the invite never mentions food
+restrictions.
 
 ## Attendance data stays where it is
 

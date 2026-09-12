@@ -13,7 +13,6 @@ export function employee(id: string, overrides: Partial<Employee> = {}): Employe
     languages: ['en'],
     tenureMonths: 24,
     interests: [],
-    dietary: [],
     ...overrides,
   };
 }
