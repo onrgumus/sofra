@@ -1,5 +1,8 @@
 # Sofra
 
+[![CI](https://github.com/onrgumus/sofra/actions/workflows/ci.yml/badge.svg)](https://github.com/onrgumus/sofra/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 Hybrid work solved the commute and quietly broke the thing offices were for. You
 go in three days a week, sit with your own team, and leave. Sofra puts three or
 four people who would never otherwise meet at the same lunch table on a day they
