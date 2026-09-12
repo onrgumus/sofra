@@ -140,7 +140,9 @@ section { margin-bottom: 32px; }
   display: grid;
   grid-template-columns: 92px 1fr auto;
   gap: 18px;
-  align-items: center;
+  /* Top-aligned, so the date and the action stay level with the first line when
+     a matched table makes the middle column tall. */
+  align-items: start;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);

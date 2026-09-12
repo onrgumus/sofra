@@ -64,6 +64,24 @@ describe('DemoStore', () => {
     expect(store.listPastMatches().length).toBeGreaterThan(0);
   });
 
+  it('never seeds a lunch request for someone who is not in the office', async () => {
+    // Otherwise the day row shows "Not in the office" and "Lunch at 12:00" side
+    // by side, which is a straight contradiction to whoever is reading it.
+    for (const date of upcomingWeekdays(5)) {
+      const attending = new Set(await store.getAttendance(date, OFFICE));
+      for (const optIn of store.listOptIns(date, OFFICE)) {
+        expect(attending.has(optIn.employeeId)).toBe(true);
+      }
+    }
+  });
+
+  it('gives everyone a distinct name', () => {
+    // People pick their lunch companions out of an invite by name; two identical
+    // names make the invite ambiguous and the matcher's output uncheckable.
+    const names = store.listEmployees().map((e) => e.displayName);
+    expect(new Set(names).size).toBe(names.length);
+  });
+
   async function planLunches() {
     const attending = await store.getAttendance(date, OFFICE);
     const optIns = attending.slice(0, 16).map((employeeId) => ({

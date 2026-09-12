@@ -52,7 +52,9 @@ const FIRST_NAMES = [
 const LAST_NAMES = [
   'Aydın', 'Bauer', 'Costa', 'Demir', 'Eriksson', 'Fischer', 'Garcia', 'Hoffmann',
   'Ivanov', 'Jansen', 'Kaya', 'Lopez', 'Moreau', 'Novak', 'Öztürk', 'Petrov',
-  'Rossi', 'Schmidt', 'Tanaka', 'Yılmaz',
+  'Rossi', 'Schmidt', 'Tanaka', 'Yılmaz', 'Adeyemi', 'Bianchi', 'Chen', 'Dubois',
+  'Engel', 'Ferrari', 'Gruber', 'Haas', 'Iversen', 'Kowalski', 'Larsen', 'Mendes',
+  'Nowak', 'Okonkwo', 'Pereira', 'Rahman', 'Sokolov', 'Thorne', 'Ueda', 'Vargas',
 ];
 
 export interface CompanyOptions {
@@ -66,6 +68,7 @@ export interface CompanyOptions {
 export function generateCompany(options: CompanyOptions): Employee[] {
   const rng = createRng(options.seed);
   const employees: Employee[] = [];
+  const usedNames = new Set<string>();
 
   for (let i = 0; i < options.size; i++) {
     const department = weightedPick(DEPARTMENTS, (d) => d.share, rng);
@@ -83,7 +86,7 @@ export function generateCompany(options: CompanyOptions): Employee[] {
 
     employees.push({
       id: `e${String(i + 1).padStart(4, '0')}`,
-      displayName: `${pick(FIRST_NAMES, rng)} ${pick(LAST_NAMES, rng)}`,
+      displayName: uniqueName(usedNames, rng),
       email: `person${i + 1}@example.com`,
       title: TITLES[seniority],
       seniority,
@@ -97,6 +100,30 @@ export function generateCompany(options: CompanyOptions): Employee[] {
   }
 
   return employees;
+}
+
+/**
+ * Names must be unique. People identify their lunch companions by name in the
+ * invite, and two Yusuf Tanakas in one company makes the demo unreadable — and
+ * the matcher's output impossible to check by eye.
+ */
+function uniqueName(used: Set<string>, rng: () => number): string {
+  for (let attempt = 0; attempt < 200; attempt++) {
+    const name = `${pick(FIRST_NAMES, rng)} ${pick(LAST_NAMES, rng)}`;
+    if (!used.has(name)) {
+      used.add(name);
+      return name;
+    }
+  }
+  // Exhausted the combinations: fall back to a middle initial rather than loop.
+  for (let i = 0; ; i++) {
+    const initial = String.fromCharCode(65 + (i % 26));
+    const name = `${pick(FIRST_NAMES, rng)} ${initial}. ${pick(LAST_NAMES, rng)}`;
+    if (!used.has(name)) {
+      used.add(name);
+      return name;
+    }
+  }
 }
 
 function pick<T>(items: readonly T[], rng: () => number): T {

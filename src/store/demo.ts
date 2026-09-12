@@ -71,9 +71,9 @@ export class DemoStore implements Store {
     this.employeeById = new Map(this.employees.map((e) => [e.id, e]));
     this.currentEmployeeId = this.employees.find((e) => e.officeId === 'IST-HQ')!.id;
 
-    this.seedDeskBookings(seed);
+    const bookings = this.seedDeskBookings(seed);
     this.seedHistory(seed);
-    this.seedOptIns(seed);
+    this.seedOptIns(seed, bookings);
   }
 
   // --- reference data -------------------------------------------------------
@@ -242,20 +242,28 @@ export class DemoStore implements Store {
 
   // --- seeding --------------------------------------------------------------
 
-  /** Roughly three office days a week per person, as a desk tool would report. */
-  private seedDeskBookings(seed: number): void {
+  /**
+   * Roughly three office days a week per person, as a desk tool would report.
+   * Returns who was booked where, so the rest of the seeding can use it without
+   * going back through the async provider — the constructor cannot await.
+   */
+  private seedDeskBookings(seed: number): Map<string, Set<string>> {
     const rng = createRng(seed + 101);
     const dates = [...pastWeekdays(15), ...upcomingWeekdays(15)];
+    const bookings = new Map<string, Set<string>>();
 
     for (const office of OFFICES) {
       const staff = this.listEmployees(office.id);
       for (const date of dates) {
-        const records = staff
-          .filter(() => rng() < 0.6)
-          .map((e) => ({ employeeId: e.id, officeId: office.id, date }));
-        this.deskFeed.ingest({ date, officeId: office.id }, records);
+        const booked = staff.filter(() => rng() < 0.6);
+        this.deskFeed.ingest(
+          { date, officeId: office.id },
+          booked.map((e) => ({ employeeId: e.id, officeId: office.id, date })),
+        );
+        bookings.set(key(date, office.id), new Set(booked.map((e) => e.id)));
       }
     }
+    return bookings;
   }
 
   /**
@@ -263,13 +271,18 @@ export class DemoStore implements Store {
    * console has a real pool to match on the first click. The signed-in person is
    * left out, so their own opt-in flow is still there to walk through.
    */
-  private seedOptIns(seed: number): void {
+  private seedOptIns(seed: number, bookings: Map<string, Set<string>>): void {
     const rng = createRng(seed + 303);
 
     for (const office of OFFICES) {
       for (const date of upcomingWeekdays(15)) {
+        // Only people who will actually be in the building can ask for a lunch.
+        // Seeding without this check produced opt-ins for people marked "not in
+        // the office", which the matcher ignored but the UI happily displayed.
+        const attending = bookings.get(key(date, office.id)) ?? new Set<string>();
         for (const employee of this.listEmployees(office.id)) {
           if (employee.id === this.currentEmployeeId) continue;
+          if (!attending.has(employee.id)) continue;
           if (rng() >= 0.35) continue;
           this.optIns.set(key(employee.id, date, office.id), {
             employeeId: employee.id,

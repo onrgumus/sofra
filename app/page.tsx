@@ -19,12 +19,18 @@ export default async function EmployeePage() {
   if (!me || !office) return <p>No employee selected.</p>;
 
   const days = await Promise.all(
-    upcomingWeekdays(10).map(async (date) => ({
-      date,
-      source: await store.attendanceSource(employeeId, date, office.id),
-      optIn: store.getOptIn(employeeId, date, office.id),
-      group: store.groupForEmployee(employeeId, date, office.id),
-    })),
+    upcomingWeekdays(10).map(async (date) => {
+      const source = await store.attendanceSource(employeeId, date, office.id);
+      return {
+        date,
+        source,
+        // An opt-in only means anything on a day you are actually in the office.
+        optIn: source === null ? null : store.getOptIn(employeeId, date, office.id),
+        group: store.groupForEmployee(employeeId, date, office.id),
+        /** Tables for this day already exist, so the cut-off has passed. */
+        matched: store.listGroups(date, office.id).length > 0,
+      };
+    }),
   );
 
   return (
@@ -74,7 +80,15 @@ export default async function EmployeePage() {
                   {day.group?.cancelled ? <Pill tone="bad">Table cancelled</Pill> : null}
                 </div>
 
-                {day.group ? <TablePreview group={day.group} meId={employeeId} /> : null}
+                {day.group ? (
+                  <TablePreview group={day.group} meId={employeeId} />
+                ) : day.optIn ? (
+                  <p className="faint" style={{ marginTop: 6 }}>
+                    {day.matched
+                      ? 'Tables for this day were already set before you asked, so there is no seat for you today. Your tick still counts if matching runs again.'
+                      : 'Matching runs the evening before. Your table — three people, their names and what they do — will appear here.'}
+                  </p>
+                ) : null}
               </div>
 
               <div className="day-actions">
