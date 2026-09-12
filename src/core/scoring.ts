@@ -1,6 +1,6 @@
-import { SENIORITY_LADDER } from './types.js';
-import type { Employee, MatchConfig, Seniority } from './types.js';
-import type { MatchHistory } from './history.js';
+import { SENIORITY_LADDER } from './types';
+import type { Employee, MatchConfig, Seniority } from './types';
+import type { MatchHistory } from './history';
 
 /** Tenure gap (months) at which the spread signal saturates. */
 const TENURE_SATURATION = 60;
@@ -11,11 +11,6 @@ const MAX_SENIORITY_DISTANCE = SENIORITY_LADDER.length - 1;
 export interface ScoringContext {
   history: MatchHistory;
   config: MatchConfig;
-  /**
-   * Employee ids that explicitly consented to gender-aware matching for this
-   * slot. Anyone absent from this set has their gender ignored entirely.
-   */
-  balanceConsent: ReadonlySet<string>;
 }
 
 export interface ScoreBreakdown {
@@ -23,7 +18,6 @@ export interface ScoreBreakdown {
   seniority: number;
   tenure: number;
   interests: number;
-  genderBalance: number;
   novelty: number;
   total: number;
 }
@@ -82,24 +76,6 @@ function interestScore(members: readonly Employee[]): number {
   return Math.min(1, connected / ps.length + (groupWide ? 0.25 : 0));
 }
 
-/**
- * Only consenting members with a declared gender are counted. Fewer than two
- * such members means the term is inert, so opting out never costs you a seat.
- */
-function genderBalanceScore(members: readonly Employee[], ctx: ScoringContext): number {
-  const declared = members
-    .filter((m) => ctx.balanceConsent.has(m.id))
-    .map((m) => m.gender)
-    .filter((g): g is NonNullable<typeof g> => g !== undefined && g !== 'undisclosed');
-
-  if (declared.length < 2) return 0;
-
-  const counts = new Map<string, number>();
-  for (const g of declared) counts.set(g, (counts.get(g) ?? 0) + 1);
-  const maxShare = Math.max(...counts.values()) / declared.length;
-  return Math.max(0, Math.min(1, 2 * (1 - maxShare)));
-}
-
 /** Strangers score 1; the signal recovers linearly over twice the cooldown. */
 function noveltyScore(members: readonly Employee[], ctx: ScoringContext): number {
   const ps = pairs(members);
@@ -119,7 +95,6 @@ export function scoreGroup(members: readonly Employee[], ctx: ScoringContext): S
     seniority: seniorityScore(members),
     tenure: tenureScore(members),
     interests: interestScore(members),
-    genderBalance: genderBalanceScore(members, ctx),
     novelty: noveltyScore(members, ctx),
   };
   const total =
@@ -127,7 +102,6 @@ export function scoreGroup(members: readonly Employee[], ctx: ScoringContext): S
     parts.seniority * w.seniority +
     parts.tenure * w.tenure +
     parts.interests * w.interests +
-    parts.genderBalance * w.genderBalance +
     parts.novelty * w.novelty;
   return { ...parts, total };
 }

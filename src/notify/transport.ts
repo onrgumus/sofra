@@ -1,4 +1,4 @@
-import type { Invite } from './invite.js';
+import type { Invite } from './invite';
 
 export interface EmailMessage {
   from: string;

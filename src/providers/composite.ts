@@ -1,4 +1,4 @@
-import type { AttendanceProvider, AttendanceQuery, AttendanceRecord } from './types.js';
+import type { AttendanceProvider, AttendanceQuery, AttendanceRecord } from './types';
 
 /**
  * Runs several sources and unions the result.

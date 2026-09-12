@@ -5,13 +5,13 @@
  *
  *   npm run simulate -- --size 240 --weeks 8 --participation 0.35
  */
-import { matchLunches } from '../core/matcher.js';
-import { DEFAULT_CONFIG } from '../core/types.js';
-import type { Employee, MatchResult, OptIn, PastMatch } from '../core/types.js';
-import { createRng } from '../core/rng.js';
-import { generateCompany } from './company.js';
-import { buildInvite } from '../notify/invite.js';
-import { pairKey } from '../core/history.js';
+import { matchLunches } from '../core/matcher';
+import { DEFAULT_CONFIG } from '../core/types';
+import type { Employee, MatchResult, OptIn, PastMatch } from '../core/types';
+import { createRng } from '../core/rng';
+import { generateCompany } from './company';
+import { buildInvite } from '../notify/invite';
+import { pairKey } from '../core/history';
 
 interface Args {
   size: number;
@@ -58,15 +58,7 @@ function main(): void {
     const date = wednesdayOfWeek(week);
     const optIns: OptIn[] = inOffice
       .filter(() => rng() < args.participation)
-      .map((e) => ({
-        employeeId: e.id,
-        date,
-        officeId: args.office,
-        slot: '12:00',
-        // Roughly a third of people ask for balanced groups; the rest are ignored
-        // by that term entirely, which is the point of making it opt-in.
-        prefersBalancedGroup: rng() < 0.33,
-      }));
+      .map((e) => ({ employeeId: e.id, date, officeId: args.office, slot: '12:00' }));
 
     const result = matchLunches({
       date,

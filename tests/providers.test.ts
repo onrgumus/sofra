@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
-import { parseCsv, CsvAttendanceProvider } from '../src/providers/csv.js';
-import { ManualAttendanceProvider } from '../src/providers/manual.js';
-import { WebhookAttendanceProvider } from '../src/providers/webhook.js';
-import { CompositeAttendanceProvider } from '../src/providers/composite.js';
-import { MsGraphAttendanceProvider } from '../src/providers/msGraph.js';
-import type { AttendanceProvider } from '../src/providers/types.js';
+import { parseCsv, CsvAttendanceProvider } from '../src/providers/csv';
+import { ManualAttendanceProvider } from '../src/providers/manual';
+import { WebhookAttendanceProvider } from '../src/providers/webhook';
+import { CompositeAttendanceProvider } from '../src/providers/composite';
+import { MsGraphAttendanceProvider } from '../src/providers/msGraph';
+import type { AttendanceProvider } from '../src/providers/types';
 
 const QUERY = { date: '2026-09-16', officeId: 'IST-HQ' };
 

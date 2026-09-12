@@ -8,14 +8,14 @@ here rather than discovered during a security review.
 This is not legal advice. It is the reasoning behind the defaults, so your DPO
 and works council have something concrete to react to.
 
-## Gender is opt-in, soft, and inert by default
+## There is no gender field
 
 The intuitive design balances every table by gender — two women, two men. Sofra
-does not implement that, for three reasons:
+does not store gender at all, for three reasons:
 
 1. **Discrimination exposure.** Using gender as a criterion in an automated
    process that allocates a workplace benefit is the shape of a claim, regardless
-   of intent. A quota makes gender determinative for some people's outcome.
+   of intent.
 2. **Works councils.** In Germany, the Netherlands, France and elsewhere, an
    employee representative body must approve tools that process employee data.
    A gender quota is the single most likely thing in this product to be refused.
@@ -23,25 +23,30 @@ does not implement that, for three reasons:
    from department, team, seniority and tenure — attributes already in the org
    chart, with an obvious business justification, and no protected status.
 
-What ships instead:
+An earlier draft made gender optional, consent-gated and soft. That is defensible,
+but it still means holding the data, still means explaining it, and still means a
+conversation with every works council. Not collecting it is simpler and strictly
+safer, and the tables come out the same.
 
-- Declaring gender is **optional**, with `undisclosed` a first-class value.
-- Gender influences matching **only** for people who set
-  `prefersBalancedGroup: true` on that specific opt-in.
-- Fewer than two consenting members at a table makes the term **inert** — so
-  opting out never costs you a seat or a worse table.
-- Even with consent it is a **soft score**, weighted below department and
-  seniority. It never decides on its own.
+This is enforced by a test, not just by convention: `tests/scoring.test.ts`
+asserts that the score breakdown contains no gender term.
 
-This is enforced by tests, not just by convention. See the `gender balance`
-block in `tests/scoring.test.ts`, in particular the case asserting that with no
-consent, a perfectly balanced table and a completely skewed one score
-*identically*.
+Age is handled the same way: Sofra has no age field. Tenure — how long someone
+has worked here — is a legitimate business attribute that correlates with the
+thing we actually want (someone who remembers how the place used to work),
+without being a protected characteristic.
 
-Age is handled the same way, and more conservatively: Sofra has no age field at
-all. Tenure — how long someone has worked here — is a legitimate business
-attribute that correlates with the thing we actually want (someone who remembers
-how the place used to work), without being a protected characteristic.
+## Being in the office is not consent to be matched
+
+Attendance and intent are separate, deliberately. Most office days people are
+there to work with their own team, and a tool that treats presence as
+availability would be reading something into the desk booking that the person
+never said.
+
+So opting in is per day and explicit: a box you tick for one specific date,
+which does nothing to any other day. Nobody is enrolled by their manager, there
+is no standing setting to forget about, and untick is always available until
+matching runs the evening before.
 
 ## Data minimisation
 
@@ -55,7 +60,6 @@ The matcher needs surprisingly little, and takes nothing beyond it:
 | Office, date | Only match people in the same building on the same day | Attendance provider |
 | Languages | Hard constraint; a table must be able to talk | Directory or self-declared |
 | Interests, dietary | Icebreakers and venue choice | Self-declared, optional |
-| Gender | Soft balance, consent-gated | Self-declared, optional |
 
 No location beyond building, no desk number, no meeting-title content, no
 calendar contents, and no free text from anyone's calendar. The Graph provider
@@ -76,12 +80,11 @@ timestamp if your DPO prefers.
 default). Anything older contributes nothing to matching, so delete it. The
 novelty score already treats "never met" and "met long ago" almost identically.
 
-## Participation is voluntary, per slot
+## No measurement of who socialises
 
-Opting in is per lunch, not a standing setting. Nobody is enrolled by their
-manager, attendance is not reported anywhere, and there is no leaderboard. A tool
-that measures who socialises is a different, much worse product — and the moment
-people suspect it exists, they stop opting in.
+Attendance is not reported anywhere and there is no leaderboard. A tool that
+measures who socialises is a different, much worse product — and the moment
+people suspect it exists, they stop ticking the box.
 
 ## Transparency
 

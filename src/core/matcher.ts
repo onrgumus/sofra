@@ -1,4 +1,4 @@
-import { DEFAULT_CONFIG } from './types.js';
+import { DEFAULT_CONFIG } from './types';
 import type {
   Employee,
   MatchConfig,
@@ -8,12 +8,12 @@ import type {
   PastMatch,
   Relaxation,
   Unmatched,
-} from './types.js';
-import { MatchHistory } from './history.js';
-import { RELAXATION_LADDER, canJoin, isValidGroup, sharedLanguages } from './constraints.js';
-import { scoreGroup, type ScoringContext } from './scoring.js';
-import { planGroupSizes } from './planner.js';
-import { createRng, shuffle } from './rng.js';
+} from './types';
+import { MatchHistory } from './history';
+import { RELAXATION_LADDER, canJoin, isValidGroup, sharedLanguages } from './constraints';
+import { scoreGroup, type ScoringContext } from './scoring';
+import { planGroupSizes } from './planner';
+import { createRng, shuffle } from './rng';
 
 /**
  * Cost of bending a rule, subtracted from a group's score. Large enough that the
@@ -61,7 +61,6 @@ export function matchLunches(request: MatchRequest): MatchResult {
   const ctx: ScoringContext = {
     history: new MatchHistory(request.pastMatches ?? [], date),
     config,
-    balanceConsent: new Set(relevant.filter((o) => o.prefersBalancedGroup).map((o) => o.employeeId)),
   };
 
   const unmatched: Unmatched[] = [];

@@ -3,8 +3,8 @@ import type {
   AttendanceQuery,
   AttendanceRecord,
   EmployeeIdResolver,
-} from './types.js';
-import { identityResolver } from './types.js';
+} from './types';
+import { identityResolver } from './types';
 
 export interface CsvProviderOptions {
   /** Returns the raw CSV for a day. Usually an SFTP drop or an S3 object. */

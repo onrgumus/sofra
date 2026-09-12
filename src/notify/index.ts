@@ -1,3 +1,3 @@
-export * from './ics.js';
-export * from './invite.js';
-export * from './transport.js';
+export * from './ics';
+export * from './invite';
+export * from './transport';

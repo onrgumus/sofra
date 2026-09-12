@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildIcs, zonedTimeToUtc } from '../src/notify/ics.js';
+import { buildIcs, zonedTimeToUtc } from '../src/notify/ics';
 
 const base = {
   uid: 'group-1@sofra',

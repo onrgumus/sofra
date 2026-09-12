@@ -1,0 +1,138 @@
+import Link from 'next/link';
+import { getStore } from '../../../src/store/instance';
+import { formatDay } from '../../../src/lib/dates';
+import { toVenue } from '../../../src/lib/venue';
+import { buildInvite } from '../../../src/notify/invite';
+import { respondToInvite } from '../../actions';
+import { PersonRow, Pill } from '../../ui';
+
+export default async function ConfirmPage({ params }: { params: Promise<{ groupId: string }> }) {
+  const store = getStore();
+  const { groupId } = await params;
+  const group = store.getGroup(decodeURIComponent(groupId));
+
+  if (!group) {
+    return (
+      <main>
+        <div className="page-head">
+          <h1>This table no longer exists</h1>
+          <p>It may have been re-matched. Your latest invite is always on your lunches page.</p>
+        </div>
+        <Link className="button" href="/">
+          Back to your lunches
+        </Link>
+      </main>
+    );
+  }
+
+  const office = store.getOffice(group.officeId)!;
+  const meId = store.getCurrentEmployeeId();
+  const me = group.members.find((m) => m.id === meId);
+  const myStatus = me ? group.rsvps[me.id] : undefined;
+
+  const invite = buildInvite({
+    group,
+    venue: toVenue(office),
+    organizer: { name: 'Sofra', email: 'sofra@example.com' },
+  });
+
+  const coming = Object.values(group.rsvps).filter((s) => s === 'accepted').length;
+  const declined = Object.values(group.rsvps).filter((s) => s === 'declined').length;
+
+  return (
+    <main>
+      <div className="page-head">
+        <h1>
+          {formatDay(group.date)} · {group.slot}
+        </h1>
+        <p>
+          {office.displayName} — {office.meetingPoint}
+        </p>
+      </div>
+
+      {group.cancelled ? (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <div className="row">
+            <Pill tone="bad">cancelled</Pill>
+            <span className="muted">
+              Too many people dropped out to keep this table worth having. Everyone has been told —
+              nobody will turn up to an empty table.
+            </span>
+          </div>
+        </div>
+      ) : null}
+
+      <section>
+        <article className="card">
+          <div className="spread">
+            <h2>Your table</h2>
+            <span className="faint">
+              {coming} coming · {declined} out · {group.members.length - coming - declined} yet to
+              reply
+            </span>
+          </div>
+
+          <div className="people">
+            {group.members.map((person) => (
+              <PersonRow
+                key={person.id}
+                person={person}
+                rsvp={group.rsvps[person.id]}
+                highlight={person.id === meId}
+              />
+            ))}
+          </div>
+
+          {group.dietary.length > 0 ? (
+            <p className="faint" style={{ marginTop: 10 }}>
+              Dietary needs at this table: {group.dietary.join(', ')}. Pick somewhere that works for
+              everyone.
+            </p>
+          ) : null}
+        </article>
+      </section>
+
+      {me && !group.cancelled ? (
+        <section>
+          <div className="section-head">
+            <h2>Can you make it?</h2>
+            <p>Let us know by 10:00 so the table can be reseated.</p>
+          </div>
+          <div className="row">
+            <form action={respondToInvite}>
+              <input type="hidden" name="groupId" value={group.id} />
+              <input type="hidden" name="employeeId" value={me.id} />
+              <input type="hidden" name="status" value="accepted" />
+              <button type="submit" data-variant={myStatus === 'accepted' ? undefined : 'primary'}>
+                {myStatus === 'accepted' ? "You're coming" : "I'll be there"}
+              </button>
+            </form>
+            <form action={respondToInvite}>
+              <input type="hidden" name="groupId" value={group.id} />
+              <input type="hidden" name="employeeId" value={me.id} />
+              <input type="hidden" name="status" value="declined" />
+              <button type="submit" data-variant="danger">
+                {myStatus === 'declined' ? "You're out" : "Can't make it"}
+              </button>
+            </form>
+          </div>
+        </section>
+      ) : null}
+
+      {!me ? (
+        <section>
+          <p className="faint">
+            You are not at this table. Switch account in the header to respond as someone who is.
+          </p>
+        </section>
+      ) : null}
+
+      <section>
+        <details open>
+          <summary>The invite everyone received</summary>
+          <div className="invite">{invite.text}</div>
+        </details>
+      </section>
+    </main>
+  );
+}

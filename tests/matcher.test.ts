@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { matchLunches } from '../src/core/matcher.js';
-import { DEFAULT_CONFIG } from '../src/core/types.js';
-import { distinctPeople, employee, optIn } from './helpers.js';
+import { matchLunches } from '../src/core/matcher';
+import { DEFAULT_CONFIG } from '../src/core/types';
+import { distinctPeople, employee, optIn } from './helpers';
 
 const DATE = '2026-09-16';
 

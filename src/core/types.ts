@@ -19,13 +19,6 @@ export const SENIORITY_LADDER = [
 
 export type Seniority = (typeof SENIORITY_LADDER)[number];
 
-/**
- * Self-declared, optional, and consent-gated. Never required to use the product,
- * and only ever used as a soft preference for people who explicitly asked for
- * balanced groups. See docs/privacy.md for why this is not a hard constraint.
- */
-export type DeclaredGender = 'female' | 'male' | 'non_binary' | 'undisclosed';
-
 export interface Employee {
   id: string;
   displayName: string;
@@ -43,10 +36,15 @@ export interface Employee {
   interests: string[];
   /** e.g. ['vegetarian', 'halal'] — carried to the invite as venue guidance. */
   dietary: string[];
-  gender?: DeclaredGender;
 }
 
-/** A person raising their hand for one specific lunch slot. */
+/**
+ * One person saying "today I want to eat with people from other teams".
+ *
+ * Being in the office is not this. Plenty of days you go in to sit with your own
+ * team and get work done — that is fine, and Sofra leaves you alone unless you
+ * raise your hand for a specific day.
+ */
 export interface OptIn {
   employeeId: string;
   /** ISO date, e.g. '2026-09-16'. */
@@ -54,11 +52,6 @@ export interface OptIn {
   officeId: string;
   /** Local time, e.g. '12:00'. */
   slot: string;
-  /**
-   * Explicit consent for gender to influence matching. False (the default) means
-   * the matcher ignores `Employee.gender` entirely for this person.
-   */
-  prefersBalancedGroup: boolean;
 }
 
 /** One past lunch, used to avoid re-matching the same people too soon. */
@@ -73,7 +66,6 @@ export interface MatchWeights {
   seniority: number;
   tenure: number;
   interests: number;
-  genderBalance: number;
   novelty: number;
 }
 
@@ -94,14 +86,13 @@ export interface MatchConfig {
 export const DEFAULT_CONFIG: MatchConfig = {
   groupSize: 4,
   minGroupSize: 3,
-  maxGroupSize: 5,
+  maxGroupSize: 4,
   repeatCooldownDays: 60,
   weights: {
     department: 1.0,
     seniority: 1.0,
     tenure: 0.4,
     interests: 0.6,
-    genderBalance: 0.5,
     novelty: 0.8,
   },
   localSearchIterations: 400,

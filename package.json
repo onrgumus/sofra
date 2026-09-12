@@ -4,8 +4,13 @@
   "description": "Diversity-aware lunch matching for hybrid offices. Works with any desk-booking system.",
   "license": "MIT",
   "type": "module",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
     "simulate": "tsx src/sim/run.ts",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -13,8 +18,15 @@
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"
+  },
+  "dependencies": {
+    "next": "^15.5.25",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
   }
 }

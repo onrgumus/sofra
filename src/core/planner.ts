@@ -1,4 +1,4 @@
-import type { MatchConfig } from './types.js';
+import type { MatchConfig } from './types';
 
 /**
  * Decide how many groups to form and how big each one is.

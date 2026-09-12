@@ -3,8 +3,8 @@ import type {
   AttendanceQuery,
   AttendanceRecord,
   EmployeeIdResolver,
-} from './types.js';
-import { identityResolver } from './types.js';
+} from './types';
+import { identityResolver } from './types';
 
 /** Whatever Graph returned for one calendar entry. Deliberately untyped. */
 export type GraphEvent = Record<string, unknown>;

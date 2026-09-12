@@ -1,5 +1,5 @@
-import type { Employee, MatchConfig, Relaxation } from './types.js';
-import type { MatchHistory } from './history.js';
+import type { Employee, MatchConfig, Relaxation } from './types';
+import type { MatchHistory } from './history';
 
 /**
  * The relaxation ladder. We try to honour every rule; if the pool is too

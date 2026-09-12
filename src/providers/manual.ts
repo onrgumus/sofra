@@ -1,4 +1,4 @@
-import type { AttendanceProvider, AttendanceQuery, AttendanceRecord } from './types.js';
+import type { AttendanceProvider, AttendanceQuery, AttendanceRecord } from './types';
 
 /**
  * People tell Sofra directly that they will be in the office.

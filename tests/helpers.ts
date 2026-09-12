@@ -1,4 +1,4 @@
-import type { Employee, OptIn, Seniority } from '../src/core/types.js';
+import type { Employee, OptIn, Seniority } from '../src/core/types';
 
 export function employee(id: string, overrides: Partial<Employee> = {}): Employee {
   return {
@@ -24,7 +24,6 @@ export function optIn(employeeId: string, overrides: Partial<OptIn> = {}): OptIn
     date: '2026-09-16',
     officeId: 'HQ',
     slot: '12:00',
-    prefersBalancedGroup: false,
     ...overrides,
   };
 }

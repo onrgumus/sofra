@@ -1,5 +1,5 @@
-import type { MatchedGroup } from '../core/types.js';
-import { buildIcs, type IcsAttendee } from './ics.js';
+import type { MatchedGroup } from '../core/types';
+import { buildIcs, type IcsAttendee } from './ics';
 
 export interface OfficeVenue {
   officeId: string;
@@ -27,15 +27,26 @@ export interface Invite {
   html: string;
   ics: string;
   to: IcsAttendee[];
+  /** The conversation topic chosen for this table, exposed for the admin view. */
+  topic: string;
 }
 
 export type SupportedLanguage = 'en' | 'tr';
 
+/**
+ * One mail addressed to the whole table, not four separate notes.
+ *
+ * The difference matters: everyone sees the same names at the same moment, can
+ * reply to each other before lunch, and nobody has to wonder whether the others
+ * actually got it.
+ */
 export function buildInvite(options: InviteOptions): Invite {
   const { group, venue, organizer } = options;
   const durationMinutes = options.durationMinutes ?? 60;
   const lang = options.language ?? pickLanguage(group.commonLanguages);
   const t = STRINGS[lang];
+  const topic = pickTopic(group.id, lang);
+  const subject = t.subject(group.members.length);
 
   const attendees: IcsAttendee[] = group.members.map((m) => ({
     name: m.displayName,
@@ -45,7 +56,6 @@ export function buildInvite(options: InviteOptions): Invite {
   const roster = group.members
     .map((m) => `• ${m.displayName} — ${m.title}, ${m.department} (${teamName(m.team)})`)
     .join('\n');
-  const icebreakers = buildIcebreakers(group, lang);
 
   const sections = [
     t.intro(group.members.length, group.slot),
@@ -56,8 +66,16 @@ export function buildInvite(options: InviteOptions): Invite {
     t.whoHeading,
     roster,
     '',
+    t.startHeading,
+    t.startBody,
+    '',
+    t.topicHeading,
+    topic,
+    '',
     t.icebreakerHeading,
-    icebreakers.map((q) => `• ${q}`).join('\n'),
+    buildIcebreakers(group, lang)
+      .map((q) => `• ${q}`)
+      .join('\n'),
   ];
 
   if (group.dietary.length > 0) {
@@ -76,14 +94,14 @@ export function buildInvite(options: InviteOptions): Invite {
     startTime: group.slot,
     durationMinutes,
     timeZone: venue.timeZone,
-    summary: t.subject,
+    summary: subject,
     description: text,
     location: `${venue.displayName} — ${venue.meetingPoint}`,
     organizer,
     attendees,
   });
 
-  return { subject: t.subject, text, html: toHtml(text), ics, to: attendees };
+  return { subject, text, html: toHtml(text), ics, to: attendees, topic };
 }
 
 /**
@@ -95,6 +113,18 @@ function pickLanguage(commonLanguages: readonly string[]): SupportedLanguage {
     if (lang === 'tr' || lang === 'en') return lang;
   }
   return 'en';
+}
+
+/**
+ * A topic per table, stable for a given group so re-sending an invite does not
+ * change what people prepared for, and varied across tables so the same four
+ * departments are not all having the same conversation.
+ */
+export function pickTopic(groupId: string, lang: SupportedLanguage): string {
+  const topics = STRINGS[lang].topics;
+  let hash = 0;
+  for (let i = 0; i < groupId.length; i++) hash = (hash * 31 + groupId.charCodeAt(i)) >>> 0;
+  return topics[hash % topics.length]!;
 }
 
 /**
@@ -134,27 +164,33 @@ function sharedInterest(group: MatchedGroup): string | null {
 }
 
 function toHtml(text: string): string {
-  const escaped = text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+  const escaped = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   return `<div style="font-family:system-ui,-apple-system,Segoe UI,sans-serif;font-size:15px;line-height:1.55">${escaped.replace(
     /\n/g,
     '<br>',
   )}</div>`;
 }
 
+/** Tables are three or four, so the subject line can say so in words. */
+const EN_NUMBERS: Record<number, string> = { 3: 'three', 4: 'four', 5: 'five' };
+const TR_TOGETHER: Record<number, string> = { 3: 'üçünüz', 4: 'dördünüz', 5: 'beşiniz' };
+
 const STRINGS = {
   en: {
-    subject: 'Lunch with three people you have not met',
+    subject: (count: number) => `Lunch today at 12:00 — the ${EN_NUMBERS[count] ?? count} of you`,
     intro: (count: number, slot: string) =>
-      `You are one of ${count} people having lunch together at ${slot} today. You work at the same company and, as far as we can tell, you have never had lunch together.`,
+      `The ${count} of you are having lunch together at ${slot} today. You work at the same company, you are all in the building, and none of you have had lunch together before. This mail went to all ${count} of you at once, so just reply here to sort out where you are going.`,
     whereHeading: 'Where',
     whoHeading: 'Who',
+    startHeading: 'How to start',
+    startBody:
+      'Go round the table before you order. Name, which team you are on, what you actually work on day to day, and what you were doing before you got here. That last one is usually where the interesting part is.',
+    topicHeading: "Today's topic",
     icebreakerHeading: 'If the conversation stalls',
     dietaryHeading: 'Dietary needs at this table',
-    confirm: (url: string) => `Cannot make it? Let us know by 10:00 so we can reseat the table: ${url}`,
-    footer: 'Sent by Sofra. You opted in for this slot; you can opt out any time.',
+    confirm: (url: string) =>
+      `Cannot make it? Let us know by 10:00 so we can reseat the table: ${url}`,
+    footer: 'Sent by Sofra. You asked for this one day; you are not signed up for anything else.',
     icebreakerShared: (interest: string) => `You all put "${interest}" on your profile. Start there.`,
     icebreakerDepartments: (departments: string[]) =>
       `${departments.join(', ')} are at this table. What does each of you think the others actually do all day?`,
@@ -164,18 +200,33 @@ const STRINGS = {
       'What is one thing your team is working on that nobody outside it knows about?',
       'What is the best decision your team made this year, and the worst?',
     ],
+    topics: [
+      'What your team is actually measured on — and whether that is the right thing to measure.',
+      'The one process at this company you would delete tomorrow if it were up to you.',
+      'What you worked on before this job, and what it taught you that still holds.',
+      'What other teams consistently misunderstand about yours.',
+      'A decision your team got right this year, and one it got wrong.',
+      'The tool or habit you could not do your job without.',
+      'What you would work on here if nobody assigned you anything for a month.',
+      'The part of your job that would surprise someone outside your department.',
+    ],
   },
   tr: {
-    subject: 'Bugün öğle yemeği: hiç tanışmadığın üç kişi',
+    subject: (count: number) => `Bugün 12:00 öğle yemeği — ${TR_TOGETHER[count] ?? `${count} kişi`}`,
     intro: (count: number, slot: string) =>
-      `Bugün saat ${slot}'de birlikte yemek yiyecek ${count} kişiden birisin. Aynı şirkette çalışıyorsunuz ve bildiğimiz kadarıyla daha önce hiç birlikte yemek yemediniz.`,
+      `Bugün saat ${slot}'de ${count} kişi birlikte yemek yiyeceksiniz. Aynı şirkette çalışıyorsunuz, hepiniz bugün ofistesiniz ve daha önce hiç birlikte yemek yemediniz. Bu mail ${count}'inize aynı anda gitti; nereye gideceğinizi buradan yanıtlayarak kararlaştırabilirsiniz.`,
     whereHeading: 'Nerede',
     whoHeading: 'Kimler',
+    startHeading: 'Nasıl başlanır',
+    startBody:
+      'Sipariş vermeden önce masayı bir tur dolaşın. Adınız, hangi ekipte olduğunuz, gün içinde gerçekte ne yaptığınız ve buraya gelmeden önce nerede çalıştığınız. İşin ilginç kısmı genelde bu sonuncusunda çıkar.',
+    topicHeading: 'Bugünün konusu',
     icebreakerHeading: 'Sohbet tıkanırsa',
     dietaryHeading: 'Bu masadaki beslenme tercihleri',
     confirm: (url: string) =>
       `Gelemiyor musun? Masayı yeniden kurabilmemiz için 10:00'a kadar haber ver: ${url}`,
-    footer: 'Sofra tarafından gönderildi. Bu slot için sen katılmayı seçtin; istediğin an çıkabilirsin.',
+    footer:
+      'Sofra tarafından gönderildi. Sadece bu gün için katılmayı seçtin; başka hiçbir şeye kaydolmadın.',
     icebreakerShared: (interest: string) =>
       `Hepiniz profilinize "${interest}" yazmışsınız. Oradan başlayın.`,
     icebreakerDepartments: (departments: string[]) =>
@@ -185,6 +236,16 @@ const STRINGS = {
     icebreakerDefaults: [
       'Ekibinin üzerinde çalıştığı, dışarıdan kimsenin bilmediği bir şey ne?',
       'Ekibinin bu yıl aldığı en iyi karar hangisiydi, en kötüsü hangisi?',
+    ],
+    topics: [
+      'Ekibin gerçekte neye göre ölçülüyor — ve ölçülmesi gereken şey bu mu?',
+      'Sana kalsa yarın kaldıracağın tek şirket içi süreç hangisi?',
+      'Bu işten önce ne yapıyordun ve oradan öğrenip hâlâ kullandığın şey ne?',
+      'Diğer ekipler seninkiyle ilgili sürekli neyi yanlış anlıyor?',
+      'Ekibinin bu yıl doğru yaptığı bir karar ve yanlış yaptığı bir karar.',
+      'Onsuz işini yapamayacağın araç ya da alışkanlık hangisi?',
+      'Bir ay boyunca kimse sana iş vermese burada neyin üzerinde çalışırdın?',
+      'İşinin, departmanın dışındaki birini en çok şaşırtacak kısmı hangisi?',
     ],
   },
 } as const;

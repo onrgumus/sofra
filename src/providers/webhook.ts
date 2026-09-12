@@ -1,4 +1,4 @@
-import type { AttendanceProvider, AttendanceQuery, AttendanceRecord } from './types.js';
+import type { AttendanceProvider, AttendanceQuery, AttendanceRecord } from './types';
 
 /**
  * For companies whose desk tool can push. They POST attendance to us; we keep the

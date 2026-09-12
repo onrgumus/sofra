@@ -1,6 +1,6 @@
-import { createRng } from '../core/rng.js';
-import { SENIORITY_LADDER } from '../core/types.js';
-import type { DeclaredGender, Employee, Seniority } from '../core/types.js';
+import { createRng } from '../core/rng';
+import { SENIORITY_LADDER } from '../core/types';
+import type { Employee, Seniority } from '../core/types';
 
 /**
  * A synthetic company, so the engine can be demonstrated and regression-tested
@@ -43,9 +43,6 @@ const INTERESTS = [
   'live music', 'football', 'chess', 'hiking', 'sci-fi', 'podcasts',
   'woodworking', 'gardening', 'sailing', 'basketball',
 ];
-
-const GENDERS: DeclaredGender[] = ['female', 'male', 'non_binary', 'undisclosed'];
-const GENDER_WEIGHTS = [0.44, 0.5, 0.02, 0.04];
 
 const FIRST_NAMES = [
   'Ada', 'Deniz', 'Elif', 'Kerem', 'Mira', 'Onur', 'Selin', 'Tarık', 'Yusuf', 'Zeynep',
@@ -97,7 +94,6 @@ export function generateCompany(options: CompanyOptions): Employee[] {
       tenureMonths: Math.floor(rng() ** 2 * 120), // skewed towards recent hires
       interests: pickMany(INTERESTS, 1 + Math.floor(rng() * 3), rng),
       dietary: rng() < 0.18 ? [pick(['vegetarian', 'vegan', 'halal', 'gluten-free'], rng)] : [],
-      gender: weightedPick(GENDERS, (_, i) => GENDER_WEIGHTS[i] ?? 0, rng),
     });
   }
 
