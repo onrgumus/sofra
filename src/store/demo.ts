@@ -62,7 +62,6 @@ export class DemoStore implements Store {
   private readonly seededHistory: PastMatch[] = [];
   private readonly unmatched = new Map<string, Unmatched[]>();
 
-  private currentEmployeeId: string;
   private readonly config = DEFAULT_CONFIG;
 
   constructor(seed = 7, size = 240) {
@@ -73,7 +72,6 @@ export class DemoStore implements Store {
       officeLanguages: OFFICE_LANGUAGES,
     });
     this.employeeById = new Map(this.employees.map((e) => [e.id, e]));
-    this.currentEmployeeId = this.employees.find((e) => e.officeId === 'IST-HQ')!.id;
 
     const bookings = this.seedDeskBookings(seed);
     this.seedHistory(seed);
@@ -181,7 +179,8 @@ export class DemoStore implements Store {
 
   groupForEmployee(employeeId: string, date: string, officeId: string): StoredGroup | null {
     return (
-      this.listGroups(date, officeId).find((g) => g.members.some((m) => m.id === employeeId)) ?? null
+      this.listGroups(date, officeId).find((g) => g.members.some((m) => m.id === employeeId)) ??
+      null
     );
   }
 
@@ -303,16 +302,6 @@ export class DemoStore implements Store {
     return [...this.seededHistory, ...fromGroups];
   }
 
-  // --- demo session ---------------------------------------------------------
-
-  getCurrentEmployeeId(): string {
-    return this.currentEmployeeId;
-  }
-
-  setCurrentEmployeeId(employeeId: string): void {
-    if (this.employeeById.has(employeeId)) this.currentEmployeeId = employeeId;
-  }
-
   // --- seeding --------------------------------------------------------------
 
   /**
@@ -342,8 +331,9 @@ export class DemoStore implements Store {
 
   /**
    * Colleagues who have already asked for a lunch on the coming days, so the
-   * console has a real pool to match on the first click. The signed-in person is
-   * left out, so their own opt-in flow is still there to walk through.
+   * console has a real pool to match on the first click. Roughly a third of the
+   * people in the building on a given day, which leaves any visitor a mix of
+   * days already ticked and days still to decide.
    */
   private seedOptIns(seed: number, bookings: Map<string, Set<string>>): void {
     const rng = createRng(seed + 303);
@@ -355,7 +345,6 @@ export class DemoStore implements Store {
         // the office", which the matcher ignored but the UI happily displayed.
         const attending = bookings.get(key(date, office.id)) ?? new Set<string>();
         for (const employee of this.listEmployees(office.id)) {
-          if (employee.id === this.currentEmployeeId) continue;
           if (!attending.has(employee.id)) continue;
           if (rng() >= 0.35) continue;
           this.optIns.set(key(employee.id, date, office.id), {

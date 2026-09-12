@@ -1,4 +1,11 @@
-import type { Employee, MatchResult, MatchedGroup, OptIn, PastMatch, Unmatched } from '../core/types';
+import type {
+  Employee,
+  MatchResult,
+  MatchedGroup,
+  OptIn,
+  PastMatch,
+  Unmatched,
+} from '../core/types';
 
 export type RsvpStatus = 'pending' | 'accepted' | 'declined';
 
@@ -50,8 +57,17 @@ export interface Store {
 
   /** Runs the composite attendance provider for that day. */
   getAttendance(date: string, officeId: string): Promise<string[]>;
-  attendanceSource(employeeId: string, date: string, officeId: string): Promise<AttendanceSource | null>;
-  setSelfDeclaredAttendance(employeeId: string, date: string, officeId: string, attending: boolean): void;
+  attendanceSource(
+    employeeId: string,
+    date: string,
+    officeId: string,
+  ): Promise<AttendanceSource | null>;
+  setSelfDeclaredAttendance(
+    employeeId: string,
+    date: string,
+    officeId: string,
+    attending: boolean,
+  ): void;
 
   listOptIns(date: string, officeId: string): OptIn[];
   getOptIn(employeeId: string, date: string, officeId: string): OptIn | null;
@@ -74,8 +90,4 @@ export interface Store {
   setRsvp(groupId: string, employeeId: string, status: RsvpStatus): void;
 
   listPastMatches(): PastMatch[];
-
-  /** Demo affordance: the app has no auth, so "who am I" is switchable. */
-  getCurrentEmployeeId(): string;
-  setCurrentEmployeeId(employeeId: string): void;
 }

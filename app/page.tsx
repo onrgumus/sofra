@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { getStore } from '../src/store/instance';
+import { currentEmployeeId } from '../src/lib/session';
 import { SLOT } from '../src/store/demo';
 import { formatDay, todayInZone, upcomingWeekdays } from '../src/lib/dates';
 import type { StoredGroup } from '../src/store/types';
@@ -12,7 +13,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function EmployeePage() {
   const store = getStore();
-  const employeeId = store.getCurrentEmployeeId();
+  const employeeId = await currentEmployeeId(store);
   const me = store.getEmployee(employeeId);
   const office = me ? store.getOffice(me.officeId) : undefined;
 
@@ -49,7 +50,8 @@ export default async function EmployeePage() {
         <div className="section-head">
           <h2>The next two weeks</h2>
           <p>
-            Office days come from your company's desk-booking system. You can also just tell us.
+            Office days come from your company&apos;s desk-booking system. You can also just tell
+            us.
           </p>
         </div>
 
@@ -69,9 +71,7 @@ export default async function EmployeePage() {
                     <>
                       <Pill tone="accent">In the office</Pill>
                       <span className="faint">
-                        {day.source === 'desk-booking'
-                          ? 'from your desk booking'
-                          : 'you told us'}
+                        {day.source === 'desk-booking' ? 'from your desk booking' : 'you told us'}
                       </span>
                     </>
                   )}
@@ -98,7 +98,7 @@ export default async function EmployeePage() {
                     <input type="hidden" name="date" value={day.date} />
                     <input type="hidden" name="officeId" value={office.id} />
                     <input type="hidden" name="attending" value="true" />
-                    <button type="submit">I'll be in</button>
+                    <button type="submit">I&apos;ll be in</button>
                   </form>
                 ) : day.group ? (
                   <Link className="button" href={`/c/${encodeURIComponent(day.group.id)}`}>
@@ -136,11 +136,11 @@ export default async function EmployeePage() {
 
       <section>
         <div className="note">
-          Matching runs the evening before, and everyone who ticked the box that day is split
-          evenly into tables of three or four. One mail goes to the whole table at once, with a
-          topic to start on. Nobody sees who opted in and attendance is not reported to anyone. If
-          a table drops below three people, whoever still wants lunch is moved to another table
-          rather than left with nothing.
+          Matching runs the evening before, and everyone who ticked the box that day is split evenly
+          into tables of three or four. One mail goes to the whole table at once, with a topic to
+          start on. Nobody sees who opted in and attendance is not reported to anyone. If a table
+          drops below three people, whoever still wants lunch is moved to another table rather than
+          left with nothing.
         </div>
       </section>
     </main>

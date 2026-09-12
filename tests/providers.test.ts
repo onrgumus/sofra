@@ -119,8 +119,12 @@ describe('MsGraphAttendanceProvider', () => {
   it('tells buildings apart when office name patterns are configured', async () => {
     const result = await provider(
       {
-        'ada@example.com': [{ workingLocationType: 'office', location: { displayName: 'Istanbul HQ' } }],
-        'bruno@example.com': [{ workingLocationType: 'office', location: { displayName: 'Amsterdam 1' } }],
+        'ada@example.com': [
+          { workingLocationType: 'office', location: { displayName: 'Istanbul HQ' } },
+        ],
+        'bruno@example.com': [
+          { workingLocationType: 'office', location: { displayName: 'Amsterdam 1' } },
+        ],
       },
       { officeNamePatterns: { 'IST-HQ': /istanbul/i } },
     ).getAttendance(QUERY);

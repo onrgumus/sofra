@@ -28,13 +28,13 @@ interface AttendanceProvider {
 
 Who is in this building on this day? That is the entire integration surface.
 
-| Provider | Integration cost | Where it fits |
-|---|---|---|
-| `ManualAttendanceProvider` | none | Every company, day one. People just tell the app. |
-| `MsGraphAttendanceProvider` | low | Most desk tools write the booking back to Outlook, so reading Outlook covers them all without touching any of them. |
-| `CsvAttendanceProvider` | low | IT can always produce a CSV, even when procurement will not approve an API. |
-| `WebhookAttendanceProvider` | low | For desk tools that can push. |
-| `CompositeAttendanceProvider` | — | Real rollouts are mixed. Union the sources; one being down does not cancel lunch. |
+| Provider                      | Integration cost | Where it fits                                                                                                       |
+| ----------------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `ManualAttendanceProvider`    | none             | Every company, day one. People just tell the app.                                                                   |
+| `MsGraphAttendanceProvider`   | low              | Most desk tools write the booking back to Outlook, so reading Outlook covers them all without touching any of them. |
+| `CsvAttendanceProvider`       | low              | IT can always produce a CSV, even when procurement will not approve an API.                                         |
+| `WebhookAttendanceProvider`   | low              | For desk tools that can push.                                                                                       |
+| `CompositeAttendanceProvider` | —                | Real rollouts are mixed. Union the sources; one being down does not cancel lunch.                                   |
 
 Start with `Manual`, add a real feed once the habit exists.
 
@@ -191,24 +191,100 @@ invite never mentions what anyone eats. See [docs/privacy.md](docs/privacy.md).
 
 Built and tested: the matching engine, the provider abstraction with five
 implementations, ICS generation, bilingual invite content with topics, the email
-transport layer, the simulator, and a Next.js app — per-day opt-in, a matching
-console that shows the score behind every table, and the confirm-by-10:00 flow
-that reseats people when a table collapses. 94 tests.
+transport layer, the simulator, the nightly job, and a Next.js app — per-day
+opt-in, a matching console that shows the score behind every table, and the
+confirm-by-10:00 flow that reseats people when a table collapses. 102 tests.
 
 Run it with `npm run dev`. The app is seeded with a synthetic company through an
-in-memory store, so it needs no database and no API keys; swap
-`src/store/instance.ts` for a Postgres implementation of the same interface and
-nothing else changes. Set `SOFRA_BASE_URL` when you deploy it — the confirm link
-goes into an email, so it cannot be a relative path.
+in-memory store, so it needs no database and no API keys.
 
 Dates are resolved in each office's own timezone rather than the server's, since
 Istanbul and Amsterdam are on different dates for part of every day.
 
-Not built yet: authentication, persistence, and the cron entry point that calls
-`runMatching` the evening before. The demo has an account switcher in place of
-sign-in, so every RSVP form carries the employee id — real auth derives it from
-the session instead, and that is the one line that must change before anyone
-outside a demo uses it.
+Not built yet: authentication and persistence. The demo puts a visitor on a
+colleague via a cookie and lets them switch, in place of sign-in; replacing
+`src/lib/session.ts` is the whole of adding real auth, and swapping
+`src/store/instance.ts` for a Postgres implementation of the same interface is
+the whole of adding a database.
+
+## The nightly job
+
+Matching is not something anyone should have to remember to press. `GET
+/api/cron` plans the next working day for every office and mails one invite per
+table; `vercel.json` schedules it for 17:00 on weekdays, and any scheduler that
+can send a header will do.
+
+```bash
+curl -H "Authorization: Bearer $CRON_SECRET" https://your-instance/api/cron
+```
+
+```json
+{
+  "ranAt": "2026-09-12T18:10:00.415Z",
+  "offices": [
+    {
+      "officeId": "IST-HQ",
+      "date": "2026-09-14",
+      "optedIn": 27,
+      "tables": 7,
+      "seated": 27,
+      "unseated": 0,
+      "invitesSent": 7
+    },
+    {
+      "officeId": "AMS-1",
+      "date": "2026-09-14",
+      "optedIn": 35,
+      "tables": 9,
+      "seated": 35,
+      "unseated": 0,
+      "invitesSent": 9
+    }
+  ]
+}
+```
+
+Without `CRON_SECRET` set the endpoint refuses to run rather than running
+openly — anyone who could reach it would be able to reshuffle tomorrow's tables
+and mail the whole company. The admin console's button calls exactly the same
+`planDay`, so what you see there is what the cron produces.
+
+## Configuration
+
+Copy `.env.example` to `.env.local`.
+
+| Variable           | What it does                                                                                |
+| ------------------ | ------------------------------------------------------------------------------------------- |
+| `SOFRA_BASE_URL`   | Public URL of this instance. The confirm link goes into an email, so it cannot be relative. |
+| `CRON_SECRET`      | Shared secret for `/api/cron`. No secret, no nightly run.                                   |
+| `SOFRA_FROM_EMAIL` | Envelope sender for invites.                                                                |
+| `RESEND_API_KEY`   | Only once you swap `ConsoleTransport` for `ResendTransport`.                                |
+
+## Project layout
+
+```
+src/core/       the matching engine — pure, no I/O, no framework
+src/providers/  the only place that knows a desk-booking system exists
+src/notify/     invite content, ICS generation, email transports
+src/store/      persistence behind one interface; an in-memory demo implementation
+src/lib/        session, config, dates, and the nightly job
+src/sim/        synthetic company and the simulator
+app/            Next.js app router: opt-in page, matching console, RSVP page
+```
+
+## Quality
+
+```bash
+npm run typecheck   # tsc, strict, noUncheckedIndexedAccess
+npm run lint        # eslint, zero warnings tolerated
+npm run format      # prettier
+npm test            # 102 tests
+npm run build       # production build
+```
+
+CI runs all five on every push and pull request. The engine has no runtime
+dependencies, so the tests are fast enough to keep running as you work:
+`npm run test:watch`.
 
 One thing to verify before production: `MsGraphAttendanceProvider`'s default
 predicate. Outlook's work-location feature has shipped under more than one shape,

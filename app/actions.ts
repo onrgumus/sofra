@@ -1,12 +1,13 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { matchLunches } from '../src/core/matcher';
 import { buildInvite } from '../src/notify/invite';
 import { ConsoleTransport, sendInvite } from '../src/notify/transport';
 import { getStore } from '../src/store/instance';
+import { planDay } from '../src/lib/nightly';
 import { toVenue } from '../src/lib/venue';
 import { confirmUrl } from '../src/lib/config';
+import { setCurrentEmployeeId } from '../src/lib/session';
 import { SLOT } from '../src/store/demo';
 import type { RsvpStatus } from '../src/store/types';
 
@@ -21,7 +22,10 @@ function required(formData: FormData, field: string): string {
 }
 
 export async function switchEmployee(formData: FormData): Promise<void> {
-  getStore().setCurrentEmployeeId(required(formData, 'employeeId'));
+  const employeeId = required(formData, 'employeeId');
+  if (!getStore().getEmployee(employeeId)) return;
+
+  await setCurrentEmployeeId(employeeId);
   refresh();
 }
 
@@ -56,30 +60,11 @@ export async function toggleLunch(formData: FormData): Promise<void> {
 }
 
 /**
- * What the nightly cron job will call. Everyone who opted in *and* is actually in
- * the building that day goes into the pool — the attendance provider is the
- * gate, which is why no desk-booking integration is needed anywhere else.
+ * The admin console's "run matching" button. Same code path the nightly job
+ * takes, so what you see here is what the cron will produce.
  */
 export async function runMatching(formData: FormData): Promise<void> {
-  const store = getStore();
-  const date = required(formData, 'date');
-  const officeId = required(formData, 'officeId');
-
-  const attending = new Set(await store.getAttendance(date, officeId));
-  const optIns = store.listOptIns(date, officeId).filter((o) => attending.has(o.employeeId));
-
-  store.saveMatchResult(
-    matchLunches({
-      date,
-      officeId,
-      slot: SLOT,
-      employees: store.listEmployees(),
-      optIns,
-      // Exclude this day: re-running must not treat the plan it is replacing as
-      // a past lunch, which would make every pair look like a repeat.
-      pastMatches: store.listPastMatches().filter((m) => m.date !== date),
-    }),
-  );
+  await planDay(getStore(), required(formData, 'officeId'), required(formData, 'date'));
   refresh();
 }
 

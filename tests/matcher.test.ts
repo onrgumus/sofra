@@ -5,7 +5,11 @@ import { distinctPeople, employee, optIn } from './helpers';
 
 const DATE = '2026-09-16';
 
-function run(employees: ReturnType<typeof distinctPeople>, optIns = employees.map((e) => optIn(e.id)), extra = {}) {
+function run(
+  employees: ReturnType<typeof distinctPeople>,
+  optIns = employees.map((e) => optIn(e.id)),
+  extra = {},
+) {
   return matchLunches({
     date: DATE,
     officeId: 'HQ',
@@ -67,8 +71,12 @@ describe('matchLunches', () => {
 
   it('guarantees every table shares a language', () => {
     const people = [
-      ...Array.from({ length: 6 }, (_, i) => employee(`tr${i}`, { languages: ['tr'], team: `T${i}` })),
-      ...Array.from({ length: 6 }, (_, i) => employee(`nl${i}`, { languages: ['nl'], team: `N${i}` })),
+      ...Array.from({ length: 6 }, (_, i) =>
+        employee(`tr${i}`, { languages: ['tr'], team: `T${i}` }),
+      ),
+      ...Array.from({ length: 6 }, (_, i) =>
+        employee(`nl${i}`, { languages: ['nl'], team: `N${i}` }),
+      ),
     ];
     for (const group of run(people).groups) {
       expect(group.commonLanguages.length).toBeGreaterThan(0);
@@ -76,10 +84,7 @@ describe('matchLunches', () => {
   });
 
   it('does not seat someone who shares no language with anyone', () => {
-    const people = [
-      ...distinctPeople(8),
-      employee('lonely', { languages: ['is'], team: 'Solo' }),
-    ];
+    const people = [...distinctPeople(8), employee('lonely', { languages: ['is'], team: 'Solo' })];
     const result = run(people);
     expect(result.unmatched.map((u) => u.employee.id)).toEqual(['lonely']);
     expect(result.unmatched[0]?.reason).toBe('no-common-language');
@@ -143,7 +148,12 @@ describe('matchLunches', () => {
 
 function signature(result: ReturnType<typeof matchLunches>): string {
   return result.groups
-    .map((g) => g.members.map((m) => m.id).sort().join(','))
+    .map((g) =>
+      g.members
+        .map((m) => m.id)
+        .sort()
+        .join(','),
+    )
     .sort()
     .join('|');
 }

@@ -256,8 +256,9 @@ describe('DemoStore', () => {
 
     store.markInvitesSent(date, OFFICE);
     expect(store.getGroup(group.id)?.invitesSentAt).toBeNull();
-    expect(store.listGroups(date, OFFICE).filter((g) => g.invitesSentAt !== null).length)
-      .toBeGreaterThan(0);
+    expect(
+      store.listGroups(date, OFFICE).filter((g) => g.invitesSentAt !== null).length,
+    ).toBeGreaterThan(0);
   });
 
   it('records who could not be seated, and forgets it when cleared', async () => {

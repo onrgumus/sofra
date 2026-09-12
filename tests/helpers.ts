@@ -33,7 +33,9 @@ export function distinctPeople(count: number): Employee[] {
     employee(`e${i + 1}`, {
       department: `Dept${i % 7}`,
       team: `Team${i}`,
-      seniority: (['intern', 'junior', 'mid', 'senior', 'lead', 'manager', 'director'] as const)[i % 7],
+      seniority: (['intern', 'junior', 'mid', 'senior', 'lead', 'manager', 'director'] as const)[
+        i % 7
+      ],
       tenureMonths: (i * 7) % 120,
     }),
   );

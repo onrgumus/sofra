@@ -52,14 +52,14 @@ matching runs the evening before.
 
 The matcher needs surprisingly little, and takes nothing beyond it:
 
-| Field | Why it is needed | Source |
-|---|---|---|
-| Department, team | The whole point: avoid seating colleagues together | Org chart |
-| Seniority, title | Seniority spread | Org chart |
-| Tenure (months) | Tenure spread, and an icebreaker | Org chart |
-| Office, date | Only match people in the same building on the same day | Attendance provider |
-| Languages | Hard constraint; a table must be able to talk | Directory or self-declared |
-| Interests | Icebreakers | Self-declared, optional |
+| Field            | Why it is needed                                       | Source                     |
+| ---------------- | ------------------------------------------------------ | -------------------------- |
+| Department, team | The whole point: avoid seating colleagues together     | Org chart                  |
+| Seniority, title | Seniority spread                                       | Org chart                  |
+| Tenure (months)  | Tenure spread, and an icebreaker                       | Org chart                  |
+| Office, date     | Only match people in the same building on the same day | Attendance provider        |
+| Languages        | Hard constraint; a table must be able to talk          | Directory or self-declared |
+| Interests        | Icebreakers                                            | Self-declared, optional    |
 
 No location beyond building, no desk number, no meeting-title content, no
 calendar contents, and no free text from anyone's calendar. The Graph provider

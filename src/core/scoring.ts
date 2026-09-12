@@ -54,7 +54,8 @@ function tenureScore(members: readonly Employee[]): number {
   const ps = pairs(members);
   if (ps.length === 0) return 0;
   const total = ps.reduce(
-    (sum, [a, b]) => sum + Math.min(1, Math.abs(a.tenureMonths - b.tenureMonths) / TENURE_SATURATION),
+    (sum, [a, b]) =>
+      sum + Math.min(1, Math.abs(a.tenureMonths - b.tenureMonths) / TENURE_SATURATION),
     0,
   );
   return total / ps.length;

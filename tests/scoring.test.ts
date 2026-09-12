@@ -50,7 +50,10 @@ describe('scoreGroup', () => {
   it('has no gender term at all', () => {
     // Sofra stores no gender, so there is nothing here to weight, consent to, or
     // explain to a works council. See docs/privacy.md.
-    const breakdown = scoreGroup(['a', 'b', 'c', 'd'].map((id) => employee(id)), context());
+    const breakdown = scoreGroup(
+      ['a', 'b', 'c', 'd'].map((id) => employee(id)),
+      context(),
+    );
     expect(Object.keys(breakdown).sort()).toEqual([
       'department',
       'interests',

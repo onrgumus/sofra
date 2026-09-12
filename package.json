@@ -14,12 +14,18 @@
     "simulate": "tsx src/sim/run.ts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "lint": "next lint --max-warnings=0",
+    "format": "prettier --write \"src/**/*.ts\" \"app/**/*.{ts,tsx}\" \"tests/**/*.ts\" \"middleware.ts\" \"*.{json,md}\" \"docs/*.md\"",
+    "format:check": "prettier --check \"src/**/*.ts\" \"app/**/*.{ts,tsx}\" \"tests/**/*.ts\" \"middleware.ts\" \"*.{json,md}\" \"docs/*.md\""
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
+    "eslint": "^8.57.1",
+    "eslint-config-next": "^15.5.25",
+    "prettier": "^3.9.6",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"
@@ -28,5 +34,15 @@
     "next": "^15.5.25",
     "react": "^19.3.0",
     "react-dom": "^19.3.0"
-  }
+  },
+  "keywords": [
+    "hybrid-work",
+    "matching",
+    "set-packing",
+    "ics",
+    "nextjs",
+    "employee-experience"
+  ],
+  "author": "Onur Gumus",
+  "private": true
 }

@@ -1,6 +1,7 @@
 import './globals.css';
 import Link from 'next/link';
 import { getStore } from '../src/store/instance';
+import { currentEmployeeId } from '../src/lib/session';
 import { switchEmployee } from './actions';
 import { AutoSubmitSelect } from './AutoSubmit';
 
@@ -12,9 +13,9 @@ export const metadata = {
 // Reads mutable store state on every request, so it must never be prerendered.
 export const dynamic = 'force-dynamic';
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const store = getStore();
-  const currentId = store.getCurrentEmployeeId();
+  const currentId = await currentEmployeeId(store);
   const current = store.getEmployee(currentId);
   const colleagues = store
     .listEmployees(current?.officeId)

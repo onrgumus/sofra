@@ -129,7 +129,10 @@ export default async function AdminPage({
             <p>What the diversity score actually bought.</p>
           </div>
           <div className="metrics">
-            <Metric value={`${Math.round(stats.crossDepartment * 100)}%`} label="cross-department pairs" />
+            <Metric
+              value={`${Math.round(stats.crossDepartment * 100)}%`}
+              label="cross-department pairs"
+            />
             <Metric value={stats.seniorityLevels.toFixed(2)} label="seniority levels per table" />
             <Metric value={stats.strangerPairs} label="pairs meeting for the first time" />
             <Metric value={stats.relaxed} label="tables needing a rule bent" />
@@ -140,7 +143,11 @@ export default async function AdminPage({
       <section>
         <div className="section-head">
           <h2>Tables</h2>
-          {groups.length > 0 ? <p>{SLOT} at {office.displayName}</p> : null}
+          {groups.length > 0 ? (
+            <p>
+              {SLOT} at {office.displayName}
+            </p>
+          ) : null}
         </div>
 
         {groups.length === 0 ? (
@@ -150,7 +157,13 @@ export default async function AdminPage({
         ) : (
           <div className="stack">
             {groups.map((group, index) => (
-              <TableCard key={group.id} group={group} index={index} context={context} office={office} />
+              <TableCard
+                key={group.id}
+                group={group}
+                index={index}
+                context={context}
+                office={office}
+              />
             ))}
           </div>
         )}
@@ -160,8 +173,8 @@ export default async function AdminPage({
             <div className="row">
               <Pill tone="bad">unseated</Pill>
               <span className="muted">
-                These people opted in but could not be placed. They get an honest "not today"
-                message, never silence.
+                These people opted in but could not be placed. They get an honest &ldquo;not
+                today&rdquo; message, never silence.
               </span>
             </div>
             <div className="people">
@@ -170,7 +183,8 @@ export default async function AdminPage({
               ))}
             </div>
             <p className="faint" style={{ marginTop: 8 }}>
-              Reason: {unmatched[0]!.reason === 'pool-too-small'
+              Reason:{' '}
+              {unmatched[0]!.reason === 'pool-too-small'
                 ? 'fewer than three people opted in'
                 : 'no language shared with anyone else in the pool'}
               .

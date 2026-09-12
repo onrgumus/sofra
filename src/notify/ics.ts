@@ -67,7 +67,10 @@ export function buildIcs(invite: IcsInvite): string {
 }
 
 function formatUtc(date: Date): string {
-  return date.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+  return date
+    .toISOString()
+    .replace(/[-:]/g, '')
+    .replace(/\.\d{3}/, '');
 }
 
 /** Escapes the characters RFC 5545 reserves inside TEXT values. */

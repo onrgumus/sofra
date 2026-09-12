@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { buildInvite, pickTopic } from '../src/notify/invite';
-import { ConsoleTransport, sendInvite, type EmailMessage, type EmailTransport } from '../src/notify/transport';
+import {
+  ConsoleTransport,
+  sendInvite,
+  type EmailMessage,
+  type EmailTransport,
+} from '../src/notify/transport';
 import type { MatchedGroup } from '../src/core/types';
 import { employee } from './helpers';
 
@@ -18,7 +23,11 @@ function group(overrides: Partial<MatchedGroup> = {}): MatchedGroup {
     officeId: 'IST-HQ',
     slot: '12:00',
     members: [
-      employee('a', { displayName: 'Ada Yılmaz', department: 'Engineering', team: 'Engineering/Platform' }),
+      employee('a', {
+        displayName: 'Ada Yılmaz',
+        department: 'Engineering',
+        team: 'Engineering/Platform',
+      }),
       employee('b', { displayName: 'Bruno Costa', department: 'Sales', team: 'Sales/SMB' }),
       employee('c', { displayName: 'Chloe Kaya', department: 'Design', team: 'Design/Research' }),
       employee('d', { displayName: 'Deniz Novak', department: 'Finance', team: 'Finance/FP&A' }),
@@ -36,7 +45,12 @@ describe('buildInvite', () => {
   const invite = buildInvite({ group: group(), venue: VENUE, organizer });
 
   it('addresses the whole table in one mail', () => {
-    expect(invite.to.map((a) => a.email)).toEqual(['a@example.com', 'b@example.com', 'c@example.com', 'd@example.com']);
+    expect(invite.to.map((a) => a.email)).toEqual([
+      'a@example.com',
+      'b@example.com',
+      'c@example.com',
+      'd@example.com',
+    ]);
     expect(invite.text).toContain('The 4 of you are having lunch together at 12:00');
     expect(invite.text).toContain('This mail went to all 4 of you at once');
   });

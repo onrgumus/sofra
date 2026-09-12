@@ -51,8 +51,12 @@ function main(): void {
   const history: PastMatch[] = [];
   const results: MatchResult[] = [];
 
-  console.log(`Sofra simulation — ${args.size} employees, office ${args.office} (${inOffice.length} people)`);
-  console.log(`${args.weeks} weekly lunches, ${(args.participation * 100).toFixed(0)}% opt-in rate\n`);
+  console.log(
+    `Sofra simulation — ${args.size} employees, office ${args.office} (${inOffice.length} people)`,
+  );
+  console.log(
+    `${args.weeks} weekly lunches, ${(args.participation * 100).toFixed(0)}% opt-in rate\n`,
+  );
 
   for (let week = 0; week < args.weeks; week++) {
     const date = wednesdayOfWeek(week);
@@ -128,7 +132,9 @@ function report(results: readonly MatchResult[], history: readonly PastMatch[]):
   const repeatedPairs = [...pairCounts.values()].filter((c) => c > 1).length;
 
   console.log('\n--- summary ---');
-  console.log(`seated               ${totalSeated}/${totalOptIn} opt-ins (${pct(totalSeated / totalOptIn)})`);
+  console.log(
+    `seated               ${totalSeated}/${totalOptIn} opt-ins (${pct(totalSeated / totalOptIn)})`,
+  );
   console.log(
     `table sizes          ${[...sizeCounts.entries()]
       .sort((a, b) => a[0] - b[0])
@@ -136,7 +142,9 @@ function report(results: readonly MatchResult[], history: readonly PastMatch[]):
       .join('  ')}`,
   );
   console.log(`cross-department     ${pct(1 - sameDepartmentPairs / totalPairs)} of pairs`);
-  console.log(`seniority levels     ${(seniorityLevelsSum / groups.length).toFixed(2)} distinct per table`);
+  console.log(
+    `seniority levels     ${(seniorityLevelsSum / groups.length).toFixed(2)} distinct per table`,
+  );
   console.log(`repeat pairings      ${repeatedPairs}/${pairCounts.size} pairs met more than once`);
   console.log(
     `rules bent           ${[...relaxationCounts.entries()]

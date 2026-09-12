@@ -110,7 +110,8 @@ function partitionByLanguage(pool: readonly Employee[]): {
 
   for (const person of pool) {
     const hasPartner = pool.some(
-      (other) => other.id !== person.id && other.languages.some((l) => person.languages.includes(l)),
+      (other) =>
+        other.id !== person.id && other.languages.some((l) => person.languages.includes(l)),
     );
     (hasPartner ? connected : isolated).push(person);
   }

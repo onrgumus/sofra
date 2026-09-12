@@ -207,7 +207,8 @@ const STRINGS = {
     confirm: (url: string) =>
       `Cannot make it? Let us know by 10:00 so we can reseat the table: ${url}`,
     footer: 'Sent by Sofra. You asked for this one day; you are not signed up for anything else.',
-    icebreakerShared: (interest: string) => `You all put "${interest}" on your profile. Start there.`,
+    icebreakerShared: (interest: string) =>
+      `You all put "${interest}" on your profile. Start there.`,
     icebreakerDepartments: (departments: string[]) =>
       `${departments.join(', ')} are at this table. What does each of you think the others actually do all day?`,
     icebreakerTenure: (longest: string, newest: string) =>
@@ -232,7 +233,8 @@ const STRINGS = {
     ],
   },
   tr: {
-    subject: (count: number) => `Bugün 12:00 öğle yemeği — ${TR_TOGETHER[count] ?? `${count} kişi`}`,
+    subject: (count: number) =>
+      `Bugün 12:00 öğle yemeği — ${TR_TOGETHER[count] ?? `${count} kişi`}`,
     intro: (count: number, slot: string) =>
       `Bugün saat ${slot}'de ${count} kişi birlikte yemek yiyeceksiniz. Aynı şirkette çalışıyorsunuz, hepiniz bugün ofistesiniz ve daha önce hiç birlikte yemek yemediniz. Bu mail ${count}'inize aynı anda gitti; nereye gideceğinizi buradan yanıtlayarak kararlaştırabilirsiniz.`,
     whereHeading: 'Nerede',

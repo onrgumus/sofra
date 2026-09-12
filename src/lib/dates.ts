@@ -24,7 +24,9 @@ export function isWeekend(isoDate: string): boolean {
 }
 
 export function addDays(isoDate: string, days: number): string {
-  return new Date(Date.parse(`${isoDate}T00:00:00Z`) + days * MS_PER_DAY).toISOString().slice(0, 10);
+  return new Date(Date.parse(`${isoDate}T00:00:00Z`) + days * MS_PER_DAY)
+    .toISOString()
+    .slice(0, 10);
 }
 
 /** `count` weekdays starting at `fromIso` (included when it is a weekday). */

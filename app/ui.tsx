@@ -50,7 +50,7 @@ export function PersonRow({
 
 export function RsvpPill({ status }: { status: RsvpStatus }) {
   if (status === 'accepted') return <Pill tone="good">coming</Pill>;
-  if (status === 'declined') return <Pill tone="bad">can't make it</Pill>;
+  if (status === 'declined') return <Pill tone="bad">can&apos;t make it</Pill>;
   return <Pill tone="neutral">no reply yet</Pill>;
 }
 
