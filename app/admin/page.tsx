@@ -1,7 +1,8 @@
 import { getStore } from '../../src/store/instance';
 import { SLOT } from '../../src/store/demo';
-import { formatDay, upcomingWeekdays } from '../../src/lib/dates';
+import { formatDay, todayInZone, upcomingWeekdays } from '../../src/lib/dates';
 import { toVenue } from '../../src/lib/venue';
+import { confirmUrl } from '../../src/lib/config';
 import { MatchHistory } from '../../src/core/history';
 import { scoreGroup } from '../../src/core/scoring';
 import { DEFAULT_CONFIG } from '../../src/core/types';
@@ -19,13 +20,15 @@ export default async function AdminPage({
   const store = getStore();
   const params = await searchParams;
 
-  const dates = upcomingWeekdays(10);
   const offices = store.listOffices();
-  const date = params.date && dates.includes(params.date) ? params.date : dates[0]!;
   const officeId = offices.some((o) => o.id === params.officeId)
     ? params.officeId!
     : offices[0]!.id;
   const office = store.getOffice(officeId)!;
+
+  // Offices in different zones are on different dates for part of every day.
+  const dates = upcomingWeekdays(10, todayInZone(office.timeZone));
+  const date = params.date && dates.includes(params.date) ? params.date : dates[0]!;
 
   const attending = await store.getAttendance(date, officeId);
   const attendingSet = new Set(attending);
@@ -196,7 +199,8 @@ function TableCard({
     group,
     venue: toVenue(office),
     organizer: { name: 'Sofra', email: 'sofra@example.com' },
-    confirmUrl: `http://localhost:3000/c/${group.id}`,
+    confirmUrl: confirmUrl(group.id),
+    sequence: group.sequence,
   });
 
   return (
@@ -226,7 +230,11 @@ function TableCard({
 
       <div className="row" style={{ marginTop: 8 }}>
         <span className="faint">speaks {group.commonLanguages.join(', ')}</span>
-        {group.invitesSentAt ? <Pill tone="good">invite sent</Pill> : null}
+        {group.invitesSentAt ? (
+          <Pill tone="good">invite sent</Pill>
+        ) : group.sequence > 0 ? (
+          <Pill tone="warn">reseated — needs a fresh invite</Pill>
+        ) : null}
       </div>
 
       <details>

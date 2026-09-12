@@ -159,6 +159,26 @@ section { margin-bottom: 32px; }
   .day-actions { justify-content: flex-start; }
 }
 
+@media (max-width: 560px) {
+  /* Wordmark and nav share the first row; the account switcher gets its own,
+     instead of three stacked rows with a gap where the nav was pushed right. */
+  .topbar-inner { gap: 10px 12px; padding: 10px 16px; }
+  .topbar-inner .wordmark { order: 1; }
+  .topbar-inner .nav { order: 2; margin-left: auto; }
+  .topbar-inner form { order: 3; flex-basis: 100%; }
+  .topbar-inner select { max-width: none; width: 100%; }
+
+  .shell { padding: 0 16px 56px; }
+  .page-head { padding: 24px 0 16px; }
+  h1 { font-size: 1.35rem; }
+
+  /* The reply pill needs its own line here, or the name wraps to three. */
+  .person { grid-template-columns: 26px 1fr; row-gap: 4px; }
+  .person > .pill { grid-column: 2; justify-self: start; }
+
+  .bar { grid-template-columns: 68px 1fr 30px; }
+}
+
 /* --- pills --- */
 
 .pill {

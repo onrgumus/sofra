@@ -16,6 +16,12 @@ export interface StoredGroup extends MatchedGroup {
   invitesSentAt: string | null;
   /** Set when too many people dropped out to keep the table worth having. */
   cancelled: boolean;
+  /**
+   * Bumped whenever the membership changes. Goes into the calendar invite's
+   * SEQUENCE, which is how every calendar client knows to update an existing
+   * event instead of adding a second one.
+   */
+  sequence: number;
 }
 
 /** Where we learned someone would be in the office. */
@@ -60,6 +66,11 @@ export interface Store {
   listUnmatched(date: string, officeId: string): Unmatched[];
   clearGroups(date: string, officeId: string): void;
   markInvitesSent(date: string, officeId: string): void;
+  /**
+   * Records a reply and, when a decline leaves the table too small, moves the
+   * people still coming to other tables that have room. Returns the group each
+   * moved person ended up at, so the caller can tell them.
+   */
   setRsvp(groupId: string, employeeId: string, status: RsvpStatus): void;
 
   listPastMatches(): PastMatch[];

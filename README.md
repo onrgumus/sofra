@@ -61,6 +61,15 @@ and a pool of 11 becomes `[4, 4, 3]` — never two tables and one person left
 standing in the lobby. "No match was found for you" is the one email that would
 kill this product, so the engine is built so it cannot be sent.
 
+**And nobody is stranded by other people's plans.** The invite says "let us know
+by 10:00 so we can reseat the table", so it reseats. When declines drop a table
+below three, whoever still wants lunch is moved to another table that day with
+room and no rule broken; only if there is genuinely nowhere to put someone do
+they hear the lunch is off. A receiving table may go to five for that one
+sitting — a slightly crowded table beats sending somebody away — and its calendar
+invite goes out again with a bumped `SEQUENCE`, which is how every calendar
+client updates the event people already accepted instead of adding a second one.
+
 ## Try it
 
 No database, no API keys, no infrastructure:
@@ -184,15 +193,22 @@ Built and tested: the matching engine, the provider abstraction with five
 implementations, ICS generation, bilingual invite content with topics, the email
 transport layer, the simulator, and a Next.js app — per-day opt-in, a matching
 console that shows the score behind every table, and the confirm-by-10:00 flow
-that cancels a table when too many people drop out. 74 tests.
+that reseats people when a table collapses. 94 tests.
 
 Run it with `npm run dev`. The app is seeded with a synthetic company through an
 in-memory store, so it needs no database and no API keys; swap
 `src/store/instance.ts` for a Postgres implementation of the same interface and
-nothing else changes.
+nothing else changes. Set `SOFRA_BASE_URL` when you deploy it — the confirm link
+goes into an email, so it cannot be a relative path.
+
+Dates are resolved in each office's own timezone rather than the server's, since
+Istanbul and Amsterdam are on different dates for part of every day.
 
 Not built yet: authentication, persistence, and the cron entry point that calls
-`runMatching` the evening before.
+`runMatching` the evening before. The demo has an account switcher in place of
+sign-in, so every RSVP form carries the employee id — real auth derives it from
+the session instead, and that is the one line that must change before anyone
+outside a demo uses it.
 
 One thing to verify before production: `MsGraphAttendanceProvider`'s default
 predicate. Outlook's work-location feature has shipped under more than one shape,

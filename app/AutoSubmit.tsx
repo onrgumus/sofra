@@ -17,6 +17,10 @@ export function AutoSubmitSelect(props: {
   return (
     <select
       ref={ref}
+      // Keyed on the value so a server-driven change remounts the select with
+      // the right name. Without it the header can show a different person than
+      // the one the server is acting as, which in this app is genuinely unsafe.
+      key={props.defaultValue}
       name={props.name}
       defaultValue={props.defaultValue}
       aria-label={props['aria-label']}
@@ -44,6 +48,7 @@ export function AutoSubmitCheckbox(props: {
     <label className="check" title={props.title}>
       <input
         ref={ref}
+        key={String(props.defaultChecked)}
         type="checkbox"
         name={props.name}
         defaultChecked={props.defaultChecked}

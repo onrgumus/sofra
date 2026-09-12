@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { getStore } from '../src/store/instance';
 import { SLOT } from '../src/store/demo';
-import { formatDay, upcomingWeekdays } from '../src/lib/dates';
+import { formatDay, todayInZone, upcomingWeekdays } from '../src/lib/dates';
 import type { StoredGroup } from '../src/store/types';
 import { setAttendance, toggleLunch } from './actions';
 import { AutoSubmitCheckbox } from './AutoSubmit';
@@ -19,7 +19,7 @@ export default async function EmployeePage() {
   if (!me || !office) return <p>No employee selected.</p>;
 
   const days = await Promise.all(
-    upcomingWeekdays(10).map(async (date) => {
+    upcomingWeekdays(10, todayInZone(office.timeZone)).map(async (date) => {
       const source = await store.attendanceSource(employeeId, date, office.id);
       return {
         date,
@@ -101,7 +101,7 @@ export default async function EmployeePage() {
                     <button type="submit">I'll be in</button>
                   </form>
                 ) : day.group ? (
-                  <Link className="button" href={`/c/${day.group.id}`}>
+                  <Link className="button" href={`/c/${encodeURIComponent(day.group.id)}`}>
                     Open invite
                   </Link>
                 ) : (
@@ -138,8 +138,9 @@ export default async function EmployeePage() {
         <div className="note">
           Matching runs the evening before, and everyone who ticked the box that day is split
           evenly into tables of three or four. One mail goes to the whole table at once, with a
-          topic to start on. Nobody sees who opted in, attendance is not reported to anyone, and a
-          table that drops below three people is cancelled rather than left half-empty.
+          topic to start on. Nobody sees who opted in and attendance is not reported to anyone. If
+          a table drops below three people, whoever still wants lunch is moved to another table
+          rather than left with nothing.
         </div>
       </section>
     </main>
@@ -153,7 +154,7 @@ function TablePreview({ group, meId }: { group: StoredGroup; meId: string }) {
     <div style={{ marginTop: 10 }}>
       <div className="faint">
         {group.cancelled
-          ? 'Too many people dropped out, so this table was cancelled.'
+          ? 'Too many people dropped out and there was no free seat at another table, so this one is off.'
           : `You are seated with ${others.length} people from ${
               new Set(others.map((m) => m.department)).size
             } other departments.`}

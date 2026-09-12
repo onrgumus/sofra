@@ -105,6 +105,14 @@ describe('buildInvite', () => {
     expect(invite.ics).toContain('DESCRIPTION:');
     expect(invite.ics).toContain('METHOD:REQUEST');
   });
+
+  it('bumps the calendar sequence when the table has changed', () => {
+    // A reseated table must update the event people already accepted, not add a
+    // second one to their calendar.
+    expect(invite.ics).toContain('SEQUENCE:0');
+    const updated = buildInvite({ group: group(), venue: VENUE, organizer, sequence: 2 });
+    expect(updated.ics).toContain('SEQUENCE:2');
+  });
 });
 
 describe('pickTopic', () => {

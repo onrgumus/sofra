@@ -1,12 +1,15 @@
 import { matchLunches } from '../core/matcher';
 import { createRng } from '../core/rng';
+import { MatchHistory } from '../core/history';
+import { RELAXATION_LADDER, canJoin } from '../core/constraints';
+import { DEFAULT_CONFIG } from '../core/types';
 import type { Employee, MatchResult, OptIn, PastMatch, Unmatched } from '../core/types';
 import { generateCompany } from '../sim/company';
 import { CompositeAttendanceProvider } from '../providers/composite';
 import { ManualAttendanceProvider } from '../providers/manual';
 import { WebhookAttendanceProvider } from '../providers/webhook';
 import type { AttendanceRecord } from '../providers/types';
-import { pastWeekdays, upcomingWeekdays } from '../lib/dates';
+import { pastWeekdays, todayInZone, upcomingWeekdays } from '../lib/dates';
 import type { AttendanceSource, Office, RsvpStatus, Store, StoredGroup } from './types';
 
 export const SLOT = '12:00';
@@ -60,6 +63,7 @@ export class DemoStore implements Store {
   private readonly unmatched = new Map<string, Unmatched[]>();
 
   private currentEmployeeId: string;
+  private readonly config = DEFAULT_CONFIG;
 
   constructor(seed = 7, size = 240) {
     this.employees = generateCompany({
@@ -190,6 +194,7 @@ export class DemoStore implements Store {
         rsvps: Object.fromEntries(group.members.map((m) => [m.id, 'pending' as RsvpStatus])),
         invitesSentAt: null,
         cancelled: false,
+        sequence: 0,
       });
     }
   }
@@ -216,10 +221,78 @@ export class DemoStore implements Store {
 
     group.rsvps[employeeId] = status;
 
-    // A table of two is a meeting, not a lunch. Below the minimum, cancel it and
-    // say so, rather than letting two people turn up to an empty table.
-    const stillComing = Object.values(group.rsvps).filter((s) => s !== 'declined').length;
-    group.cancelled = stillComing < 3;
+    if (group.cancelled) {
+      // A dissolved table does not come back — the others have already been
+      // moved. Someone changing their mind gets a seat of their own instead.
+      const person = group.members.find((m) => m.id === employeeId);
+      if (person && status !== 'declined') this.moveOut(group, [person]);
+      return;
+    }
+
+    const stillComing = group.members.filter((m) => group.rsvps[m.id] !== 'declined');
+    if (stillComing.length >= this.config.minGroupSize) return;
+
+    // A table of two is a meeting, not a lunch. The invite promises to reseat
+    // people who are left behind, so do that before giving up on them.
+    this.moveOut(group, stillComing);
+    group.cancelled = true;
+    group.sequence += 1;
+  }
+
+  /**
+   * Moves the given people to other tables that day which have room and pass the
+   * same rules the matcher used. Anyone nobody can take stays where they are and
+   * is told the lunch is off.
+   */
+  private moveOut(group: StoredGroup, people: readonly Employee[]): void {
+    const history = new MatchHistory(
+      this.listPastMatches().filter((m) => m.date !== group.date),
+      group.date,
+    );
+    const hosts = this.listGroups(group.date, group.officeId).filter(
+      (g) => g.id !== group.id && !g.cancelled,
+    );
+
+    for (const person of people) {
+      const host = this.findHost(hosts, person, history);
+      if (!host) continue;
+
+      host.members.push(person);
+      host.rsvps[person.id] = group.rsvps[person.id] ?? 'pending';
+      // The table changed after the invite went out, so it needs re-sending —
+      // as an update to the same event, not a second one.
+      host.sequence += 1;
+      host.invitesSentAt = null;
+
+      group.members = group.members.filter((m) => m.id !== person.id);
+      delete group.rsvps[person.id];
+    }
+  }
+
+  /**
+   * Tables are three or four by design, so on a day where every table is full
+   * there is no free seat to move anyone into. Rather than send someone away, a
+   * receiving table may go to five — but only after every table with genuine
+   * room, and every relaxation of the matching rules, has been tried first.
+   */
+  private findHost(
+    hosts: readonly StoredGroup[],
+    person: Employee,
+    history: MatchHistory,
+  ): StoredGroup | null {
+    const capacities = [this.config.maxGroupSize, this.config.maxGroupSize + 1];
+
+    for (const capacity of capacities) {
+      for (const relaxation of RELAXATION_LADDER) {
+        const host = hosts.find(
+          (g) =>
+            g.members.filter((m) => g.rsvps[m.id] !== 'declined').length < capacity &&
+            canJoin(g.members, person, history, this.config, relaxation),
+        );
+        if (host) return host;
+      }
+    }
+    return null;
   }
 
   listPastMatches(): PastMatch[] {
@@ -249,10 +322,11 @@ export class DemoStore implements Store {
    */
   private seedDeskBookings(seed: number): Map<string, Set<string>> {
     const rng = createRng(seed + 101);
-    const dates = [...pastWeekdays(15), ...upcomingWeekdays(15)];
     const bookings = new Map<string, Set<string>>();
 
     for (const office of OFFICES) {
+      const today = todayInZone(office.timeZone);
+      const dates = [...pastWeekdays(15, today), ...upcomingWeekdays(15, today)];
       const staff = this.listEmployees(office.id);
       for (const date of dates) {
         const booked = staff.filter(() => rng() < 0.6);
@@ -275,7 +349,7 @@ export class DemoStore implements Store {
     const rng = createRng(seed + 303);
 
     for (const office of OFFICES) {
-      for (const date of upcomingWeekdays(15)) {
+      for (const date of upcomingWeekdays(15, todayInZone(office.timeZone))) {
         // Only people who will actually be in the building can ask for a lunch.
         // Seeding without this check produced opt-ins for people marked "not in
         // the office", which the matcher ignored but the UI happily displayed.
@@ -301,9 +375,11 @@ export class DemoStore implements Store {
    */
   private seedHistory(seed: number): void {
     const rng = createRng(seed + 202);
-    const dates = pastWeekdays(15).filter((_, i) => i % 5 === 2).slice(-3);
 
     for (const office of OFFICES) {
+      const dates = pastWeekdays(15, todayInZone(office.timeZone))
+        .filter((_, i) => i % 5 === 2)
+        .slice(-3);
       for (const date of dates) {
         const attending = this.listEmployees(office.id).filter(() => rng() < 0.35);
         const result = matchLunches({

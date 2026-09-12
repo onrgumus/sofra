@@ -17,6 +17,11 @@ export interface InviteOptions {
   durationMinutes?: number;
   /** Page where someone can confirm or drop out before the cut-off. */
   confirmUrl?: string;
+  /**
+   * Bump when the table has changed since the last send, so calendar clients
+   * update the existing event instead of adding a second one.
+   */
+  sequence?: number;
   /** Overrides the language picked from the group's shared languages. */
   language?: SupportedLanguage;
 }
@@ -100,6 +105,7 @@ export function buildInvite(options: InviteOptions): Invite {
     location: `${venue.displayName} — ${venue.meetingPoint}`,
     organizer,
     attendees,
+    sequence: options.sequence ?? 0,
   });
 
   return { subject, text, html: toHtml(text), ics, to: attendees, topic };

@@ -6,6 +6,7 @@ import { buildInvite } from '../src/notify/invite';
 import { ConsoleTransport, sendInvite } from '../src/notify/transport';
 import { getStore } from '../src/store/instance';
 import { toVenue } from '../src/lib/venue';
+import { confirmUrl } from '../src/lib/config';
 import { SLOT } from '../src/store/demo';
 import type { RsvpStatus } from '../src/store/types';
 
@@ -102,7 +103,8 @@ export async function sendInvites(formData: FormData): Promise<void> {
       group,
       venue: toVenue(office),
       organizer: { name: 'Sofra', email: 'sofra@example.com' },
-      confirmUrl: `http://localhost:3000/c/${group.id}`,
+      confirmUrl: confirmUrl(group.id),
+      sequence: group.sequence,
     });
     await sendInvite(transport, invite, { from: 'Sofra <sofra@example.com>' });
   }

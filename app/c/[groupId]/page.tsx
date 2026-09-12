@@ -30,10 +30,14 @@ export default async function ConfirmPage({ params }: { params: Promise<{ groupI
   const me = group.members.find((m) => m.id === meId);
   const myStatus = me ? group.rsvps[me.id] : undefined;
 
+  // Someone who was moved off this table still has the old link in their inbox.
+  const movedTo = me ? null : store.groupForEmployee(meId, group.date, group.officeId);
+
   const invite = buildInvite({
     group,
     venue: toVenue(office),
     organizer: { name: 'Sofra', email: 'sofra@example.com' },
+    sequence: group.sequence,
   });
 
   const coming = Object.values(group.rsvps).filter((s) => s === 'accepted').length;
@@ -55,10 +59,17 @@ export default async function ConfirmPage({ params }: { params: Promise<{ groupI
           <div className="row">
             <Pill tone="bad">cancelled</Pill>
             <span className="muted">
-              Too many people dropped out to keep this table worth having. Everyone has been told —
-              nobody will turn up to an empty table.
+              Too many people dropped out to keep this table worth having. Anyone who still wanted
+              lunch has been moved to another table — nobody will turn up to an empty room.
             </span>
           </div>
+        </div>
+      ) : null}
+
+      {movedTo ? (
+        <div className="note" style={{ marginBottom: 16 }}>
+          This table changed and you were moved.{' '}
+          <Link href={`/c/${encodeURIComponent(movedTo.id)}`}>Open your table</Link>.
         </div>
       ) : null}
 
@@ -117,7 +128,7 @@ export default async function ConfirmPage({ params }: { params: Promise<{ groupI
         </section>
       ) : null}
 
-      {!me ? (
+      {!me && !movedTo ? (
         <section>
           <p className="faint">
             You are not at this table. Switch account in the header to respond as someone who is.
