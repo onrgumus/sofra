@@ -5,6 +5,7 @@ import { RELAXATION_LADDER, canJoin } from '../core/constraints';
 import { DEFAULT_CONFIG } from '../core/types';
 import type { Employee, MatchResult, OptIn, PastMatch, Unmatched } from '../core/types';
 import { generateCompany } from '../sim/company';
+import { FEATURED_EMPLOYEE } from './featured';
 import { CompositeAttendanceProvider } from '../providers/composite';
 import { ManualAttendanceProvider } from '../providers/manual';
 import { WebhookAttendanceProvider } from '../providers/webhook';
@@ -65,12 +66,17 @@ export class DemoStore implements Store {
   private readonly config = DEFAULT_CONFIG;
 
   constructor(seed = 7, size = 240) {
-    this.employees = generateCompany({
-      size,
-      offices: OFFICES.map((o) => o.id),
-      seed,
-      officeLanguages: OFFICE_LANGUAGES,
-    });
+    // The demo account is a colleague like any other: same office days, same
+    // pool, same matcher. Listed first so the switcher opens on him.
+    this.employees = [
+      FEATURED_EMPLOYEE,
+      ...generateCompany({
+        size: size - 1,
+        offices: OFFICES.map((o) => o.id),
+        seed,
+        officeLanguages: OFFICE_LANGUAGES,
+      }),
+    ];
     this.employeeById = new Map(this.employees.map((e) => [e.id, e]));
 
     const bookings = this.seedDeskBookings(seed);

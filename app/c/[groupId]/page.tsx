@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { getStore } from '../../../src/store/instance';
 import { currentEmployeeId } from '../../../src/lib/session';
+import { redirect } from 'next/navigation';
 import { formatDay } from '../../../src/lib/dates';
 import { toVenue } from '../../../src/lib/venue';
 import { buildInvite } from '../../../src/notify/invite';
@@ -28,6 +29,7 @@ export default async function ConfirmPage({ params }: { params: Promise<{ groupI
 
   const office = store.getOffice(group.officeId)!;
   const meId = await currentEmployeeId(store);
+  if (!meId) redirect('/login');
   const me = group.members.find((m) => m.id === meId);
   const myStatus = me ? group.rsvps[me.id] : undefined;
 

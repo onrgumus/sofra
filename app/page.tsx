@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { getStore } from '../src/store/instance';
 import { currentEmployeeId } from '../src/lib/session';
+import { redirect } from 'next/navigation';
 import { SLOT } from '../src/store/demo';
 import { formatDay, todayInZone, upcomingWeekdays } from '../src/lib/dates';
 import type { StoredGroup } from '../src/store/types';
@@ -14,6 +15,8 @@ export const dynamic = 'force-dynamic';
 export default async function EmployeePage() {
   const store = getStore();
   const employeeId = await currentEmployeeId(store);
+  if (!employeeId) redirect('/login');
+
   const me = store.getEmployee(employeeId);
   const office = me ? store.getOffice(me.officeId) : undefined;
 

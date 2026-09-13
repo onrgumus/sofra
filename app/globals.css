@@ -303,6 +303,49 @@ form.inline { display: inline-flex; gap: 8px; align-items: center; flex-wrap: wr
 .bar-fill { display: block; height: 100%; min-width: 2px; background: var(--accent); border-radius: 3px; }
 .bar-value { color: var(--text-faint); text-align: right; font-variant-numeric: tabular-nums; }
 
+/* --- sign in --- */
+
+.signin {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  max-width: 420px;
+  margin: 0 auto;
+}
+.signin .page-head h1 {
+  font-size: 1.9rem;
+}
+
+.field {
+  display: grid;
+  gap: 5px;
+}
+.field span {
+  font-size: 0.82rem;
+  color: var(--text-soft);
+  font-weight: 550;
+}
+.field input {
+  font: inherit;
+  font-size: 0.95rem;
+  padding: 9px 12px;
+  border-radius: 9px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text);
+  width: 100%;
+}
+.field input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.error-text {
+  color: var(--bad);
+  font-size: 0.85rem;
+}
+
 /* --- misc --- */
 
 .invite {

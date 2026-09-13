@@ -196,17 +196,20 @@ Built and tested: the matching engine, the provider abstraction with five
 implementations, ICS generation, bilingual invite content with topics, the email
 transport layer, the simulator, the nightly job, and a Next.js app — per-day
 opt-in, a matching console that shows the score behind every table, and the
-confirm-by-10:00 flow that reseats people when a table collapses. 102 tests.
+confirm-by-10:00 flow that reseats people when a table collapses. 123 tests.
 
-Run it with `npm run dev`. The app is seeded with a synthetic company through an
-in-memory store, so it needs no database and no API keys.
+Run it with `npm run dev` and sign in as **onur / 1234**. The app is seeded with
+a synthetic company through an in-memory store, so it needs no database and no
+API keys.
 
 Dates are resolved in each office's own timezone rather than the server's, since
 Istanbul and Amsterdam are on different dates for part of every day.
 
-Not built yet: authentication and persistence. The demo puts a visitor on a
-colleague via a cookie and lets them switch, in place of sign-in; replacing
-`src/lib/session.ts` is the whole of adding real auth, and swapping
+Not built yet: real authentication and persistence. Sign-in is one shared
+password so anyone with the link can try the product — a demo gate, not
+authentication, though the session cookie is HMAC-signed so an employee id
+cannot be forged in devtools. Replacing `src/lib/auth.ts` and
+`src/lib/session.ts` is the whole of adding real sign-in, and swapping
 `src/store/instance.ts` for a Postgres implementation of the same interface is
 the whole of adding a database.
 
@@ -270,9 +273,9 @@ src/core/       the matching engine — pure, no I/O, no framework
 src/providers/  the only place that knows a desk-booking system exists
 src/notify/     invite content, ICS generation, email transports
 src/store/      persistence behind one interface; an in-memory demo implementation
-src/lib/        session, config, dates, and the nightly job
+src/lib/        sign-in, session, config, dates, and the nightly job
 src/sim/        synthetic company and the simulator
-app/            Next.js app router: opt-in page, matching console, RSVP page
+app/            Next.js app router: sign-in, opt-in page, matching console, RSVP page
 ```
 
 ## Quality
@@ -281,7 +284,7 @@ app/            Next.js app router: opt-in page, matching console, RSVP page
 npm run typecheck   # tsc, strict, noUncheckedIndexedAccess
 npm run lint        # eslint, zero warnings tolerated
 npm run format      # prettier
-npm test            # 102 tests
+npm test            # 123 tests
 npm run build       # production build
 ```
 

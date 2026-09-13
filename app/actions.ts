@@ -6,7 +6,10 @@ import { getStore } from '../src/store/instance';
 import { planDay } from '../src/lib/nightly';
 import { deliverPending } from '../src/lib/notifications';
 const FROM_EMAIL = process.env.SOFRA_FROM_EMAIL ?? 'Sofra <sofra@example.com>';
-import { setCurrentEmployeeId } from '../src/lib/session';
+import { endSession, startSession } from '../src/lib/session';
+import { checkPassword } from '../src/lib/auth';
+import { DEMO_USERNAME } from '../src/store/featured';
+import { redirect } from 'next/navigation';
 import { SLOT } from '../src/store/demo';
 import type { RsvpStatus } from '../src/store/types';
 
@@ -20,11 +23,40 @@ function required(formData: FormData, field: string): string {
   return value;
 }
 
+export async function signIn(formData: FormData): Promise<void> {
+  const username = String(formData.get('username') ?? '')
+    .trim()
+    .toLowerCase();
+  const password = String(formData.get('password') ?? '');
+  const next = String(formData.get('next') ?? '/') || '/';
+
+  const store = getStore();
+  const employee =
+    username === DEMO_USERNAME
+      ? store.getEmployee(DEMO_USERNAME)
+      : store.listEmployees().find((e) => e.email.toLowerCase() === username);
+
+  if (!employee || !checkPassword(password)) {
+    // Same message either way: which half was wrong is not the visitor's
+    // business, and saying so only helps someone guessing usernames.
+    redirect(`/login?error=1&next=${encodeURIComponent(next)}`);
+  }
+
+  await startSession(employee.id);
+  redirect(next.startsWith('/') ? next : '/');
+}
+
+export async function signOut(): Promise<void> {
+  await endSession();
+  redirect('/login');
+}
+
+/** Demo affordance: look at the same day through a colleague's eyes. */
 export async function switchEmployee(formData: FormData): Promise<void> {
   const employeeId = required(formData, 'employeeId');
   if (!getStore().getEmployee(employeeId)) return;
 
-  await setCurrentEmployeeId(employeeId);
+  await startSession(employeeId);
   refresh();
 }
 

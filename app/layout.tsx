@@ -2,7 +2,7 @@ import './globals.css';
 import Link from 'next/link';
 import { getStore } from '../src/store/instance';
 import { currentEmployeeId } from '../src/lib/session';
-import { switchEmployee } from './actions';
+import { signOut, switchEmployee } from './actions';
 import { AutoSubmitSelect } from './AutoSubmit';
 
 export const metadata = {
@@ -16,6 +16,19 @@ export const dynamic = 'force-dynamic';
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const store = getStore();
   const currentId = await currentEmployeeId(store);
+
+  // Signed out — the sign-in page is the only thing that renders, and a header
+  // full of colleagues would be an odd thing to show someone who is not in yet.
+  if (!currentId) {
+    return (
+      <html lang="en">
+        <body>
+          <div className="shell">{children}</div>
+        </body>
+      </html>
+    );
+  }
+
   const current = store.getEmployee(currentId);
   const colleagues = store
     .listEmployees(current?.officeId)
@@ -47,6 +60,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <nav className="nav">
               <Link href="/">Your lunches</Link>
               <Link href="/admin">Admin</Link>
+              <form action={signOut}>
+                <button type="submit" data-variant="quiet">
+                  Sign out
+                </button>
+              </form>
             </nav>
           </div>
         </header>

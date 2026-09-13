@@ -1,41 +1,40 @@
 import { cookies } from 'next/headers';
 import type { Store } from '../store/types';
+import { createSessionValue, readSessionValue } from './auth';
+import { SESSION_COOKIE } from './session-cookie';
 
 /**
  * Who the current visitor is acting as.
  *
- * The demo has no sign-in, but "who am I" still has to be per-visitor: holding
- * it in one server-side variable meant two people opening the same link would
- * switch each other's account mid-click. It lives in a cookie instead, so the
- * company data stays shared — it is one company — while the session does not.
+ * Per-visitor, in a signed cookie: the company data is shared because it is one
+ * company, but the session is not — otherwise two people opening the same link
+ * would switch each other's account mid-click.
  *
- * Replacing this file is the whole of adding real authentication.
+ * Replacing this file and `src/lib/auth.ts` is the whole of adding real sign-in.
  */
-export const EMPLOYEE_COOKIE = 'sofra_employee';
-export const SEAT_COOKIE = 'sofra_seat';
+export { SESSION_COOKIE };
 
 const YEAR_IN_SECONDS = 60 * 60 * 24 * 365;
 
-export async function currentEmployeeId(store: Store): Promise<string> {
+export async function currentEmployeeId(store: Store): Promise<string | null> {
   const jar = await cookies();
+  const employeeId = readSessionValue(jar.get(SESSION_COOKIE)?.value);
 
-  const chosen = jar.get(EMPLOYEE_COOKIE)?.value;
-  if (chosen && store.getEmployee(chosen)) return chosen;
-
-  // First visit: the middleware handed out a seat number, so two people opening
-  // the demo land on different colleagues instead of fighting over one.
-  const people = store.listEmployees();
-  const seat = Number.parseInt(jar.get(SEAT_COOKIE)?.value ?? '', 10);
-  const index = Number.isFinite(seat) ? Math.abs(seat) % people.length : 0;
-  return people[index]!.id;
+  // A signature for someone who is no longer in the directory is not a session.
+  return employeeId && store.getEmployee(employeeId) ? employeeId : null;
 }
 
-export async function setCurrentEmployeeId(employeeId: string): Promise<void> {
+export async function startSession(employeeId: string): Promise<void> {
   const jar = await cookies();
-  jar.set(EMPLOYEE_COOKIE, employeeId, {
+  jar.set(SESSION_COOKIE, createSessionValue(employeeId), {
     httpOnly: true,
     sameSite: 'lax',
     path: '/',
     maxAge: YEAR_IN_SECONDS,
+    secure: process.env.NODE_ENV === 'production',
   });
+}
+
+export async function endSession(): Promise<void> {
+  (await cookies()).delete(SESSION_COOKIE);
 }

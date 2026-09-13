@@ -1,24 +1,28 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { SEAT_COOKIE } from './src/lib/session';
+import { SESSION_COOKIE } from './src/lib/session-cookie';
 
 /**
- * Hands each new visitor a seat number, so the demo opens as a different
- * colleague for different people rather than everyone sharing one account.
+ * Sends anyone without a session to the sign-in page.
+ *
+ * Presence only — the cookie's signature is verified on the server, where the
+ * secret lives. The cron endpoint carries its own bearer token and is left
+ * alone.
  */
 export function middleware(request: NextRequest) {
-  const response = NextResponse.next();
-  if (request.cookies.has(SEAT_COOKIE)) return response;
+  const { pathname, search } = request.nextUrl;
 
-  response.cookies.set(SEAT_COOKIE, String(Math.floor(Math.random() * 100_000)), {
-    httpOnly: true,
-    sameSite: 'lax',
-    path: '/',
-    maxAge: 60 * 60 * 24 * 365,
-  });
-  return response;
+  if (pathname.startsWith('/login') || pathname.startsWith('/api/')) {
+    return NextResponse.next();
+  }
+  if (request.cookies.has(SESSION_COOKIE)) {
+    return NextResponse.next();
+  }
+
+  const login = new URL('/login', request.url);
+  if (pathname !== '/') login.searchParams.set('next', pathname + search);
+  return NextResponse.redirect(login);
 }
 
 export const config = {
-  // Everything except Next's own assets.
   matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
 };
