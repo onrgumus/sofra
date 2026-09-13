@@ -196,9 +196,11 @@ Built and tested: the matching engine, the provider abstraction with five
 implementations, ICS generation, bilingual invite content with topics, the email
 transport layer, the simulator, the nightly job, and a Next.js app — per-day
 opt-in, a matching console that shows the score behind every table, and the
-confirm-by-10:00 flow that reseats people when a table collapses. 123 tests.
+confirm-by-10:00 flow that reseats people when a table collapses. 127 tests.
 
-Run it with `npm run dev` and sign in as **onur / 1234**. The app is seeded with
+Run it with `npm run dev` and sign in as **onur / 1234**, or take a random
+colleague from the same screen — a shared link means several people clicking at
+once, and they should not all be ticking the same boxes. The app is seeded with
 a synthetic company through an in-memory store, so it needs no database and no
 API keys.
 
@@ -284,7 +286,7 @@ app/            Next.js app router: sign-in, opt-in page, matching console, RSVP
 npm run typecheck   # tsc, strict, noUncheckedIndexedAccess
 npm run lint        # eslint, zero warnings tolerated
 npm run format      # prettier
-npm test            # 123 tests
+npm test            # 127 tests
 npm run build       # production build
 ```
 

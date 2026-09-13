@@ -341,6 +341,21 @@ form.inline { display: inline-flex; gap: 8px; align-items: center; flex-wrap: wr
   outline-offset: 1px;
 }
 
+.or {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-faint);
+  font-size: 0.78rem;
+}
+.or::before,
+.or::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
 .error-text {
   color: var(--bad);
   font-size: 0.85rem;

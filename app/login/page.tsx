@@ -45,10 +45,21 @@ export default async function LoginPage({
           Sign in
         </button>
 
+        <div className="or">
+          <span>or</span>
+        </div>
+
+        <button type="submit" name="mode" value="random">
+          Sign in as a random colleague
+        </button>
+
         <p className="faint">
-          Demo account — <strong>{DEMO_USERNAME}</strong> / <strong>{DEMO_PASSWORD}</strong>. You
-          sign in as {FEATURED_EMPLOYEE.displayName}, {FEATURED_EMPLOYEE.title}. One shared password
-          so anyone with the link can try it; this is a demo gate, not authentication.
+          Demo account — <strong>{DEMO_USERNAME}</strong> / <strong>{DEMO_PASSWORD}</strong>, which
+          signs you in as {FEATURED_EMPLOYEE.displayName}, {FEATURED_EMPLOYEE.title}. If several
+          people are trying this at once, take a random colleague instead — you will have your own
+          account rather than all ticking the same boxes. Either way the password is the same: one
+          shared password so anyone with the link can try it, which makes this a demo gate and not
+          authentication.
         </p>
       </form>
     </main>

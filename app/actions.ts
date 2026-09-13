@@ -8,7 +8,7 @@ import { deliverPending } from '../src/lib/notifications';
 const FROM_EMAIL = process.env.SOFRA_FROM_EMAIL ?? 'Sofra <sofra@example.com>';
 import { endSession, startSession } from '../src/lib/session';
 import { checkPassword } from '../src/lib/auth';
-import { DEMO_USERNAME } from '../src/store/featured';
+import { DEMO_USERNAME, pickRandomColleague } from '../src/store/featured';
 import { redirect } from 'next/navigation';
 import { SLOT } from '../src/store/demo';
 import type { RsvpStatus } from '../src/store/types';
@@ -28,11 +28,13 @@ export async function signIn(formData: FormData): Promise<void> {
     .trim()
     .toLowerCase();
   const password = String(formData.get('password') ?? '');
+  const asColleague = formData.get('mode') === 'random';
   const next = String(formData.get('next') ?? '/') || '/';
 
   const store = getStore();
-  const employee =
-    username === DEMO_USERNAME
+  const employee = asColleague
+    ? pickRandomColleague(store)
+    : username === DEMO_USERNAME
       ? store.getEmployee(DEMO_USERNAME)
       : store.listEmployees().find((e) => e.email.toLowerCase() === username);
 

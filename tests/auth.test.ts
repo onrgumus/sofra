@@ -6,7 +6,7 @@ import {
   DEMO_PASSWORD,
 } from '../src/lib/auth';
 import { DemoStore } from '../src/store/demo';
-import { DEMO_USERNAME, FEATURED_EMPLOYEE } from '../src/store/featured';
+import { DEMO_USERNAME, FEATURED_EMPLOYEE, pickRandomColleague } from '../src/store/featured';
 
 describe('checkPassword', () => {
   it('accepts the demo password', () => {
@@ -67,5 +67,35 @@ describe('the demo account', () => {
   it('has a unique name like everyone else', () => {
     const names = store.listEmployees().map((e) => e.displayName);
     expect(new Set(names).size).toBe(names.length);
+  });
+});
+
+describe('pickRandomColleague', () => {
+  const store = new DemoStore(7, 160);
+
+  it('never hands out the shared demo account', () => {
+    // The whole reason it exists: several people on one link should not all end
+    // up ticking the same boxes as Onur GG.
+    for (const r of [0, 0.25, 0.5, 0.75, 0.999999]) {
+      expect(pickRandomColleague(store, () => r).id).not.toBe(FEATURED_EMPLOYEE.id);
+    }
+  });
+
+  it('stays in range at both ends', () => {
+    const colleagues = store.listEmployees().filter((e) => e.id !== FEATURED_EMPLOYEE.id);
+    expect(pickRandomColleague(store, () => 0).id).toBe(colleagues[0]!.id);
+    expect(pickRandomColleague(store, () => 0.999999).id).toBe(colleagues.at(-1)!.id);
+  });
+
+  it('spreads people out rather than returning the same one', () => {
+    const picks = new Set(
+      Array.from({ length: 40 }, (_, i) => pickRandomColleague(store, () => i / 40).id),
+    );
+    expect(picks.size).toBeGreaterThan(30);
+  });
+
+  it('falls back to the demo account when there is nobody else', () => {
+    const lonely = { listEmployees: () => [FEATURED_EMPLOYEE] } as unknown as DemoStore;
+    expect(pickRandomColleague(lonely).id).toBe(FEATURED_EMPLOYEE.id);
   });
 });
