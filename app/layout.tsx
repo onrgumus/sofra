@@ -45,16 +45,17 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             </Link>
 
             {/* No auth in the demo, so "who am I" is a switcher. */}
-            <form action={switchEmployee} className="inline">
+            {/* Names only: a select showing "Name — Long Title, Department" is
+                wider than any sensible header and just truncates. The role goes
+                next to it, where it can wrap. */}
+            <form action={switchEmployee} className="inline who">
               <AutoSubmitSelect
                 name="employeeId"
                 defaultValue={currentId}
                 aria-label="Signed in as"
-                options={colleagues.map((e) => ({
-                  value: e.id,
-                  label: `${e.displayName} — ${e.title}, ${e.department}`,
-                }))}
+                options={colleagues.map((e) => ({ value: e.id, label: e.displayName }))}
               />
+              {current ? <span className="who-role">{current.title}</span> : null}
             </form>
 
             <nav className="nav">

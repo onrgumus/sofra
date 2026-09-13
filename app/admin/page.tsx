@@ -179,7 +179,7 @@ export default async function AdminPage({
             </div>
             <div className="people">
               {unmatched.map((entry) => (
-                <PersonRow key={entry.employee.id} person={entry.employee} />
+                <PersonRow key={entry.employee.id} person={entry.employee} detail="full" />
               ))}
             </div>
             <p className="faint" style={{ marginTop: 8 }}>
@@ -232,7 +232,7 @@ function TableCard({
 
       <div className="people">
         {group.members.map((person) => (
-          <PersonRow key={person.id} person={person} rsvp={group.rsvps[person.id]} />
+          <PersonRow key={person.id} person={person} rsvp={group.rsvps[person.id]} detail="full" />
         ))}
       </div>
 

@@ -21,26 +21,35 @@ export function Initials({ name }: { name: string }) {
   return <span className="avatar">{initials}</span>;
 }
 
+/**
+ * `brief` is what someone going to lunch needs: a name and roughly what the
+ * person does. Which sub-team they sit in and how many months they have been
+ * here are facts about the matching, not about the meal — they belong to the
+ * console, where somebody is actually checking the engine's work.
+ */
 export function PersonRow({
   person,
   rsvp,
   highlight,
+  detail = 'brief',
 }: {
   person: Employee;
   rsvp?: RsvpStatus;
   highlight?: boolean;
+  detail?: 'brief' | 'full';
 }) {
   return (
     <div className="person">
       <Initials name={person.displayName} />
-      <div>
+      <div className="person-body">
         <div className="person-name">
           {person.displayName}
           {highlight ? <span className="muted"> · you</span> : null}
         </div>
         <div className="person-meta">
-          {person.title} · {person.department} ({teamName(person.team)}) · {person.tenureMonths}{' '}
-          months here
+          {detail === 'full'
+            ? `${person.title} · ${person.department} (${teamName(person.team)}) · ${person.tenureMonths} months here`
+            : `${person.title}, ${person.department}`}
         </div>
       </div>
       {rsvp ? <RsvpPill status={rsvp} /> : null}

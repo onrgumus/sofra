@@ -101,6 +101,7 @@ p { margin: 0; }
   text-decoration: none;
   color: var(--text-soft);
   font-size: 0.875rem;
+  white-space: nowrap;
 }
 .nav a:hover { background: var(--surface-2); color: var(--text); }
 .nav a[data-active='true'] { background: var(--accent-soft); color: var(--accent); font-weight: 550; }
@@ -228,7 +229,8 @@ button[data-variant='quiet']:hover { background: var(--surface-2); color: var(--
 button[data-variant='danger'] { color: var(--bad); border-color: var(--border); }
 button:disabled { opacity: 0.45; cursor: not-allowed; }
 
-select, input[type='date'] {
+select,
+input[type='date'] {
   font: inherit;
   font-size: 0.875rem;
   padding: 6px 10px;
@@ -236,7 +238,9 @@ select, input[type='date'] {
   border: 1px solid var(--border-strong);
   background: var(--surface);
   color: var(--text);
-  max-width: 260px;
+  /* Sized by its content, capped so one very long name cannot push the nav off
+     the header, and allowed to shrink on a narrow screen. */
+  max-width: min(100%, 22ch);
 }
 
 label.check {
@@ -249,18 +253,50 @@ label.check {
 }
 label.check input { accent-color: var(--accent); width: 15px; height: 15px; }
 
-form.inline { display: inline-flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+form.inline {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.who {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.who-role {
+  color: var(--text-soft);
+  font-size: 0.82rem;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@media (max-width: 640px) {
+  .who-role {
+    display: none;
+  }
+}
 
 /* --- tables of people --- */
 
 .people { display: grid; gap: 2px; margin-top: 10px; }
 .person {
   display: grid;
-  grid-template-columns: 26px 1fr auto;
+  grid-template-columns: 26px minmax(0, 1fr) auto;
   gap: 10px;
   align-items: center;
   padding: 7px 0;
   border-top: 1px solid var(--border);
+}
+/* minmax(0,…) above and this below: without them a long unbroken title makes
+   the grid track wider than the card instead of wrapping inside it. */
+.person-body {
+  min-width: 0;
+}
+.person-name,
+.person-meta {
+  overflow-wrap: anywhere;
 }
 .person:first-child { border-top: none; }
 .avatar {
