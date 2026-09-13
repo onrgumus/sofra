@@ -1,0 +1,48 @@
+{
+  "$schema": "https://developer.microsoft.com/en-us/json-schemas/teams/v1.17/MicrosoftTeams.schema.json",
+  "manifestVersion": "1.17",
+  "version": "1.0.0",
+  "id": "${{TEAMS_APP_ID}}",
+  "packageName": "com.sofra.lunch",
+  "developer": {
+    "name": "Sofra",
+    "websiteUrl": "${{SOFRA_BASE_URL}}",
+    "privacyUrl": "${{SOFRA_BASE_URL}}/privacy",
+    "termsOfUseUrl": "${{SOFRA_BASE_URL}}/terms"
+  },
+  "name": {
+    "short": "Sofra",
+    "full": "Sofra — lunch with people you would never otherwise meet"
+  },
+  "description": {
+    "short": "Tick a box on an office day; eat with three people from other teams.",
+    "full": "On days you are already in the office, Sofra seats you with three colleagues from other departments and seniorities that you have not had lunch with before. One tick per day, nothing automatic, and a group chat with the people you are actually eating with."
+  },
+  "icons": {
+    "color": "color.png",
+    "outline": "outline.png"
+  },
+  "accentColor": "#B4531F",
+  "staticTabs": [
+    {
+      "entityId": "sofra.lunches",
+      "name": "Your lunches",
+      "contentUrl": "${{SOFRA_BASE_URL}}/?context=teams",
+      "websiteUrl": "${{SOFRA_BASE_URL}}/",
+      "scopes": ["personal"]
+    },
+    {
+      "entityId": "sofra.console",
+      "name": "Matching console",
+      "contentUrl": "${{SOFRA_BASE_URL}}/admin?context=teams",
+      "websiteUrl": "${{SOFRA_BASE_URL}}/admin",
+      "scopes": ["personal"]
+    }
+  ],
+  "permissions": ["identity"],
+  "validDomains": ["${{SOFRA_DOMAIN}}"],
+  "webApplicationInfo": {
+    "id": "${{AAD_CLIENT_ID}}",
+    "resource": "api://${{SOFRA_DOMAIN}}/${{AAD_CLIENT_ID}}"
+  }
+}

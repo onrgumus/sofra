@@ -4,6 +4,7 @@ import { currentEmployeeId } from '../../src/lib/session';
 import { DEMO_PASSWORD } from '../../src/lib/auth';
 import { DEMO_USERNAME, FEATURED_EMPLOYEE } from '../../src/store/featured';
 import { signIn } from '../actions';
+import { TeamsBootstrap } from '../TeamsBootstrap';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,6 +24,9 @@ export default async function LoginPage({
         <h1>Sofra</h1>
         <p>Lunch with three colleagues from other teams, on a day you are already in the office.</p>
       </div>
+
+      {/* Inside Teams this signs you in and reloads; elsewhere it does nothing. */}
+      <TeamsBootstrap />
 
       <form action={signIn} className="card stack" style={{ maxWidth: 380 }}>
         <input type="hidden" name="next" value={params.next ?? '/'} />

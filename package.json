@@ -17,7 +17,8 @@
     "typecheck": "tsc --noEmit",
     "lint": "next lint --max-warnings=0",
     "format": "prettier --write \"src/**/*.ts\" \"app/**/*.{ts,tsx}\" \"tests/**/*.ts\" \"middleware.ts\" \"*.{json,md}\" \"docs/*.md\"",
-    "format:check": "prettier --check \"src/**/*.ts\" \"app/**/*.{ts,tsx}\" \"tests/**/*.ts\" \"middleware.ts\" \"*.{json,md}\" \"docs/*.md\""
+    "format:check": "prettier --check \"src/**/*.ts\" \"app/**/*.{ts,tsx}\" \"tests/**/*.ts\" \"middleware.ts\" \"*.{json,md}\" \"docs/*.md\"",
+    "teams:package": "tsx scripts/package-teams-app.ts"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
@@ -31,6 +32,7 @@
     "vitest": "^2.1.8"
   },
   "dependencies": {
+    "@microsoft/teams-js": "^2.56.0",
     "next": "^15.5.25",
     "react": "^19.3.0",
     "react-dom": "^19.3.0"

@@ -181,6 +181,34 @@ needs IT to say yes. Email and the `.ics` need nothing, which is why they are
 the default and why the product still works at a company that never approves
 anything.
 
+## Inside Teams
+
+Sofra also runs as a Teams **personal tab** — its own pages, rendered in Teams,
+with the person already signed in. `teams/README.md` has the app registration
+and packaging; `npm run teams:package` produces the uploadable zip.
+
+Signing in is the part worth being careful about. The tempting shortcut is
+`app.getContext()`, which hands you the user's email in one line — client-side,
+where anyone can put whatever they like in a `fetch`. Sofra instead takes the
+signed token from `authentication.getAuthToken()` and verifies it on the server
+against Microsoft's published keys: signature, algorithm, audience, issuer,
+tenant and expiry. The tests in `tests/teams-auth.test.ts` mint tokens with a
+real key pair and check that a forged signature, `alg: none`, another
+application's audience, another tenant, an expired token and an unknown signing
+key are each refused.
+
+Two details that are easy to miss and break everything quietly:
+
+- A tab is a **cross-site iframe**, so a `SameSite=Lax` session cookie is never
+  sent and the session appears to vanish on every request. `SOFRA_ALLOW_EMBEDDING`
+  switches it to `SameSite=None; Secure`.
+- The app has to **allow being framed**. `frame-ancestors` names the Teams hosts
+  explicitly rather than leaving it open.
+
+The tab needs no bot, no `Chat.Create`, and no application permissions — unlike
+the Teams _group chat_ above, which does. They are independent: you can have the
+tab without the chat, or neither, and Sofra still works.
+
 ### The calendar invite
 
 An RFC 5545 `.ics` with `METHOD:REQUEST` rather than a call to the Teams or
@@ -220,7 +248,7 @@ Built and tested: the matching engine, the provider abstraction with five
 implementations, ICS generation, bilingual invite content with topics, the email
 transport layer, the simulator, the nightly job, and a Next.js app — per-day
 opt-in, a matching console that shows the score behind every table, and the
-confirm-by-10:00 flow that reseats people when a table collapses. 138 tests.
+confirm-by-10:00 flow that reseats people when a table collapses, and a Teams tab. 151 tests.
 
 Run it with `npm run dev` and sign in as **onur / 1234**, or take a random
 colleague from the same screen — a shared link means several people clicking at
@@ -302,6 +330,7 @@ src/store/      persistence behind one interface; an in-memory demo implementati
 src/lib/        sign-in, session, config, dates, and the nightly job
 src/sim/        synthetic company and the simulator
 app/            Next.js app router: sign-in, opt-in page, matching console, RSVP page
+teams/          Teams app manifest, icons, and how to package them
 ```
 
 ## Quality
@@ -310,7 +339,7 @@ app/            Next.js app router: sign-in, opt-in page, matching console, RSVP
 npm run typecheck   # tsc, strict, noUncheckedIndexedAccess
 npm run lint        # eslint, zero warnings tolerated
 npm run format      # prettier
-npm test            # 138 tests
+npm test            # 151 tests
 npm run build       # production build
 ```
 

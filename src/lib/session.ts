@@ -24,14 +24,23 @@ export async function currentEmployeeId(store: Store): Promise<string | null> {
   return employeeId && store.getEmployee(employeeId) ? employeeId : null;
 }
 
+/**
+ * Inside a Teams tab the app is a cross-site iframe, and a SameSite=Lax cookie
+ * is simply not sent there — the session would appear to vanish on every
+ * request. SameSite=None fixes that and requires Secure, which is why it is
+ * opt-in rather than the default: it would break plain HTTP development for a
+ * setting most deployments do not need.
+ */
+const EMBEDDED = process.env.SOFRA_ALLOW_EMBEDDING === 'true';
+
 export async function startSession(employeeId: string): Promise<void> {
   const jar = await cookies();
   jar.set(SESSION_COOKIE, createSessionValue(employeeId), {
     httpOnly: true,
-    sameSite: 'lax',
+    sameSite: EMBEDDED ? 'none' : 'lax',
     path: '/',
     maxAge: YEAR_IN_SECONDS,
-    secure: process.env.NODE_ENV === 'production',
+    secure: EMBEDDED || process.env.NODE_ENV === 'production',
   });
 }
 
