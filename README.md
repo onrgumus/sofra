@@ -41,6 +41,37 @@ Who is in this building on this day? That is the entire integration surface.
 
 Start with `Manual`, add a real feed once the habit exists.
 
+## Why not just use a Teams channel
+
+You can, and for a small office you should. A `#lunch` channel where people post
+"I'm in today" costs nothing and works fine at twenty people.
+
+It breaks at two hundred, for two reasons. Somebody has to group everyone by
+hand, every day. And self-organising reproduces the cliques it was meant to
+break: people reply to the people they already know, which is the exact failure
+this is supposed to fix.
+
+There are also existing products in this category — **Donut** for Slack,
+Microsoft's own open-source **Icebreaker** for Teams, RandomCoffee, Mystery
+Minds. They pair people at random for a coffee, usually weekly, usually 1:1.
+
+Sofra differs in one constraint, and everything else follows from it: **it only
+matches people who are already in the same building on the same day.** A random
+pairing with someone working from home that day becomes a video call, which is
+the thing hybrid workers are already tired of. Because the constraint is
+physical presence, the product needs an attendance signal, which is why the
+provider abstraction is the first thing in this README rather than a footnote.
+
+Three smaller differences: tables of three or four rather than pairs, because a
+1:1 with a stranger is an interview and a table lets you listen; lunch, which is
+an hour that already exists in the day rather than a new calendar commitment;
+and a tick per day rather than standing enrolment that pairs you in a week when
+you have no appetite for it.
+
+When not to bother: fewer than about forty people in one office, a fully remote
+company (the attendance signal does not exist, and Donut fits better), or a
+culture where nobody will tick the box — no app fixes that last one.
+
 ## What the matcher optimises for
 
 Seating four strangers together is a max-weight set packing problem, which is

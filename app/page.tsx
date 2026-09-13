@@ -40,22 +40,13 @@ export default async function EmployeePage() {
   return (
     <main>
       <div className="page-head">
-        <h1>Lunch with people you would never otherwise meet</h1>
-        <p>
-          Plenty of office days you are there to sit with your own team and get work done. On the
-          days you would rather not, tick the box and Sofra seats you with three colleagues from
-          other teams — different departments, different seniority, people you have not had lunch
-          with before. One day at a time; nothing is automatic.
-        </p>
+        <h1>Your lunches</h1>
+        <p>Tick a day you are in the office and you will eat with three people from other teams.</p>
       </div>
 
       <section>
         <div className="section-head">
           <h2>The next two weeks</h2>
-          <p>
-            Office days come from your company&apos;s desk-booking system. You can also just tell
-            us.
-          </p>
         </div>
 
         <div className="stack">
@@ -139,11 +130,7 @@ export default async function EmployeePage() {
 
       <section>
         <div className="note">
-          Matching runs the evening before, and everyone who ticked the box that day is split evenly
-          into tables of three or four. One mail goes to the whole table at once, with a topic to
-          start on. Nobody sees who opted in and attendance is not reported to anyone. If a table
-          drops below three people, whoever still wants lunch is moved to another table rather than
-          left with nothing.
+          Nobody sees who ticked the box, and your office days are not reported to anyone.
         </div>
       </section>
     </main>
@@ -155,13 +142,14 @@ function TablePreview({ group, meId }: { group: StoredGroup; meId: string }) {
 
   return (
     <div style={{ marginTop: 10 }}>
-      <div className="faint">
-        {group.cancelled
-          ? 'Too many people dropped out and there was no free seat at another table, so this one is off.'
-          : `You are seated with ${others.length} people from ${
-              new Set(others.map((m) => m.department)).size
-            } other departments.`}
-      </div>
+      {/* The names are the answer. Counting the departments for them is the
+          engine talking about itself. */}
+      {group.cancelled ? (
+        <div className="faint">
+          Too many people dropped out and there was no free seat at another table, so this one is
+          off.
+        </div>
+      ) : null}
       <div className="people">
         {others.map((person) => (
           <PersonRow key={person.id} person={person} rsvp={group.rsvps[person.id]} />
