@@ -50,16 +50,21 @@ export interface DayStatus {
 }
 
 /**
- * Everything the app needs to persist. The demo implementation keeps it in
- * memory; a Postgres one implements the same surface without the rest of the app
- * noticing.
+ * Everything the app needs to persist.
+ *
+ * Every method is async, including the ones an in-memory implementation could
+ * answer instantly. That is not ceremony: a database cannot do I/O
+ * synchronously, so a synchronous signature here would mean no implementation
+ * but the in-memory one could ever exist. The cost is a few `await`s; the
+ * alternative is discovering on the first real deployment that the interface
+ * was shaped around the demo.
  */
 export interface Store {
-  listOffices(): Office[];
-  getOffice(officeId: string): Office | undefined;
+  listOffices(): Promise<Office[]>;
+  getOffice(officeId: string): Promise<Office | undefined>;
 
-  listEmployees(officeId?: string): Employee[];
-  getEmployee(employeeId: string): Employee | undefined;
+  listEmployees(officeId?: string): Promise<Employee[]>;
+  getEmployee(employeeId: string): Promise<Employee | undefined>;
 
   /** Runs the composite attendance provider for that day. */
   getAttendance(date: string, officeId: string): Promise<string[]>;
@@ -73,28 +78,27 @@ export interface Store {
     date: string,
     officeId: string,
     attending: boolean,
-  ): void;
+  ): Promise<void>;
 
-  listOptIns(date: string, officeId: string): OptIn[];
-  getOptIn(employeeId: string, date: string, officeId: string): OptIn | null;
-  setOptIn(optIn: OptIn): void;
-  removeOptIn(employeeId: string, date: string, officeId: string): void;
+  listOptIns(date: string, officeId: string): Promise<OptIn[]>;
+  getOptIn(employeeId: string, date: string, officeId: string): Promise<OptIn | null>;
+  setOptIn(optIn: OptIn): Promise<void>;
+  removeOptIn(employeeId: string, date: string, officeId: string): Promise<void>;
 
-  listGroups(date: string, officeId: string): StoredGroup[];
-  getGroup(groupId: string): StoredGroup | null;
-  groupForEmployee(employeeId: string, date: string, officeId: string): StoredGroup | null;
-  saveMatchResult(result: MatchResult): void;
+  listGroups(date: string, officeId: string): Promise<StoredGroup[]>;
+  getGroup(groupId: string): Promise<StoredGroup | null>;
+  groupForEmployee(employeeId: string, date: string, officeId: string): Promise<StoredGroup | null>;
+  saveMatchResult(result: MatchResult): Promise<void>;
   /** Anyone the engine could not seat, so the admin sees it rather than guessing. */
-  listUnmatched(date: string, officeId: string): Unmatched[];
-  clearGroups(date: string, officeId: string): void;
-  markInviteSent(groupId: string): void;
-  markCancellationSent(groupId: string): void;
+  listUnmatched(date: string, officeId: string): Promise<Unmatched[]>;
+  clearGroups(date: string, officeId: string): Promise<void>;
+  markInviteSent(groupId: string): Promise<void>;
+  markCancellationSent(groupId: string): Promise<void>;
   /**
    * Records a reply and, when a decline leaves the table too small, moves the
-   * people still coming to other tables that have room. Returns the group each
-   * moved person ended up at, so the caller can tell them.
+   * people still coming to other tables that have room.
    */
-  setRsvp(groupId: string, employeeId: string, status: RsvpStatus): void;
+  setRsvp(groupId: string, employeeId: string, status: RsvpStatus): Promise<void>;
 
-  listPastMatches(): PastMatch[];
+  listPastMatches(): Promise<PastMatch[]>;
 }

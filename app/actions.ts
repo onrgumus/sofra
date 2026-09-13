@@ -32,10 +32,10 @@ export async function signIn(formData: FormData): Promise<void> {
 
   const store = getStore();
   const employee = asColleague
-    ? pickRandomColleague(store)
+    ? await pickRandomColleague(store)
     : username === DEMO_USERNAME
-      ? store.getEmployee(DEMO_USERNAME)
-      : store.listEmployees().find((e) => e.email.toLowerCase() === username);
+      ? await store.getEmployee(DEMO_USERNAME)
+      : (await store.listEmployees()).find((e) => e.email.toLowerCase() === username);
 
   if (!employee || !checkPassword(password)) {
     // Same message either way: which half was wrong is not the visitor's
@@ -55,7 +55,7 @@ export async function signOut(): Promise<void> {
 /** Demo affordance: look at the same day through a colleague's eyes. */
 export async function switchEmployee(formData: FormData): Promise<void> {
   const employeeId = required(formData, 'employeeId');
-  if (!getStore().getEmployee(employeeId)) return;
+  if (!(await getStore().getEmployee(employeeId))) return;
 
   await startSession(employeeId);
   refresh();
@@ -63,7 +63,7 @@ export async function switchEmployee(formData: FormData): Promise<void> {
 
 export async function setAttendance(formData: FormData): Promise<void> {
   const store = getStore();
-  store.setSelfDeclaredAttendance(
+  await store.setSelfDeclaredAttendance(
     required(formData, 'employeeId'),
     required(formData, 'date'),
     required(formData, 'officeId'),
@@ -84,9 +84,9 @@ export async function toggleLunch(formData: FormData): Promise<void> {
   const officeId = required(formData, 'officeId');
 
   if (formData.get('wantsLunch') === 'on') {
-    store.setOptIn({ employeeId, date, officeId, slot: SLOT });
+    await store.setOptIn({ employeeId, date, officeId, slot: SLOT });
   } else {
-    store.removeOptIn(employeeId, date, officeId);
+    await store.removeOptIn(employeeId, date, officeId);
   }
   refresh();
 }
@@ -101,7 +101,7 @@ export async function runMatching(formData: FormData): Promise<void> {
 }
 
 export async function clearMatching(formData: FormData): Promise<void> {
-  getStore().clearGroups(required(formData, 'date'), required(formData, 'officeId'));
+  await getStore().clearGroups(required(formData, 'date'), required(formData, 'officeId'));
   refresh();
 }
 
@@ -119,7 +119,7 @@ export async function sendInvites(formData: FormData): Promise<void> {
 export async function respondToInvite(formData: FormData): Promise<void> {
   const store = getStore();
   const groupId = required(formData, 'groupId');
-  const group = store.getGroup(groupId);
+  const group = await store.getGroup(groupId);
   if (!group) return;
 
   store.setRsvp(

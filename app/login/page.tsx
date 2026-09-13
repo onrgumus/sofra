@@ -22,7 +22,12 @@ export default async function LoginPage({
     <main className="signin">
       <div className="page-head">
         <h1>Sofra</h1>
-        <p>Lunch with three colleagues from other teams, on a day you are already in the office.</p>
+        <p>
+          You can spend years in a building with people whose work you never see. As more of the
+          routine gets automated, what is left is the part that runs on knowing who to ask — and
+          that is not on any org chart. Sofra spends an hour you were going to spend anyway on three
+          people most likely to teach you something.
+        </p>
       </div>
 
       {/* Inside Teams this signs you in and reloads; elsewhere it does nothing. */}

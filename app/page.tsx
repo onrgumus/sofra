@@ -17,8 +17,8 @@ export default async function EmployeePage() {
   const employeeId = await currentEmployeeId(store);
   if (!employeeId) redirect('/login');
 
-  const me = store.getEmployee(employeeId);
-  const office = me ? store.getOffice(me.officeId) : undefined;
+  const me = await store.getEmployee(employeeId);
+  const office = me ? await store.getOffice(me.officeId) : undefined;
 
   if (!me || !office) return <p>No employee selected.</p>;
 
@@ -29,10 +29,10 @@ export default async function EmployeePage() {
         date,
         source,
         // An opt-in only means anything on a day you are actually in the office.
-        optIn: source === null ? null : store.getOptIn(employeeId, date, office.id),
-        group: store.groupForEmployee(employeeId, date, office.id),
+        optIn: source === null ? null : await store.getOptIn(employeeId, date, office.id),
+        group: await store.groupForEmployee(employeeId, date, office.id),
         /** Tables for this day already exist, so the cut-off has passed. */
-        matched: store.listGroups(date, office.id).length > 0,
+        matched: (await store.listGroups(date, office.id)).length > 0,
       };
     }),
   );

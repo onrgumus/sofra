@@ -35,14 +35,14 @@ export interface DeliveryResult {
 export async function deliverPending(options: DeliveryOptions): Promise<DeliveryResult> {
   const { store, channel, from, date, officeId } = options;
 
-  const office = store.getOffice(officeId);
+  const office = await store.getOffice(officeId);
   if (!office) return { invitesSent: 0, cancellationsSent: 0 };
 
   const venue = toVenue(office);
   const organizer = { name: 'Sofra', email: from };
   const result: DeliveryResult = { invitesSent: 0, cancellationsSent: 0 };
 
-  for (const group of store.listGroups(date, officeId)) {
+  for (const group of await store.listGroups(date, officeId)) {
     if (group.members.length === 0) continue;
 
     if (group.cancelled) {
@@ -60,7 +60,7 @@ export async function deliverPending(options: DeliveryOptions): Promise<Delivery
           method: 'CANCEL',
         }),
       });
-      store.markCancellationSent(group.id);
+      await store.markCancellationSent(group.id);
       result.cancellationsSent++;
       continue;
     }
@@ -78,7 +78,7 @@ export async function deliverPending(options: DeliveryOptions): Promise<Delivery
         sequence: group.sequence,
       }),
     });
-    store.markInviteSent(group.id);
+    await store.markInviteSent(group.id);
     result.invitesSent++;
   }
 

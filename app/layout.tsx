@@ -29,9 +29,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     );
   }
 
-  const current = store.getEmployee(currentId);
-  const colleagues = store
-    .listEmployees(current?.officeId)
+  const current = await store.getEmployee(currentId);
+  const colleagues = (await store.listEmployees(current?.officeId))
     .slice()
     .sort((a, b) => a.displayName.localeCompare(b.displayName));
 

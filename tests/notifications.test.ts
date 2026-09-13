@@ -33,7 +33,7 @@ describe('deliverPending', () => {
 
     const result = await deliverPending({ store, channel, from, date, officeId: OFFICE });
 
-    expect(result.invitesSent).toBe(store.listGroups(date, OFFICE).length);
+    expect(result.invitesSent).toBe((await store.listGroups(date, OFFICE)).length);
     expect(result.cancellationsSent).toBe(0);
     expect(sent.every((m) => m.attachments?.[0]?.content.includes('METHOD:REQUEST'))).toBe(true);
   });
@@ -54,9 +54,9 @@ describe('deliverPending', () => {
     await deliverPending({ store, channel, from, date, officeId: OFFICE });
     sent.length = 0;
 
-    const group = store.listGroups(date, OFFICE).find((g) => g.members.length === 4)!;
-    store.setRsvp(group.id, group.members[0]!.id, 'declined');
-    store.setRsvp(group.id, group.members[1]!.id, 'declined');
+    const group = (await store.listGroups(date, OFFICE)).find((g) => g.members.length === 4)!;
+    await store.setRsvp(group.id, group.members[0]!.id, 'declined');
+    await store.setRsvp(group.id, group.members[1]!.id, 'declined');
 
     const result = await deliverPending({ store, channel, from, date, officeId: OFFICE });
 
@@ -73,9 +73,9 @@ describe('deliverPending', () => {
     await deliverPending({ store, channel, from, date, officeId: OFFICE });
     sent.length = 0;
 
-    const group = store.listGroups(date, OFFICE).find((g) => g.members.length === 4)!;
-    store.setRsvp(group.id, group.members[0]!.id, 'declined');
-    store.setRsvp(group.id, group.members[1]!.id, 'declined');
+    const group = (await store.listGroups(date, OFFICE)).find((g) => g.members.length === 4)!;
+    await store.setRsvp(group.id, group.members[0]!.id, 'declined');
+    await store.setRsvp(group.id, group.members[1]!.id, 'declined');
 
     const result = await deliverPending({ store, channel, from, date, officeId: OFFICE });
 
@@ -90,9 +90,9 @@ describe('deliverPending', () => {
   it('never cancels a table nobody was told about', async () => {
     const { store, date, channel, sent } = await setUp();
 
-    const group = store.listGroups(date, OFFICE).find((g) => g.members.length === 4)!;
-    store.setRsvp(group.id, group.members[0]!.id, 'declined');
-    store.setRsvp(group.id, group.members[1]!.id, 'declined');
+    const group = (await store.listGroups(date, OFFICE)).find((g) => g.members.length === 4)!;
+    await store.setRsvp(group.id, group.members[0]!.id, 'declined');
+    await store.setRsvp(group.id, group.members[1]!.id, 'declined');
 
     const result = await deliverPending({ store, channel, from, date, officeId: OFFICE });
 
@@ -104,9 +104,9 @@ describe('deliverPending', () => {
     const { store, date, channel, sent } = await setUp();
     await deliverPending({ store, channel, from, date, officeId: OFFICE });
 
-    const group = store.listGroups(date, OFFICE).find((g) => g.members.length === 4)!;
-    store.setRsvp(group.id, group.members[0]!.id, 'declined');
-    store.setRsvp(group.id, group.members[1]!.id, 'declined');
+    const group = (await store.listGroups(date, OFFICE)).find((g) => g.members.length === 4)!;
+    await store.setRsvp(group.id, group.members[0]!.id, 'declined');
+    await store.setRsvp(group.id, group.members[1]!.id, 'declined');
 
     await deliverPending({ store, channel, from, date, officeId: OFFICE });
     sent.length = 0;
@@ -121,13 +121,13 @@ describe('deliverPending', () => {
     await deliverPending({ store, channel, from, date, officeId: OFFICE });
     sent.length = 0;
 
-    const group = store.listGroups(date, OFFICE).find((g) => g.members.length === 4)!;
-    store.setRsvp(group.id, group.members[0]!.id, 'declined');
-    store.setRsvp(group.id, group.members[1]!.id, 'declined');
+    const group = (await store.listGroups(date, OFFICE)).find((g) => g.members.length === 4)!;
+    await store.setRsvp(group.id, group.members[0]!.id, 'declined');
+    await store.setRsvp(group.id, group.members[1]!.id, 'declined');
     await deliverPending({ store, channel, from, date, officeId: OFFICE });
 
     const cancellation = sent.find((m) => m.subject.includes('cancelled'))!;
-    const remaining = store.getGroup(group.id)!.members.map((m) => m.email);
+    const remaining = (await store.getGroup(group.id))!.members.map((m) => m.email);
     expect(cancellation.to.sort()).toEqual(remaining.sort());
   });
 

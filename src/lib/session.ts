@@ -21,7 +21,8 @@ export async function currentEmployeeId(store: Store): Promise<string | null> {
   const employeeId = readSessionValue(jar.get(SESSION_COOKIE)?.value);
 
   // A signature for someone who is no longer in the directory is not a session.
-  return employeeId && store.getEmployee(employeeId) ? employeeId : null;
+  if (!employeeId) return null;
+  return (await store.getEmployee(employeeId)) ? employeeId : null;
 }
 
 /**

@@ -34,20 +34,22 @@ export interface OfficeOutcome {
  */
 export async function planDay(store: Store, officeId: string, date: string): Promise<MatchResult> {
   const attending = new Set(await store.getAttendance(date, officeId));
-  const optIns = store.listOptIns(date, officeId).filter((o) => attending.has(o.employeeId));
+  const optIns = (await store.listOptIns(date, officeId)).filter((o) =>
+    attending.has(o.employeeId),
+  );
 
   const result = matchLunches({
     date,
     officeId,
     slot: SLOT,
-    employees: store.listEmployees(),
+    employees: await store.listEmployees(),
     optIns,
     // Never let the day being planned count as a past lunch: re-running would
     // otherwise treat the plan it is replacing as people who already met.
-    pastMatches: store.listPastMatches().filter((m) => m.date !== date),
+    pastMatches: (await store.listPastMatches()).filter((m) => m.date !== date),
   });
 
-  store.saveMatchResult(result);
+  await store.saveMatchResult(result);
   return result;
 }
 
@@ -63,7 +65,7 @@ export async function runNightlyMatching(options: NightlyOptions): Promise<Offic
   const { store, channel, from } = options;
   const outcomes: OfficeOutcome[] = [];
 
-  for (const office of store.listOffices()) {
+  for (const office of await store.listOffices()) {
     // Each office plans its own next working day, in its own timezone.
     const date = options.date ?? upcomingWeekdays(1, todayInZone(office.timeZone))[0]!;
 

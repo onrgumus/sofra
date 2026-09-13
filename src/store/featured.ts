@@ -29,8 +29,11 @@ export const FEATURED_EMPLOYEE: Employee = {
  * one. A public link means several people clicking at once, and four of them
  * all acting as Onur GG would be ticking and unticking the same boxes.
  */
-export function pickRandomColleague(store: Store, random: () => number = Math.random): Employee {
-  const colleagues = store.listEmployees().filter((e) => e.id !== FEATURED_EMPLOYEE.id);
+export async function pickRandomColleague(
+  store: Store,
+  random: () => number = Math.random,
+): Promise<Employee> {
+  const colleagues = (await store.listEmployees()).filter((e) => e.id !== FEATURED_EMPLOYEE.id);
   if (colleagues.length === 0) return FEATURED_EMPLOYEE;
 
   return colleagues[Math.floor(random() * colleagues.length)] ?? colleagues[0]!;

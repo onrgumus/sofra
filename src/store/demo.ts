@@ -86,19 +86,24 @@ export class DemoStore implements Store {
 
   // --- reference data -------------------------------------------------------
 
-  listOffices(): Office[] {
+  async listOffices(): Promise<Office[]> {
     return OFFICES;
   }
 
-  getOffice(officeId: string): Office | undefined {
+  async getOffice(officeId: string): Promise<Office | undefined> {
     return OFFICES.find((o) => o.id === officeId);
   }
 
-  listEmployees(officeId?: string): Employee[] {
+  async listEmployees(officeId?: string): Promise<Employee[]> {
+    return this.staffAt(officeId);
+  }
+
+  /** Synchronous read for seeding, which happens before anything can await. */
+  private staffAt(officeId?: string): Employee[] {
     return officeId ? this.employees.filter((e) => e.officeId === officeId) : this.employees;
   }
 
-  getEmployee(employeeId: string): Employee | undefined {
+  async getEmployee(employeeId: string): Promise<Employee | undefined> {
     return this.employeeById.get(employeeId);
   }
 
@@ -134,12 +139,12 @@ export class DemoStore implements Store {
     return declared ? 'self-declared' : null;
   }
 
-  setSelfDeclaredAttendance(
+  async setSelfDeclaredAttendance(
     employeeId: string,
     date: string,
     officeId: string,
     attending: boolean,
-  ): void {
+  ): Promise<void> {
     const id = key(employeeId, date, officeId);
     this.selfDeclared = this.selfDeclared.filter(
       (r) => !(r.employeeId === employeeId && r.date === date && r.officeId === officeId),
@@ -157,40 +162,48 @@ export class DemoStore implements Store {
 
   // --- opt-ins --------------------------------------------------------------
 
-  listOptIns(date: string, officeId: string): OptIn[] {
+  async listOptIns(date: string, officeId: string): Promise<OptIn[]> {
     return [...this.optIns.values()].filter((o) => o.date === date && o.officeId === officeId);
   }
 
-  getOptIn(employeeId: string, date: string, officeId: string): OptIn | null {
+  async getOptIn(employeeId: string, date: string, officeId: string): Promise<OptIn | null> {
     return this.optIns.get(key(employeeId, date, officeId)) ?? null;
   }
 
-  setOptIn(optIn: OptIn): void {
+  async setOptIn(optIn: OptIn): Promise<void> {
     this.optIns.set(key(optIn.employeeId, optIn.date, optIn.officeId), optIn);
   }
 
-  removeOptIn(employeeId: string, date: string, officeId: string): void {
+  async removeOptIn(employeeId: string, date: string, officeId: string): Promise<void> {
     this.optIns.delete(key(employeeId, date, officeId));
   }
 
   // --- groups ---------------------------------------------------------------
 
-  listGroups(date: string, officeId: string): StoredGroup[] {
+  async listGroups(date: string, officeId: string): Promise<StoredGroup[]> {
+    return this.groupsOn(date, officeId);
+  }
+
+  /** The same read, synchronously, for this class's own internals. */
+  private groupsOn(date: string, officeId: string): StoredGroup[] {
     return [...this.groups.values()].filter((g) => g.date === date && g.officeId === officeId);
   }
 
-  getGroup(groupId: string): StoredGroup | null {
+  async getGroup(groupId: string): Promise<StoredGroup | null> {
     return this.groups.get(groupId) ?? null;
   }
 
-  groupForEmployee(employeeId: string, date: string, officeId: string): StoredGroup | null {
+  async groupForEmployee(
+    employeeId: string,
+    date: string,
+    officeId: string,
+  ): Promise<StoredGroup | null> {
     return (
-      this.listGroups(date, officeId).find((g) => g.members.some((m) => m.id === employeeId)) ??
-      null
+      this.groupsOn(date, officeId).find((g) => g.members.some((m) => m.id === employeeId)) ?? null
     );
   }
 
-  saveMatchResult(result: MatchResult): void {
+  async saveMatchResult(result: MatchResult): Promise<void> {
     this.clearGroups(result.date, result.officeId);
     this.unmatched.set(key(result.date, result.officeId), result.unmatched);
     for (const group of result.groups) {
@@ -205,26 +218,26 @@ export class DemoStore implements Store {
     }
   }
 
-  listUnmatched(date: string, officeId: string): Unmatched[] {
+  async listUnmatched(date: string, officeId: string): Promise<Unmatched[]> {
     return this.unmatched.get(key(date, officeId)) ?? [];
   }
 
-  clearGroups(date: string, officeId: string): void {
-    for (const group of this.listGroups(date, officeId)) this.groups.delete(group.id);
+  async clearGroups(date: string, officeId: string): Promise<void> {
+    for (const group of this.groupsOn(date, officeId)) this.groups.delete(group.id);
     this.unmatched.delete(key(date, officeId));
   }
 
-  markInviteSent(groupId: string): void {
+  async markInviteSent(groupId: string): Promise<void> {
     const group = this.groups.get(groupId);
     if (group) group.invitesSentAt = new Date().toISOString();
   }
 
-  markCancellationSent(groupId: string): void {
+  async markCancellationSent(groupId: string): Promise<void> {
     const group = this.groups.get(groupId);
     if (group) group.cancellationSentAt = new Date().toISOString();
   }
 
-  setRsvp(groupId: string, employeeId: string, status: RsvpStatus): void {
+  async setRsvp(groupId: string, employeeId: string, status: RsvpStatus): Promise<void> {
     const group = this.groups.get(groupId);
     if (!group || !(employeeId in group.rsvps)) return;
 
@@ -255,10 +268,10 @@ export class DemoStore implements Store {
    */
   private moveOut(group: StoredGroup, people: readonly Employee[]): void {
     const history = new MatchHistory(
-      this.listPastMatches().filter((m) => m.date !== group.date),
+      this.pastMatches().filter((m) => m.date !== group.date),
       group.date,
     );
-    const hosts = this.listGroups(group.date, group.officeId).filter(
+    const hosts = this.groupsOn(group.date, group.officeId).filter(
       (g) => g.id !== group.id && !g.cancelled,
     );
 
@@ -305,7 +318,11 @@ export class DemoStore implements Store {
     return null;
   }
 
-  listPastMatches(): PastMatch[] {
+  async listPastMatches(): Promise<PastMatch[]> {
+    return this.pastMatches();
+  }
+
+  private pastMatches(): PastMatch[] {
     const fromGroups = [...this.groups.values()].map((g) => ({
       date: g.date,
       memberIds: g.members.map((m) => m.id),
@@ -327,7 +344,7 @@ export class DemoStore implements Store {
     for (const office of OFFICES) {
       const today = todayInZone(office.timeZone);
       const dates = [...pastWeekdays(15, today), ...upcomingWeekdays(15, today)];
-      const staff = this.listEmployees(office.id);
+      const staff = this.staffAt(office.id);
       for (const date of dates) {
         const booked = staff.filter(() => rng() < 0.6);
         this.deskFeed.ingest(
@@ -355,7 +372,7 @@ export class DemoStore implements Store {
         // Seeding without this check produced opt-ins for people marked "not in
         // the office", which the matcher ignored but the UI happily displayed.
         const attending = bookings.get(key(date, office.id)) ?? new Set<string>();
-        for (const employee of this.listEmployees(office.id)) {
+        for (const employee of this.staffAt(office.id)) {
           if (!attending.has(employee.id)) continue;
           if (rng() >= 0.35) continue;
           this.optIns.set(key(employee.id, date, office.id), {
@@ -381,7 +398,7 @@ export class DemoStore implements Store {
         .filter((_, i) => i % 5 === 2)
         .slice(-3);
       for (const date of dates) {
-        const attending = this.listEmployees(office.id).filter(() => rng() < 0.35);
+        const attending = this.staffAt(office.id).filter(() => rng() < 0.35);
         const result = matchLunches({
           date,
           officeId: office.id,

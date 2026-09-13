@@ -20,11 +20,11 @@ export default async function AdminPage({
   const store = getStore();
   const params = await searchParams;
 
-  const offices = store.listOffices();
+  const offices = await store.listOffices();
   const officeId = offices.some((o) => o.id === params.officeId)
     ? params.officeId!
     : offices[0]!.id;
-  const office = store.getOffice(officeId)!;
+  const office = (await store.getOffice(officeId))!;
 
   // Offices in different zones are on different dates for part of every day.
   const dates = upcomingWeekdays(10, todayInZone(office.timeZone));
@@ -32,13 +32,15 @@ export default async function AdminPage({
 
   const attending = await store.getAttendance(date, officeId);
   const attendingSet = new Set(attending);
-  const optIns = store.listOptIns(date, officeId).filter((o) => attendingSet.has(o.employeeId));
-  const groups = store.listGroups(date, officeId);
-  const unmatched = store.listUnmatched(date, officeId);
+  const optIns = (await store.listOptIns(date, officeId)).filter((o) =>
+    attendingSet.has(o.employeeId),
+  );
+  const groups = await store.listGroups(date, officeId);
+  const unmatched = await store.listUnmatched(date, officeId);
 
   // Same exclusion as the matcher used, so the novelty bars and the "first
   // meeting" count describe this plan rather than being cancelled out by it.
-  const priorMatches = store.listPastMatches().filter((m) => m.date !== date);
+  const priorMatches = (await store.listPastMatches()).filter((m) => m.date !== date);
   const context = {
     history: new MatchHistory(priorMatches, date),
     config: DEFAULT_CONFIG,

@@ -3,10 +3,14 @@
 [![CI](https://github.com/onrgumus/sofra/actions/workflows/ci.yml/badge.svg)](https://github.com/onrgumus/sofra/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-Hybrid work solved the commute and quietly broke the thing offices were for. You
-go in three days a week, sit with your own team, and leave. Sofra puts three or
-four people who would never otherwise meet at the same lunch table on a day they
-are all already in the building.
+You can spend years in a building with people whose work you never see. As more
+of the routine gets automated, what is left is the part that runs on knowing who
+to ask — and that is not on any org chart. Sofra spends an hour you were going
+to spend anyway on three people most likely to teach you something.
+
+Hybrid work made it worse: you go in three days a week, sit with your own team,
+and leave. Sofra puts three or four people who would never otherwise meet at the
+same lunch table on a day they are all already in the building.
 
 Being in the office is not the signal. Most office days you are there to work
 with your own team, and that is fine — Sofra does nothing unless you tick a box
@@ -290,13 +294,19 @@ API keys.
 Dates are resolved in each office's own timezone rather than the server's, since
 Istanbul and Amsterdam are on different dates for part of every day.
 
-Not built yet: real authentication and persistence. Sign-in is one shared
-password so anyone with the link can try the product — a demo gate, not
-authentication, though the session cookie is HMAC-signed so an employee id
-cannot be forged in devtools. Replacing `src/lib/auth.ts` and
-`src/lib/session.ts` is the whole of adding real sign-in, and swapping
-`src/store/instance.ts` for a Postgres implementation of the same interface is
-the whole of adding a database.
+Not built yet: real authentication and persistence.
+
+Sign-in is one shared password so anyone with the link can try the product — a
+demo gate, not authentication, though the session cookie is HMAC-signed so an
+employee id cannot be forged in devtools. Replacing `src/lib/auth.ts` and
+`src/lib/session.ts` is the whole of adding real sign-in.
+
+Persistence is a swap of `src/store/instance.ts` for an implementation of the
+same interface. That claim used to be false: every method on `Store` returned a
+plain value, which no database can do, so the only implementation that could
+ever have existed was the in-memory one. The interface is fully async now — 249
+type errors' worth of change, which is exactly the bill that would otherwise
+have arrived on the first real deployment.
 
 ## The nightly job
 

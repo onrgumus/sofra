@@ -25,7 +25,7 @@ describe('runNightlyMatching', () => {
 
     const outcomes = await runNightlyMatching({ store, channel, from });
 
-    expect(outcomes).toHaveLength(store.listOffices().length);
+    expect(outcomes).toHaveLength((await store.listOffices()).length);
     for (const outcome of outcomes) {
       expect(outcome.tables).toBeGreaterThan(0);
       expect(outcome.unseated).toBe(0);
@@ -54,7 +54,7 @@ describe('runNightlyMatching', () => {
     const [outcome] = await runNightlyMatching({ store, channel, from });
     const attending = new Set(await store.getAttendance(outcome!.date, outcome!.officeId));
 
-    for (const group of store.listGroups(outcome!.date, outcome!.officeId)) {
+    for (const group of await store.listGroups(outcome!.date, outcome!.officeId)) {
       for (const member of group.members) expect(attending.has(member.id)).toBe(true);
     }
   });
@@ -67,7 +67,7 @@ describe('runNightlyMatching', () => {
     const outcomes = await runNightlyMatching({ store, channel, from, date });
 
     expect(outcomes.every((o) => o.date === date)).toBe(true);
-    expect(store.listGroups(date, 'IST-HQ').length).toBeGreaterThan(0);
+    expect((await store.listGroups(date, 'IST-HQ')).length).toBeGreaterThan(0);
   });
 
   it('marks the invites as sent, so the console does not offer to send them twice', async () => {
@@ -76,7 +76,7 @@ describe('runNightlyMatching', () => {
 
     const [outcome] = await runNightlyMatching({ store, channel, from });
 
-    for (const group of store.listGroups(outcome!.date, outcome!.officeId)) {
+    for (const group of await store.listGroups(outcome!.date, outcome!.officeId)) {
       expect(group.invitesSentAt).not.toBeNull();
     }
   });
@@ -89,7 +89,7 @@ describe('runNightlyMatching', () => {
     const [second] = await runNightlyMatching({ store, channel, from });
 
     expect(second!.seated).toBe(first!.seated);
-    expect(store.listGroups(first!.date, first!.officeId)).toHaveLength(second!.tables);
+    expect(await store.listGroups(first!.date, first!.officeId)).toHaveLength(second!.tables);
   });
 
   it('says nothing happened rather than failing when nobody asked', async () => {
@@ -97,9 +97,9 @@ describe('runNightlyMatching', () => {
     const { channel, sent } = recorder();
     const date = upcomingWeekdays(1, todayInZone('Europe/Istanbul'))[0]!;
 
-    for (const office of store.listOffices()) {
-      for (const optIn of store.listOptIns(date, office.id)) {
-        store.removeOptIn(optIn.employeeId, date, office.id);
+    for (const office of await store.listOffices()) {
+      for (const optIn of await store.listOptIns(date, office.id)) {
+        await store.removeOptIn(optIn.employeeId, date, office.id);
       }
     }
 
@@ -113,6 +113,6 @@ describe('runNightlyMatching', () => {
     const { channel } = recorder();
 
     const [outcome] = await runNightlyMatching({ store, channel, from });
-    expect(store.listGroups(outcome!.date, outcome!.officeId)[0]?.slot).toBe(SLOT);
+    expect((await store.listGroups(outcome!.date, outcome!.officeId))[0]?.slot).toBe(SLOT);
   });
 });

@@ -39,9 +39,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const employee = getStore()
-    .listEmployees()
-    .find((e) => e.email.toLowerCase() === identity.email);
+  const employee = (await getStore().listEmployees()).find(
+    (e) => e.email.toLowerCase() === identity.email,
+  );
 
   if (!employee) {
     // Signed in to Teams, but not in this company's directory.

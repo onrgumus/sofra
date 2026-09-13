@@ -11,7 +11,7 @@ import { PersonRow, Pill } from '../../ui';
 export default async function ConfirmPage({ params }: { params: Promise<{ groupId: string }> }) {
   const store = getStore();
   const { groupId } = await params;
-  const group = store.getGroup(decodeURIComponent(groupId));
+  const group = await store.getGroup(decodeURIComponent(groupId));
 
   if (!group) {
     return (
@@ -27,14 +27,14 @@ export default async function ConfirmPage({ params }: { params: Promise<{ groupI
     );
   }
 
-  const office = store.getOffice(group.officeId)!;
+  const office = (await store.getOffice(group.officeId))!;
   const meId = await currentEmployeeId(store);
   if (!meId) redirect('/login');
   const me = group.members.find((m) => m.id === meId);
   const myStatus = me ? group.rsvps[me.id] : undefined;
 
   // Someone who was moved off this table still has the old link in their inbox.
-  const movedTo = me ? null : store.groupForEmployee(meId, group.date, group.officeId);
+  const movedTo = me ? null : await store.groupForEmployee(meId, group.date, group.officeId);
 
   const invite = buildInvite({
     group,
