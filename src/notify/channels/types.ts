@@ -5,8 +5,8 @@ import type { Invite } from '../invite';
  * How a table is told about its lunch.
  *
  * This sits a level above `EmailTransport`, which can only say "send this
- * message to these addresses". Chat platforms need two steps — open a
- * conversation for exactly these four people, then post into it — and the
+ * message to these addresses". Chat platforms need two steps: open a
+ * conversation for exactly these four people, then post into it, and the
  * conversation is worth keeping, because "where shall we go" is a conversation.
  *
  * Everything below the interface is per-platform. Nothing above it knows a

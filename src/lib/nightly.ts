@@ -58,7 +58,7 @@ export async function planDay(store: Store, officeId: string, date: string): Pro
  * who asked for a lunch and is actually in the building, then send one invite
  * per table.
  *
- * Pure with respect to time — pass a `date` to plan a specific day — so it can
+ * Pure with respect to time: pass a `date` to plan a specific day, so it can
  * be tested without waiting for tomorrow.
  */
 export async function runNightlyMatching(options: NightlyOptions): Promise<OfficeOutcome[]> {

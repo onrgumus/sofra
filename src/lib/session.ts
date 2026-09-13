@@ -7,7 +7,7 @@ import { SESSION_COOKIE } from './session-cookie';
  * Who the current visitor is acting as.
  *
  * Per-visitor, in a signed cookie: the company data is shared because it is one
- * company, but the session is not — otherwise two people opening the same link
+ * company, but the session is not. Otherwise two people opening the same link
  * would switch each other's account mid-click.
  *
  * Replacing this file and `src/lib/auth.ts` is the whole of adding real sign-in.
@@ -27,7 +27,7 @@ export async function currentEmployeeId(store: Store): Promise<string | null> {
 
 /**
  * Inside a Teams tab the app is a cross-site iframe, and a SameSite=Lax cookie
- * is simply not sent there — the session would appear to vanish on every
+ * is simply not sent there, so the session would appear to vanish on every
  * request. SameSite=None fixes that and requires Secure, which is why it is
  * opt-in rather than the default: it would break plain HTTP development for a
  * setting most deployments do not need.

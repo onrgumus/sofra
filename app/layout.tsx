@@ -17,7 +17,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const store = getStore();
   const currentId = await currentEmployeeId(store);
 
-  // Signed out — the sign-in page is the only thing that renders, and a header
+  // Signed out: the sign-in page is the only thing that renders, and a header
   // full of colleagues would be an odd thing to show someone who is not in yet.
   if (!currentId) {
     return (
@@ -44,7 +44,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             </Link>
 
             {/* No auth in the demo, so "who am I" is a switcher. */}
-            {/* Names only: a select showing "Name — Long Title, Department" is
+            {/* Names only: a select showing "Name Long Title, Department" is
                 wider than any sensible header and just truncates. The role goes
                 next to it, where it can wrap. */}
             <form action={switchEmployee} className="inline who">

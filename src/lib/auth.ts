@@ -4,7 +4,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
  * A demo gate, not authentication.
  *
  * One shared password lets anyone with the link try the product. That is the
- * point here and it is nobody's idea of a security boundary — real sign-in
+ * point here and it is nobody's idea of a security boundary. Real sign-in
  * replaces this file and `src/lib/session.ts` together. What it does do is stop
  * a session cookie being forged by hand: the employee id is signed, so you
  * cannot become a colleague by editing a cookie in devtools.
@@ -17,7 +17,7 @@ const SESSION_SECRET =
 export function checkPassword(candidate: string): boolean {
   const expected = Buffer.from(DEMO_PASSWORD, 'utf8');
   const actual = Buffer.from(candidate, 'utf8');
-  // Compare in constant time, and only when the lengths already match —
+  // Compare in constant time, and only when the lengths already match;
   // timingSafeEqual throws on a length mismatch.
   return expected.length === actual.length && timingSafeEqual(expected, actual);
 }

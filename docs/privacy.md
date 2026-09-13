@@ -10,7 +10,7 @@ and works council have something concrete to react to.
 
 ## There is no gender field
 
-The intuitive design balances every table by gender — two women, two men. Sofra
+The intuitive design balances every table by gender: two women, two men. Sofra
 does not store gender at all, for three reasons:
 
 1. Discrimination exposure. Using gender as a criterion in an automated
@@ -20,7 +20,7 @@ does not store gender at all, for three reasons:
    employee representative body must approve tools that process employee data.
    A gender quota is the single most likely thing in this product to be refused.
 3. It is not necessary. The diversity that makes the lunch worthwhile comes
-   from department, team, seniority and tenure — attributes already in the org
+   from department, team, seniority and tenure, attributes already in the org
    chart, with an obvious business justification, and no protected status.
 
 An earlier draft made gender optional, consent-gated and soft. That is defensible,
@@ -31,8 +31,8 @@ safer, and the tables come out the same.
 This is enforced by a test, not just by convention: `tests/scoring.test.ts`
 asserts that the score breakdown contains no gender term.
 
-Age is handled the same way: Sofra has no age field. Tenure — how long someone
-has worked here — is a legitimate business attribute that correlates with the
+Age is handled the same way: Sofra has no age field. Tenure, meaning how long someone
+has worked here, is a legitimate business attribute that correlates with the
 thing we actually want (someone who remembers how the place used to work),
 without being a protected characteristic.
 
@@ -79,7 +79,7 @@ restrictions.
 `AttendanceProvider` returns `{ employeeId, officeId, date }` and nothing more.
 Sofra does not mirror the desk-booking system, does not store a booking history,
 and does not need write access to anything. When the day is over, the only record
-worth keeping is which four people ate together — which is exactly what the
+worth keeping is which four people ate together, which is exactly what the
 repeat-avoidance cooldown needs, and it can be reduced to hashed pairs with a
 timestamp if your DPO prefers.
 
@@ -92,7 +92,7 @@ novelty score already treats "never met" and "met long ago" almost identically.
 ## No measurement of who socialises
 
 Attendance is not reported anywhere and there is no leaderboard. A tool that
-measures who socialises is a different, much worse product — and the moment
+measures who socialises is a different, much worse product, and the moment
 people suspect it exists, they stop ticking the box.
 
 ## Transparency

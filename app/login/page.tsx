@@ -24,8 +24,8 @@ export default async function LoginPage({
         <h1>Sofra</h1>
         <p>
           You can spend years in a building with people whose work you never see. As more of the
-          routine gets automated, what is left is the part that runs on knowing who to ask — and
-          that is not on any org chart. Sofra spends an hour you were going to spend anyway on three
+          routine gets automated, what is left is the part that runs on knowing who to ask, and that
+          is not on any org chart. Sofra spends an hour you were going to spend anyway on three
           people most likely to teach you something.
         </p>
       </div>
@@ -63,9 +63,9 @@ export default async function LoginPage({
         </button>
 
         <p className="faint">
-          Demo account — <strong>{DEMO_USERNAME}</strong> / <strong>{DEMO_PASSWORD}</strong>, which
+          Demo account: <strong>{DEMO_USERNAME}</strong> / <strong>{DEMO_PASSWORD}</strong>, which
           signs you in as {FEATURED_EMPLOYEE.displayName}, {FEATURED_EMPLOYEE.title}. If several
-          people are trying this at once, take a random colleague instead — you will have your own
+          people are trying this at once, take a random colleague instead, so you have your own
           account rather than all ticking the same boxes. Either way the password is the same: one
           shared password so anyone with the link can try it, which makes this a demo gate and not
           authentication.

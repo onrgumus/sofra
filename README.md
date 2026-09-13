@@ -5,7 +5,7 @@
 
 You can spend years in a building with people whose work you never see. As more
 of the routine gets automated, what is left is the part that runs on knowing who
-to ask — and that is not on any org chart. Sofra spends an hour you were going
+to ask, and that is not on any org chart. Sofra spends an hour you were going
 to spend anyway on three people most likely to teach you something.
 
 Hybrid work made it worse: you go in three days a week, sit with your own team,
@@ -13,7 +13,7 @@ and leave. Sofra puts three or four people who would never otherwise meet at the
 same lunch table on a day they are all already in the building.
 
 Being in the office is not the signal. Most office days you are there to work
-with your own team, and that is fine — Sofra does nothing unless you tick a box
+with your own team, and that is fine. Sofra does nothing unless you tick a box
 for that specific day saying you would rather meet people from other teams.
 
 It works at any company, because it never integrates with your desk-booking
@@ -21,7 +21,7 @@ tool.
 
 ## The idea that makes it portable
 
-Every company uses a different desk-booking app — Envoy, Robin, deskbird,
+Every company uses a different desk-booking app: Envoy, Robin, deskbird,
 Condeco, OfficeSpace, or a homegrown spreadsheet. Integrating with all of them is
 a losing game.
 
@@ -41,7 +41,7 @@ Who is in this building on this day? That is the entire integration surface.
 | `MsGraphAttendanceProvider`   | low              | Most desk tools write the booking back to Outlook, so reading Outlook covers them all without touching any of them. |
 | `CsvAttendanceProvider`       | low              | IT can always produce a CSV, even when procurement will not approve an API.                                         |
 | `WebhookAttendanceProvider`   | low              | For desk tools that can push.                                                                                       |
-| `CompositeAttendanceProvider` | —                | Real rollouts are mixed. Union the sources; one being down does not cancel lunch.                                   |
+| `CompositeAttendanceProvider` | none             | Real rollouts are mixed. Union the sources; one being down does not cancel lunch.                                   |
 
 Start with `Manual`, add a real feed once the habit exists.
 
@@ -55,7 +55,7 @@ hand, every day. And self-organising reproduces the cliques it was meant to
 break: people reply to the people they already know, which is the exact failure
 this is supposed to fix.
 
-There are also existing products in this category — Donut for Slack,
+There are also existing products in this category: Donut for Slack,
 Microsoft's own open-source Icebreaker for Teams, RandomCoffee, Mystery
 Minds. They pair people at random for a coffee, usually weekly, usually 1:1.
 
@@ -74,7 +74,7 @@ you have no appetite for it.
 
 When not to bother: fewer than about forty people in one office, a fully remote
 company (the attendance signal does not exist, and Donut fits better), or a
-culture where nobody will tick the box — no app fixes that last one.
+culture where nobody will tick the box. No app fixes that last one.
 
 ## What the matcher optimises for
 
@@ -84,18 +84,18 @@ then 2-opt local search. On pools under ~500 it runs in milliseconds and lands
 close enough to optimal that the difference is not something a human at a lunch
 table could perceive.
 
-Hard rules — same building and day, no two people from the same immediate
+Hard rules: same building and day, no two people from the same immediate
 team, nobody re-matched inside the cooldown window, and every table must share a
 language.
 
-Soft score — spread of departments, spread across the seniority ladder,
+Soft score: spread of departments, spread across the seniority ladder,
 tenure gap, at least one shared interest as an opener, and novelty.
 
 Nobody eats alone. If the pool is too homogeneous to honour every rule, the
 matcher walks a relaxation ladder (`none` → `allow-repeat` → `allow-same-team`)
 and takes a penalty rather than turning someone away. Everyone who ticked the box
 is split evenly into tables of three or four, so a pool of 9 becomes `[3, 3, 3]`
-and a pool of 11 becomes `[4, 4, 3]` — never two tables and one person left
+and a pool of 11 becomes `[4, 4, 3]`, never two tables and one person left
 standing in the lobby. "No match was found for you" is the one email that would
 kill this product, so the engine is built so it cannot be sent.
 
@@ -104,7 +104,7 @@ by 10:00 so we can reseat the table", so it reseats. When declines drop a table
 below three, whoever still wants lunch is moved to another table that day with
 room and no rule broken; only if there is genuinely nowhere to put someone do
 they hear the lunch is off. A receiving table may go to five for that one
-sitting — a slightly crowded table beats sending somebody away — and its calendar
+sitting, because a slightly crowded table beats sending somebody away, and its calendar
 invite goes out again with a bumped `SEQUENCE`, which is how every calendar
 client updates the event people already accepted instead of adding a second one.
 
@@ -130,13 +130,13 @@ rules bent           none x83
 
 Every opt-in got a seat, 82% of the people sitting together came from different
 departments, and across eight weeks no pair was ever seated together twice. The
-average table score declines week over week — that is the novelty budget being
+average table score declines week over week. That is the novelty budget being
 spent, and it is the signal that tells you when to widen the pool.
 
 It then prints a real invite, generated from the actual match:
 
 ```
-subject: Lunch today at 12:00 — the four of you
+subject: Lunch today at 12:00, the four of you
 
 The 4 of you are having lunch together at 12:00 today. You work at the same
 company, you are all in the building, and none of you have had lunch together
@@ -157,7 +157,7 @@ Go round the table before you order. Everyone answers:
 • How long you have been here, and what you actually do day to day
 • Which project you are on right now
 • What you were doing in your career before this job
-• Your hobbies — what you spend time on when you are not here
+• Your hobbies, and what you spend time on when you are not here
 • What would make you happier about coming into the office
 • One thing you genuinely think we could be doing better
 
@@ -170,7 +170,7 @@ If the conversation stalls
   think the others actually do all day?
 
 And do not let it turn into a work meeting
-Leave room for the rest of it — sport, music and films, the city, where you grew
+Leave room for the rest of it: sport, music and films, the city, where you grew
 up, what you actually care about. You can get a status update over Slack. The
 point of this table is the people sitting at it.
 ```
@@ -183,7 +183,7 @@ One mail to the whole table, not four separate notes. Everyone sees the same
 names at the same moment, can reply to each other beforehand, and nobody has to
 wonder whether the others got it.
 
-It carries an introduction round — how long you have been here, what you
+It carries an introduction round: how long you have been here, what you
 actually do, the project you are on, what you did before this job, your hobbies,
 what would make the office better, and one thing we could genuinely be doing
 better. Then a topic for the table, picked stably per group so re-sending
@@ -201,12 +201,12 @@ Both channels open a group chat with exactly the four people and post the
 invite into it, so "shall we try the new place instead" happens where the plan
 was made, and the cancellation lands in the same chat.
 
-| Channel            | What it does                                                                    | What it costs                                                                |
-| ------------------ | ------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| `EmailChannel`     | One mail to the table, `.ics` attached                                          | nothing — always on                                                          |
-| `SlackChannel`     | `conversations.open` with the four, then a Block Kit post with a confirm button | a bot token: `mpim:write`, `chat:write`, `users:read.email`                  |
-| `TeamsChannel`     | `POST /chats` with the four, then an Adaptive Card                              | a Graph app with `Chat.Create` and `ChatMessage.Send` — tenant admin consent |
-| `CompositeChannel` | All of the above; one being down does not stop the others                       | —                                                                            |
+| Channel            | What it does                                                                    | What it costs                                                                    |
+| ------------------ | ------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `EmailChannel`     | One mail to the table, `.ics` attached                                          | nothing, always on                                                               |
+| `SlackChannel`     | `conversations.open` with the four, then a Block Kit post with a confirm button | a bot token: `mpim:write`, `chat:write`, `users:read.email`                      |
+| `TeamsChannel`     | `POST /chats` with the four, then an Adaptive Card                              | a Graph app with `Chat.Create` and `ChatMessage.Send`, plus tenant admin consent |
+| `CompositeChannel` | All of the above; one being down does not stop the others                       | none                                                                             |
 
 Both are idempotent about the conversation: re-sending an updated invite posts
 into the chat that already exists rather than starting a second one.
@@ -218,12 +218,12 @@ anything.
 
 ## Inside Teams
 
-Sofra also runs as a Teams personal tab — its own pages, rendered in Teams,
+Sofra also runs as a Teams personal tab: its own pages, rendered in Teams,
 with the person already signed in. `teams/README.md` has the app registration
 and packaging; `npm run teams:package` produces the uploadable zip.
 
 Signing in is the part worth being careful about. The tempting shortcut is
-`app.getContext()`, which hands you the user's email in one line — client-side,
+`app.getContext()`, which hands you the user's email in one line, client-side,
 where anyone can put whatever they like in a `fetch`. Sofra instead takes the
 signed token from `authentication.getAuthToken()` and verifies it on the server
 against Microsoft's published keys: signature, algorithm, audience, issuer,
@@ -240,7 +240,7 @@ Two details that are easy to miss and break everything quietly:
 - The app has to allow being framed. `frame-ancestors` names the Teams hosts
   explicitly rather than leaving it open.
 
-The tab needs no bot, no `Chat.Create`, and no application permissions — unlike
+The tab needs no bot, no `Chat.Create`, and no application permissions, unlike
 the Teams _group chat_ above, which does. They are independent: you can have the
 tab without the chat, or neither, and Sofra still works.
 
@@ -249,7 +249,7 @@ tab without the chat, or neither, and Sofra still works.
 An RFC 5545 `.ics` with `METHOD:REQUEST` rather than a call to the Teams or
 Google Calendar API. An `.ics` is accepted by Outlook,
 Teams, Google Calendar and Apple Calendar alike, and needs no tenant admin
-consent, no per-company app registration and no calendar write scope — which is
+consent, no per-company app registration and no calendar write scope, which is
 the whole point of a tool that has to work everywhere.
 
 Icebreakers are derived from the table itself: a shared interest first, then the
@@ -266,13 +266,13 @@ everyone's dietary needs in the invite. Sofra does neither.
 Automated grouping by gender or age in an employment context invites both
 GDPR/KVKK scrutiny and discrimination claims, and European works councils will
 block it outright. Dietary needs are worse: they reveal religion and health,
-explicitly special categories under GDPR Art. 9 and KVKK Art. 6 — and this mail
+explicitly special categories under GDPR Art. 9 and KVKK Art. 6. And this mail
 goes to three colleagues at once, so printing "halal" next to somebody's name
 publishes it to people who never needed to know. The table sorts the venue out by
 replying to each other instead.
 
 None of it turns out to be a loss. The diversity that makes the lunch worth
-having comes from department, team, seniority and tenure — all already in the org
+having comes from department, team, seniority and tenure, all already in the org
 chart, all with an obvious business justification, none of them a protected
 characteristic. Tests assert that the score has no gender term and that the
 invite never mentions what anyone eats. See [docs/privacy.md](docs/privacy.md).
@@ -281,12 +281,12 @@ invite never mentions what anyone eats. See [docs/privacy.md](docs/privacy.md).
 
 Built and tested: the matching engine, the provider abstraction with five
 implementations, ICS generation, bilingual invite content with topics, the email
-transport layer, the simulator, the nightly job, and a Next.js app — per-day
+transport layer, the simulator, the nightly job, and a Next.js app: per-day
 opt-in, a matching console that shows the score behind every table, and the
 confirm-by-10:00 flow that reseats people when a table collapses, and a Teams tab. 151 tests.
 
 Run it with `npm run dev` and sign in as onur / 1234, or take a random
-colleague from the same screen — a shared link means several people clicking at
+colleague from the same screen. A shared link means several people clicking at
 once, and they should not all be ticking the same boxes. The app is seeded with
 a synthetic company through an in-memory store, so it needs no database and no
 API keys.
@@ -296,7 +296,7 @@ Istanbul and Amsterdam are on different dates for part of every day.
 
 Not built yet: real authentication and persistence.
 
-Sign-in is one shared password so anyone with the link can try the product — a
+Sign-in is one shared password so anyone with the link can try the product: a
 demo gate, not authentication, though the session cookie is HMAC-signed so an
 employee id cannot be forged in devtools. Replacing `src/lib/auth.ts` and
 `src/lib/session.ts` is the whole of adding real sign-in.
@@ -304,7 +304,7 @@ employee id cannot be forged in devtools. Replacing `src/lib/auth.ts` and
 Persistence is a swap of `src/store/instance.ts` for an implementation of the
 same interface. That claim used to be false: every method on `Store` returned a
 plain value, which no database can do, so the only implementation that could
-ever have existed was the in-memory one. The interface is fully async now — 249
+ever have existed was the in-memory one. The interface is fully async now, at a
 type errors' worth of change, which is exactly the bill that would otherwise
 have arrived on the first real deployment.
 
@@ -346,7 +346,7 @@ curl -H "Authorization: Bearer $CRON_SECRET" https://your-instance/api/cron
 ```
 
 Without `CRON_SECRET` set the endpoint refuses to run rather than running
-openly — anyone who could reach it would be able to reshuffle tomorrow's tables
+openly. Anyone who could reach it would be able to reshuffle tomorrow's tables
 and mail the whole company. The admin console's button calls exactly the same
 `planDay`, so what you see there is what the cron produces.
 
@@ -364,7 +364,7 @@ Copy `.env.example` to `.env.local`.
 ## Project layout
 
 ```
-src/core/       the matching engine — pure, no I/O, no framework
+src/core/       the matching engine, pure: no I/O, no framework
 src/providers/  the only place that knows a desk-booking system exists
 src/notify/     invite content, ICS generation, and the delivery channels
 src/store/      persistence behind one interface; an in-memory demo implementation
@@ -390,7 +390,7 @@ dependencies, so the tests are fast enough to keep running as you work:
 
 One thing to verify before production: `MsGraphAttendanceProvider`'s default
 predicate. Outlook's work-location feature has shipped under more than one shape,
-so check it against the Graph version you target — or pass your own `isInOffice`.
+so check it against the Graph version you target, or pass your own `isInOffice`.
 
 ## Licence
 

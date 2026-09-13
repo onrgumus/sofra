@@ -52,7 +52,7 @@ function main(): void {
   const results: MatchResult[] = [];
 
   console.log(
-    `Sofra simulation — ${args.size} employees, office ${args.office} (${inOffice.length} people)`,
+    `Sofra simulation: ${args.size} employees, office ${args.office} (${inOffice.length} people)`,
   );
   console.log(
     `${args.weeks} weekly lunches, ${(args.participation * 100).toFixed(0)}% opt-in rate\n`,

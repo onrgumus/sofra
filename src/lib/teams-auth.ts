@@ -5,7 +5,7 @@ import { createPublicKey, createVerify, type JsonWebKey } from 'node:crypto';
  * without trusting the browser to say so.
  *
  * The tempting shortcut is `app.getContext()`, which gives you the user's email
- * in one line — client-side, where anyone can type whatever they like into a
+ * in one line, client-side, where anyone can type whatever they like into a
  * fetch. This instead takes the signed token from `authentication.getAuthToken()`
  * and checks it against Microsoft's published keys: signature, issuer, audience
  * and expiry. Fail any one and there is no session.

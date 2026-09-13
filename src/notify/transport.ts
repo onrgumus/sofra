@@ -62,7 +62,7 @@ export interface ResendTransportOptions {
 }
 
 /**
- * Resend adapter. Any provider works — this one is here because it is the
+ * Resend adapter. Any provider works. This one is here because it is the
  * shortest path from zero to a delivered invite.
  *
  * Note: the .ics rides as an attachment, so most clients show "add to calendar"

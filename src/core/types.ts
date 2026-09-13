@@ -40,7 +40,7 @@ export interface Employee {
  * One person saying "today I want to eat with people from other teams".
  *
  * Being in the office is not this. Plenty of days you go in to sit with your own
- * team and get work done — that is fine, and Sofra leaves you alone unless you
+ * team and get work done, and that is fine. Sofra leaves you alone unless you
  * raise your hand for a specific day.
  */
 export interface OptIn {
@@ -98,7 +98,7 @@ export const DEFAULT_CONFIG: MatchConfig = {
 };
 
 /**
- * How far we had to bend the rules to seat everyone. We always seat everyone —
+ * How far we had to bend the rules to seat everyone. We always seat everyone;
  * "no match found for you" is the one message that kills this product.
  */
 export type Relaxation = 'none' | 'allow-repeat' | 'allow-same-team';

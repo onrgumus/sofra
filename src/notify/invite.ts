@@ -239,8 +239,8 @@ const TR_TOGETHER: Record<number, string> = { 3: 'üçünüz', 4: 'dördünüz',
 
 const STRINGS = {
   en: {
-    subject: (count: number) => `Lunch today at 12:00 — the ${EN_NUMBERS[count] ?? count} of you`,
-    cancelledSubject: 'Lunch cancelled — today at 12:00',
+    subject: (count: number) => `Lunch today at 12:00, the ${EN_NUMBERS[count] ?? count} of you`,
+    cancelledSubject: 'Lunch cancelled: today at 12:00',
     cancelledBody: (slot: string) =>
       `Too many people dropped out, so the ${slot} lunch is off and it has been taken off your calendar. Anyone who still wanted to go was offered a seat at another table first; if you did not get one, there was genuinely nowhere to put you today. Tick the box again tomorrow.`,
     intro: (count: number, slot: string) =>
@@ -253,7 +253,7 @@ const STRINGS = {
       'How long you have been here, and what you actually do day to day',
       'Which project you are on right now',
       'What you were doing in your career before this job',
-      'Your hobbies — what you spend time on when you are not here',
+      'Your hobbies, and what you spend time on when you are not here',
       'What would make you happier about coming into the office',
       'One thing you genuinely think we could be doing better',
     ],
@@ -261,7 +261,7 @@ const STRINGS = {
     icebreakerHeading: 'If the conversation stalls',
     socialHeading: 'And do not let it turn into a work meeting',
     socialBody:
-      'Leave room for the rest of it — sport, music and films, the city, where you grew up, what you actually care about. You can get a status update over Slack. The point of this table is the people sitting at it.',
+      'Leave room for the rest of it: sport, music and films, the city, where you grew up, what you actually care about. You can get a status update over Slack. The point of this table is the people sitting at it.',
     confirm: (url: string) =>
       `Cannot make it? Let us know by 10:00 so we can reseat the table: ${url}`,
     footer: 'Sent by Sofra. You asked for this one day; you are not signed up for anything else.',
@@ -276,7 +276,7 @@ const STRINGS = {
       'What is the best decision your team made this year, and the worst?',
     ],
     topics: [
-      'What your team is actually measured on — and whether that is the right thing to measure.',
+      'What your team is actually measured on, and whether that is the right thing to measure.',
       'The one process at this company you would delete tomorrow if it were up to you.',
       'What you worked on before this job, and what it taught you that still holds.',
       'What other teams consistently misunderstand about yours.',
@@ -291,9 +291,8 @@ const STRINGS = {
     ],
   },
   tr: {
-    subject: (count: number) =>
-      `Bugün 12:00 öğle yemeği — ${TR_TOGETHER[count] ?? `${count} kişi`}`,
-    cancelledSubject: 'Öğle yemeği iptal — bugün 12:00',
+    subject: (count: number) => `Bugün 12:00 öğle yemeği, ${TR_TOGETHER[count] ?? `${count} kişi`}`,
+    cancelledSubject: 'Öğle yemeği iptal: bugün 12:00',
     cancelledBody: (slot: string) =>
       `Çok fazla kişi çıktığı için ${slot} yemeği iptal oldu ve takviminizden kaldırıldı. Hâlâ gelmek isteyenlere önce başka bir masada yer arandı; size bir yer çıkmadıysa bugün gerçekten yerleştirecek yer kalmamıştı. Yarın kutucuğu tekrar işaretleyebilirsiniz.`,
     intro: (count: number, slot: string) =>
@@ -306,7 +305,7 @@ const STRINGS = {
       'Ne kadar zamandır buradasın ve gün içinde gerçekte ne yapıyorsun',
       'Şu anda hangi projede çalışıyorsun',
       'Bu işten önce kariyerinde neler yaptın',
-      'Hobilerin neler — burada değilken vaktini neye ayırıyorsun',
+      'Hobilerin neler, burada değilken vaktini neye ayırıyorsun',
       'Ofise gelmeyi senin için daha keyifli hale getirecek şey ne olurdu',
       'Sence gerçekten daha iyi yapabileceğimiz bir şey ne',
     ],
@@ -314,7 +313,7 @@ const STRINGS = {
     icebreakerHeading: 'Sohbet tıkanırsa',
     socialHeading: 'Ve bunu bir iş toplantısına çevirmeyin',
     socialBody:
-      'Gerisine de yer bırakın — spor, müzik ve filmler, şehir, nerede büyüdüğünüz, gerçekten önemsediğiniz şeyler. Durum güncellemesini zaten Slack üzerinden alabilirsiniz. Bu masanın amacı, masada oturan insanlar.',
+      'Gerisine de yer bırakın: spor, müzik ve filmler, şehir, nerede büyüdüğünüz, gerçekten önemsediğiniz şeyler. Durum güncellemesini zaten Slack üzerinden alabilirsiniz. Bu masanın amacı, masada oturan insanlar.',
     confirm: (url: string) =>
       `Gelemiyor musun? Masayı yeniden kurabilmemiz için 10:00'a kadar haber ver: ${url}`,
     footer:
@@ -330,7 +329,7 @@ const STRINGS = {
       'Ekibinin bu yıl aldığı en iyi karar hangisiydi, en kötüsü hangisi?',
     ],
     topics: [
-      'Ekibin gerçekte neye göre ölçülüyor — ve ölçülmesi gereken şey bu mu?',
+      'Ekibin gerçekte neye göre ölçülüyor, ve ölçülmesi gereken şey bu mu?',
       'Sana kalsa yarın kaldıracağın tek şirket içi süreç hangisi?',
       'Bu işten önce ne yapıyordun ve oradan öğrenip hâlâ kullandığın şey ne?',
       'Diğer ekipler seninkiyle ilgili sürekli neyi yanlış anlıyor?',

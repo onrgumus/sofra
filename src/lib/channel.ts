@@ -15,7 +15,7 @@ export const FROM_EMAIL = process.env.SOFRA_FROM_EMAIL ?? 'Sofra <sofra@example.
  *
  * Email is always there, because it is the one that needs nobody's permission.
  * Slack and Teams switch on when their tokens exist, so a company can adopt
- * either without a code change — and without one being down stopping the other.
+ * either without a code change, and without one being down stopping the other.
  */
 export function configuredChannel(): InviteChannel {
   const channels: InviteChannel[] = [
@@ -56,5 +56,5 @@ function emailTransport(): EmailTransport {
 
 function warn(channel: string) {
   return (employee: { displayName: string }, reason: string) =>
-    console.warn(`[sofra] ${channel}: ${employee.displayName} unreachable — ${reason}`);
+    console.warn(`[sofra] ${channel}: ${employee.displayName} unreachable: ${reason}`);
 }

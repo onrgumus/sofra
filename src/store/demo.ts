@@ -46,7 +46,7 @@ function key(...parts: string[]): string {
  * without a database, a desk-booking vendor, or anyone's real HR data.
  *
  * The seeded office attendance arrives through WebhookAttendanceProvider, which
- * is exactly the shape a desk-booking tool pushing to us would take — so the demo
+ * is exactly the shape a desk-booking tool pushing to us would take, so the demo
  * exercises the real provider classes rather than faking around them.
  */
 export class DemoStore implements Store {
@@ -244,7 +244,7 @@ export class DemoStore implements Store {
     group.rsvps[employeeId] = status;
 
     if (group.cancelled) {
-      // A dissolved table does not come back — the others have already been
+      // A dissolved table does not come back; the others have already been
       // moved. Someone changing their mind gets a seat of their own instead.
       const person = group.members.find((m) => m.id === employeeId);
       if (person && status !== 'declined') this.moveOut(group, [person]);
@@ -281,7 +281,7 @@ export class DemoStore implements Store {
 
       host.members.push(person);
       host.rsvps[person.id] = group.rsvps[person.id] ?? 'pending';
-      // The table changed after the invite went out, so it needs re-sending —
+      // The table changed after the invite went out, so it needs re-sending,
       // as an update to the same event, not a second one.
       host.sequence += 1;
       host.invitesSentAt = null;
@@ -295,7 +295,7 @@ export class DemoStore implements Store {
   /**
    * Tables are three or four by design, so on a day where every table is full
    * there is no free seat to move anyone into. Rather than send someone away, a
-   * receiving table may go to five — but only after every table with genuine
+   * receiving table may go to five, but only after every table with genuine
    * room, and every relaxation of the matching rules, has been tried first.
    */
   private findHost(
@@ -335,7 +335,7 @@ export class DemoStore implements Store {
   /**
    * Roughly three office days a week per person, as a desk tool would report.
    * Returns who was booked where, so the rest of the seeding can use it without
-   * going back through the async provider — the constructor cannot await.
+   * going back through the async provider, which the constructor cannot await.
    */
   private seedDeskBookings(seed: number): Map<string, Set<string>> {
     const rng = createRng(seed + 101);

@@ -4,7 +4,7 @@
  * Why ICS rather than the Teams or Google Calendar API: an .ics attachment with
  * METHOD:REQUEST is accepted by Outlook, Teams, Google Calendar and Apple
  * Calendar alike. It needs no tenant admin consent, no per-company app
- * registration, and no calendar write scope — which is the whole point of a tool
+ * registration, and no calendar write scope, which is the whole point of a tool
  * that has to work at every company.
  */
 

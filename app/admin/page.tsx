@@ -253,7 +253,7 @@ function TableCard({
         ) : group.invitesSentAt ? (
           <Pill tone="good">invite sent</Pill>
         ) : group.sequence > 0 ? (
-          <Pill tone="warn">reseated — needs a fresh invite</Pill>
+          <Pill tone="warn">reseated, needs a fresh invite</Pill>
         ) : null}
       </div>
 

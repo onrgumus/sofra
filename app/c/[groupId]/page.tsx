@@ -63,7 +63,7 @@ export default async function ConfirmPage({ params }: { params: Promise<{ groupI
             <Pill tone="bad">cancelled</Pill>
             <span className="muted">
               Too many people dropped out to keep this table worth having. Anyone who still wanted
-              lunch has been moved to another table — nobody will turn up to an empty room.
+              lunch has been moved to another table, so nobody will turn up to an empty room.
             </span>
           </div>
         </div>
@@ -98,8 +98,8 @@ export default async function ConfirmPage({ params }: { params: Promise<{ groupI
           </div>
 
           <p className="faint" style={{ marginTop: 10 }}>
-            Sort out where to go between yourselves — reply to the invite mail, it went to all of
-            you.
+            Sort out where to go between yourselves by replying to the invite mail, which went to
+            all of you.
           </p>
         </article>
       </section>

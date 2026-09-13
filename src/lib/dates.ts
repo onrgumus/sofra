@@ -6,7 +6,7 @@ const MS_PER_DAY = 86_400_000;
  * "Today" is not a property of the server. An Istanbul office and an Amsterdam
  * one are on different dates for part of every day, and deriving it from the
  * server's UTC clock made the app show yesterday to anyone in Istanbul between
- * midnight and 03:00 — offering them a lunch that had already happened.
+ * midnight and 03:00, offering them a lunch that had already happened.
  */
 export function todayInZone(timeZone: string, now: Date = new Date()): string {
   // en-CA formats as YYYY-MM-DD, which is exactly the shape we store.

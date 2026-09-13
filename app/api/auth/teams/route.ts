@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
  *
  * The tab calls `authentication.getAuthToken()`, posts the result here, and the
  * server decides who that is. Nothing the browser claims about its own identity
- * is taken at face value — only what the signature proves.
+ * is taken at face value, only what the signature proves.
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const clientId = process.env.AAD_CLIENT_ID;

@@ -19,7 +19,7 @@ export interface TeamsChannelOptions {
  * invite into it as an Adaptive Card.
  *
  * Requires a Graph app with `Chat.Create` and `ChatMessage.Send`, which means
- * tenant admin consent — worth being honest that this is the one part of Sofra
+ * tenant admin consent. Worth being honest that this is the one part of Sofra
  * that needs IT to say yes. Email and the ICS attachment need nothing, and stay
  * the default for exactly that reason.
  */

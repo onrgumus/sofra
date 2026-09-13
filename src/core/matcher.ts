@@ -66,7 +66,7 @@ export function matchLunches(request: MatchRequest): MatchResult {
   const unmatched: Unmatched[] = [];
 
   // People who share no language with anyone else today cannot be seated, and we
-  // know it before planning. Removing them first keeps the size plan honest —
+  // know it before planning. Removing them first keeps the size plan honest;
   // otherwise they anchor a table nobody can join and strand its other seats.
   const { connected, isolated } = partitionByLanguage(pool);
   for (const employee of isolated) unmatched.push({ employee, reason: 'no-common-language' });
@@ -147,9 +147,9 @@ function repairUndersizedGroups(
 }
 
 /**
- * Greedy construction. Each group starts from the hardest person left to place —
+ * Greedy construction. Each group starts from the hardest person left to place,
  * seating the constrained people first is what stops them being stranded at the
- * end — then grows by whichever candidate adds the most score.
+ * end, then grows by whichever candidate adds the most score.
  */
 function seedGroups(
   pool: readonly Employee[],

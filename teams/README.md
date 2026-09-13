@@ -1,6 +1,6 @@
 # Packaging the Teams tab
 
-Sofra runs inside Teams as a personal tab — the app's own pages, rendered in
+Sofra runs inside Teams as a personal tab: the app's own pages, rendered in
 Teams, with the user already signed in. No bot, so no bot endpoint to host; the
 only tenant consent needed is the sign-in scopes below.
 
@@ -38,7 +38,7 @@ AAD_TENANT_ID=...     # or 'common' for multi-tenant
 
 The tab asks Teams for a token, the server verifies its signature against
 Microsoft's published keys, and signs the user in as the colleague with that
-email. A token that fails any check is refused — `src/lib/teams-auth.ts` is
+email. A token that fails any check is refused. `src/lib/teams-auth.ts` is
 where that happens, and the tests there cover a forged signature, a token for
 another audience, an expired one and an unknown signing key.
 

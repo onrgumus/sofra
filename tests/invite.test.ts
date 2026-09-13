@@ -105,13 +105,13 @@ describe('buildInvite', () => {
   });
 
   it('says how many people are at the table in the subject', () => {
-    expect(invite.subject).toBe('Lunch today at 12:00 — the four of you');
+    expect(invite.subject).toBe('Lunch today at 12:00, the four of you');
     const threeSome = buildInvite({
       group: group({ members: group().members.slice(0, 3) }),
       venue: VENUE,
       organizer,
     });
-    expect(threeSome.subject).toBe('Lunch today at 12:00 — the three of you');
+    expect(threeSome.subject).toBe('Lunch today at 12:00, the three of you');
     expect(threeSome.text).toContain('The 3 of you are having lunch together');
   });
 

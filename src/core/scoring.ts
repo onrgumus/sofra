@@ -38,7 +38,7 @@ function departmentScore(members: readonly Employee[]): number {
   return (distinct - 1) / (members.length - 1);
 }
 
-/** Mean pairwise distance on the seniority ladder — intern next to director scores high. */
+/** Mean pairwise distance on the seniority ladder, so intern next to director scores high. */
 function seniorityScore(members: readonly Employee[]): number {
   const ps = pairs(members);
   if (ps.length === 0) return 0;

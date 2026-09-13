@@ -80,7 +80,7 @@ export default async function EmployeePage() {
                   <p className="faint" style={{ marginTop: 6 }}>
                     {day.matched
                       ? 'Tables for this day were already set before you asked, so there is no seat for you today. Your tick still counts if matching runs again.'
-                      : 'Matching runs the evening before. Your table — three people, their names and what they do — will appear here.'}
+                      : 'Matching runs the evening before. Your table, the three people and what they do, will appear here.'}
                   </p>
                 ) : null}
               </div>

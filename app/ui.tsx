@@ -24,7 +24,7 @@ export function Initials({ name }: { name: string }) {
 /**
  * `brief` is what someone going to lunch needs: a name and roughly what the
  * person does. Which sub-team they sit in and how many months they have been
- * here are facts about the matching, not about the meal — they belong to the
+ * here are facts about the matching, not about the meal. They belong to the
  * console, where somebody is actually checking the engine's work.
  */
 export function PersonRow({

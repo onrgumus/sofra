@@ -4,7 +4,7 @@ import type { AttendanceProvider, AttendanceQuery, AttendanceRecord } from './ty
  * For companies whose desk tool can push. They POST attendance to us; we keep the
  * latest snapshot per (date, office) and serve it at matching time.
  *
- * Swap the in-memory map for a table when you deploy — the interface is the
+ * Swap the in-memory map for a table when you deploy. The interface is the
  * point, the storage is not.
  */
 export class WebhookAttendanceProvider implements AttendanceProvider {

@@ -6,8 +6,8 @@ import { getStore } from '../../../src/store/instance';
 export const dynamic = 'force-dynamic';
 
 /**
- * The nightly job. Point a scheduler at it — on Vercel, `vercel.json` already
- * does — and matching stops needing anyone to press a button.
+ * The nightly job. Point a scheduler at it. On Vercel, `vercel.json` already
+ * does, and matching stops needing anyone to press a button.
  *
  * Guarded by CRON_SECRET. Without one set, the endpoint refuses rather than
  * running openly: anyone who can reach it can reshuffle tomorrow's tables and

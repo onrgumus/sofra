@@ -179,7 +179,7 @@ export function generateCompany(options: CompanyOptions): Employee[] {
 
 /**
  * Names must be unique. People identify their lunch companions by name in the
- * invite, and two Yusuf Tanakas in one company makes the demo unreadable — and
+ * invite, and two Yusuf Tanakas in one company makes the demo unreadable, and
  * the matcher's output impossible to check by eye.
  */
 function uniqueName(used: Set<string>, rng: () => number): string {

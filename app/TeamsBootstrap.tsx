@@ -8,7 +8,7 @@ import { useEffect, useState } from 'react';
  * Teams already knows who they are, so making them type a password would be
  * absurd. This asks Teams for a signed token, hands it to the server, and
  * reloads once the server has issued a session. Outside Teams it does nothing
- * at all — the import is dynamic so the SDK never loads in a normal browser.
+ * at all. The import is dynamic, so the SDK never loads in a normal browser.
  */
 export function TeamsBootstrap() {
   const [failed, setFailed] = useState<string | null>(null);
