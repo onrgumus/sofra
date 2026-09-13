@@ -16,7 +16,7 @@ Being in the office is not the signal. Most office days you are there to work
 with your own team, and that is fine — Sofra does nothing unless you tick a box
 for that specific day saying you would rather meet people from other teams.
 
-It works at **any** company, because it never integrates with your desk-booking
+It works at any company, because it never integrates with your desk-booking
 tool.
 
 ## The idea that makes it portable
@@ -55,12 +55,12 @@ hand, every day. And self-organising reproduces the cliques it was meant to
 break: people reply to the people they already know, which is the exact failure
 this is supposed to fix.
 
-There are also existing products in this category — **Donut** for Slack,
-Microsoft's own open-source **Icebreaker** for Teams, RandomCoffee, Mystery
+There are also existing products in this category — Donut for Slack,
+Microsoft's own open-source Icebreaker for Teams, RandomCoffee, Mystery
 Minds. They pair people at random for a coffee, usually weekly, usually 1:1.
 
-Sofra differs in one constraint, and everything else follows from it: **it only
-matches people who are already in the same building on the same day.** A random
+Sofra differs in one constraint, and everything else follows from it: it only
+matches people who are already in the same building on the same day. A random
 pairing with someone working from home that day becomes a video call, which is
 the thing hybrid workers are already tired of. Because the constraint is
 physical presence, the product needs an attendance signal, which is why the
@@ -84,14 +84,14 @@ then 2-opt local search. On pools under ~500 it runs in milliseconds and lands
 close enough to optimal that the difference is not something a human at a lunch
 table could perceive.
 
-**Hard rules** — same building and day, no two people from the same immediate
+Hard rules — same building and day, no two people from the same immediate
 team, nobody re-matched inside the cooldown window, and every table must share a
 language.
 
-**Soft score** — spread of departments, spread across the seniority ladder,
+Soft score — spread of departments, spread across the seniority ladder,
 tenure gap, at least one shared interest as an opener, and novelty.
 
-**Nobody eats alone.** If the pool is too homogeneous to honour every rule, the
+Nobody eats alone. If the pool is too homogeneous to honour every rule, the
 matcher walks a relaxation ladder (`none` → `allow-repeat` → `allow-same-team`)
 and takes a penalty rather than turning someone away. Everyone who ticked the box
 is split evenly into tables of three or four, so a pool of 9 becomes `[3, 3, 3]`
@@ -99,7 +99,7 @@ and a pool of 11 becomes `[4, 4, 3]` — never two tables and one person left
 standing in the lobby. "No match was found for you" is the one email that would
 kill this product, so the engine is built so it cannot be sent.
 
-**And nobody is stranded by other people's plans.** The invite says "let us know
+And nobody is stranded by other people's plans. The invite says "let us know
 by 10:00 so we can reseat the table", so it reseats. When declines drop a table
 below three, whoever still wants lunch is moved to another table that day with
 room and no rule broken; only if there is genuinely nowhere to put someone do
@@ -179,34 +179,34 @@ Flags: `--size`, `--weeks`, `--participation`, `--seed`, `--office`.
 
 ## Invites
 
-**One mail to the whole table**, not four separate notes. Everyone sees the same
+One mail to the whole table, not four separate notes. Everyone sees the same
 names at the same moment, can reply to each other beforehand, and nobody has to
 wonder whether the others got it.
 
-It carries an **introduction round** — how long you have been here, what you
+It carries an introduction round — how long you have been here, what you
 actually do, the project you are on, what you did before this job, your hobbies,
 what would make the office better, and one thing we could genuinely be doing
-better. Then a **topic** for the table, picked stably per group so re-sending
+better. Then a topic for the table, picked stably per group so re-sending
 does not change what people turned up prepared for, and varied across tables so
 four departments are not all having the same conversation.
 
-It closes by telling the table **not to spend the hour on work**. Left alone,
+It closes by telling the table not to spend the hour on work. Left alone,
 four colleagues will produce a status meeting with food; the mail explicitly asks
 for sport, music, the city, where people grew up, what they care about.
 
 ### Slack and Teams
 
 Where a company has them, the invite is better as a conversation than as a mail.
-Both channels **open a group chat with exactly the four people** and post the
+Both channels open a group chat with exactly the four people and post the
 invite into it, so "shall we try the new place instead" happens where the plan
 was made, and the cancellation lands in the same chat.
 
-| Channel            | What it does                                                                    | What it costs                                                                    |
-| ------------------ | ------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| `EmailChannel`     | One mail to the table, `.ics` attached                                          | nothing — always on                                                              |
-| `SlackChannel`     | `conversations.open` with the four, then a Block Kit post with a confirm button | a bot token: `mpim:write`, `chat:write`, `users:read.email`                      |
-| `TeamsChannel`     | `POST /chats` with the four, then an Adaptive Card                              | a Graph app with `Chat.Create` and `ChatMessage.Send` — **tenant admin consent** |
-| `CompositeChannel` | All of the above; one being down does not stop the others                       | —                                                                                |
+| Channel            | What it does                                                                    | What it costs                                                                |
+| ------------------ | ------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `EmailChannel`     | One mail to the table, `.ics` attached                                          | nothing — always on                                                          |
+| `SlackChannel`     | `conversations.open` with the four, then a Block Kit post with a confirm button | a bot token: `mpim:write`, `chat:write`, `users:read.email`                  |
+| `TeamsChannel`     | `POST /chats` with the four, then an Adaptive Card                              | a Graph app with `Chat.Create` and `ChatMessage.Send` — tenant admin consent |
+| `CompositeChannel` | All of the above; one being down does not stop the others                       | —                                                                            |
 
 Both are idempotent about the conversation: re-sending an updated invite posts
 into the chat that already exists rather than starting a second one.
@@ -218,7 +218,7 @@ anything.
 
 ## Inside Teams
 
-Sofra also runs as a Teams **personal tab** — its own pages, rendered in Teams,
+Sofra also runs as a Teams personal tab — its own pages, rendered in Teams,
 with the person already signed in. `teams/README.md` has the app registration
 and packaging; `npm run teams:package` produces the uploadable zip.
 
@@ -234,10 +234,10 @@ key are each refused.
 
 Two details that are easy to miss and break everything quietly:
 
-- A tab is a **cross-site iframe**, so a `SameSite=Lax` session cookie is never
+- A tab is a cross-site iframe, so a `SameSite=Lax` session cookie is never
   sent and the session appears to vanish on every request. `SOFRA_ALLOW_EMBEDDING`
   switches it to `SameSite=None; Secure`.
-- The app has to **allow being framed**. `frame-ancestors` names the Teams hosts
+- The app has to allow being framed. `frame-ancestors` names the Teams hosts
   explicitly rather than leaving it open.
 
 The tab needs no bot, no `Chat.Create`, and no application permissions — unlike
@@ -285,7 +285,7 @@ transport layer, the simulator, the nightly job, and a Next.js app — per-day
 opt-in, a matching console that shows the score behind every table, and the
 confirm-by-10:00 flow that reseats people when a table collapses, and a Teams tab. 151 tests.
 
-Run it with `npm run dev` and sign in as **onur / 1234**, or take a random
+Run it with `npm run dev` and sign in as onur / 1234, or take a random
 colleague from the same screen — a shared link means several people clicking at
 once, and they should not all be ticking the same boxes. The app is seeded with
 a synthetic company through an in-memory store, so it needs no database and no

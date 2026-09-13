@@ -13,13 +13,13 @@ and works council have something concrete to react to.
 The intuitive design balances every table by gender — two women, two men. Sofra
 does not store gender at all, for three reasons:
 
-1. **Discrimination exposure.** Using gender as a criterion in an automated
+1. Discrimination exposure. Using gender as a criterion in an automated
    process that allocates a workplace benefit is the shape of a claim, regardless
    of intent.
-2. **Works councils.** In Germany, the Netherlands, France and elsewhere, an
+2. Works councils. In Germany, the Netherlands, France and elsewhere, an
    employee representative body must approve tools that process employee data.
    A gender quota is the single most likely thing in this product to be refused.
-3. **It is not necessary.** The diversity that makes the lunch worthwhile comes
+3. It is not necessary. The diversity that makes the lunch worthwhile comes
    from department, team, seniority and tenure — attributes already in the org
    chart, with an obvious business justification, and no protected status.
 
@@ -65,7 +65,7 @@ No location beyond building, no desk number, no meeting-title content, no
 calendar contents, and no free text from anyone's calendar. The Graph provider
 reads calendar entries only to answer "office or not" and keeps nothing else.
 
-**No dietary information either.** It is the field every tool like this collects
+No dietary information either. It is the field every tool like this collects
 without thinking, and it is the most sensitive thing on the list: vegetarian,
 halal and gluten-free reveal religion or health, which GDPR Art. 9 and KVKK Art.
 6 both name explicitly. The invite goes to the whole table at once, so printing
