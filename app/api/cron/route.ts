@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { runNightlyMatching } from '../../../src/lib/nightly';
-import { ConsoleTransport } from '../../../src/notify/transport';
+import { configuredChannel, FROM_EMAIL } from '../../../src/lib/channel';
 import { getStore } from '../../../src/store/instance';
 
 export const dynamic = 'force-dynamic';
@@ -26,10 +26,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   const outcomes = await runNightlyMatching({
     store: getStore(),
-    // Swap for ResendTransport once a key is configured; the interface is the
-    // only thing the job depends on.
-    transport: new ConsoleTransport(),
-    from: process.env.SOFRA_FROM_EMAIL ?? 'Sofra <sofra@example.com>',
+    // Email always, plus Slack and Teams where this deployment has tokens.
+    channel: configuredChannel(),
+    from: FROM_EMAIL,
   });
 
   return NextResponse.json({ ranAt: new Date().toISOString(), offices: outcomes });

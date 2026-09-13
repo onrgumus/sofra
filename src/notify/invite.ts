@@ -39,6 +39,8 @@ export interface Invite {
   to: IcsAttendee[];
   /** The conversation topic chosen for this table, exposed for the admin view. */
   topic: string;
+  /** Where to confirm or drop out. Chat channels turn this into a button. */
+  confirmUrl: string | null;
 }
 
 export type SupportedLanguage = 'en' | 'tr';
@@ -118,7 +120,15 @@ export function buildInvite(options: InviteOptions): Invite {
     sequence: options.sequence ?? 0,
   });
 
-  return { subject, text, html: toHtml(text), ics, to: attendees, topic };
+  return {
+    subject,
+    text,
+    html: toHtml(text),
+    ics,
+    to: attendees,
+    topic,
+    confirmUrl: options.confirmUrl ?? null,
+  };
 }
 
 /**
@@ -153,7 +163,7 @@ function buildCancellation(
     method: 'CANCEL',
   });
 
-  return { subject, text, html: toHtml(text), ics, to: attendees, topic: '' };
+  return { subject, text, html: toHtml(text), ics, to: attendees, topic: '', confirmUrl: null };
 }
 
 /**

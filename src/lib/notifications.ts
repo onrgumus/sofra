@@ -1,12 +1,14 @@
 import { buildInvite } from '../notify/invite';
-import { sendInvite, type EmailTransport } from '../notify/transport';
+import type { InviteChannel } from '../notify/channels';
 import type { Store } from '../store/types';
 import { toVenue } from './venue';
 import { confirmUrl } from './config';
 
 export interface DeliveryOptions {
   store: Store;
-  transport: EmailTransport;
+  /** Email, Slack, Teams, or several at once. See `src/notify/channels`. */
+  channel: InviteChannel;
+  /** Organiser address on the calendar invite. */
   from: string;
   date: string;
   officeId: string;
@@ -31,7 +33,7 @@ export interface DeliveryResult {
  * is one definition of "what still needs sending".
  */
 export async function deliverPending(options: DeliveryOptions): Promise<DeliveryResult> {
-  const { store, transport, from, date, officeId } = options;
+  const { store, channel, from, date, officeId } = options;
 
   const office = store.getOffice(officeId);
   if (!office) return { invitesSent: 0, cancellationsSent: 0 };
@@ -47,11 +49,17 @@ export async function deliverPending(options: DeliveryOptions): Promise<Delivery
       // Only worth cancelling if they were told about it in the first place.
       if (group.invitesSentAt === null || group.cancellationSentAt !== null) continue;
 
-      await sendInvite(
-        transport,
-        buildInvite({ group, venue, organizer, sequence: group.sequence, method: 'CANCEL' }),
-        { from },
-      );
+      await channel.sendCancellation({
+        groupId: group.id,
+        members: group.members,
+        invite: buildInvite({
+          group,
+          venue,
+          organizer,
+          sequence: group.sequence,
+          method: 'CANCEL',
+        }),
+      });
       store.markCancellationSent(group.id);
       result.cancellationsSent++;
       continue;
@@ -59,17 +67,17 @@ export async function deliverPending(options: DeliveryOptions): Promise<Delivery
 
     if (group.invitesSentAt !== null) continue;
 
-    await sendInvite(
-      transport,
-      buildInvite({
+    await channel.sendInvite({
+      groupId: group.id,
+      members: group.members,
+      invite: buildInvite({
         group,
         venue,
         organizer,
         confirmUrl: confirmUrl(group.id),
         sequence: group.sequence,
       }),
-      { from },
-    );
+    });
     store.markInviteSent(group.id);
     result.invitesSent++;
   }

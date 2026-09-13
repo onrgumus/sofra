@@ -1,11 +1,10 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { ConsoleTransport } from '../src/notify/transport';
 import { getStore } from '../src/store/instance';
 import { planDay } from '../src/lib/nightly';
 import { deliverPending } from '../src/lib/notifications';
-const FROM_EMAIL = process.env.SOFRA_FROM_EMAIL ?? 'Sofra <sofra@example.com>';
+import { configuredChannel, FROM_EMAIL } from '../src/lib/channel';
 import { endSession, startSession } from '../src/lib/session';
 import { checkPassword } from '../src/lib/auth';
 import { DEMO_USERNAME, pickRandomColleague } from '../src/store/featured';
@@ -109,7 +108,7 @@ export async function clearMatching(formData: FormData): Promise<void> {
 export async function sendInvites(formData: FormData): Promise<void> {
   await deliverPending({
     store: getStore(),
-    transport: new ConsoleTransport(),
+    channel: configuredChannel(),
     from: FROM_EMAIL,
     date: required(formData, 'date'),
     officeId: required(formData, 'officeId'),
@@ -134,7 +133,7 @@ export async function respondToInvite(formData: FormData): Promise<void> {
   // an admin next remembers to press a button.
   await deliverPending({
     store,
-    transport: new ConsoleTransport(),
+    channel: configuredChannel(),
     from: FROM_EMAIL,
     date: group.date,
     officeId: group.officeId,

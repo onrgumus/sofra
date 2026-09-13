@@ -159,8 +159,32 @@ It closes by telling the table **not to spend the hour on work**. Left alone,
 four colleagues will produce a status meeting with food; the mail explicitly asks
 for sport, music, the city, where people grew up, what they care about.
 
-The calendar invite is an RFC 5545 `.ics` with `METHOD:REQUEST` rather than a
-call to the Teams or Google Calendar API. An `.ics` is accepted by Outlook,
+### Slack and Teams
+
+Where a company has them, the invite is better as a conversation than as a mail.
+Both channels **open a group chat with exactly the four people** and post the
+invite into it, so "shall we try the new place instead" happens where the plan
+was made, and the cancellation lands in the same chat.
+
+| Channel            | What it does                                                                    | What it costs                                                                    |
+| ------------------ | ------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `EmailChannel`     | One mail to the table, `.ics` attached                                          | nothing — always on                                                              |
+| `SlackChannel`     | `conversations.open` with the four, then a Block Kit post with a confirm button | a bot token: `mpim:write`, `chat:write`, `users:read.email`                      |
+| `TeamsChannel`     | `POST /chats` with the four, then an Adaptive Card                              | a Graph app with `Chat.Create` and `ChatMessage.Send` — **tenant admin consent** |
+| `CompositeChannel` | All of the above; one being down does not stop the others                       | —                                                                                |
+
+Both are idempotent about the conversation: re-sending an updated invite posts
+into the chat that already exists rather than starting a second one.
+
+Being honest about the trade: the Teams channel is the one part of Sofra that
+needs IT to say yes. Email and the `.ics` need nothing, which is why they are
+the default and why the product still works at a company that never approves
+anything.
+
+### The calendar invite
+
+An RFC 5545 `.ics` with `METHOD:REQUEST` rather than a call to the Teams or
+Google Calendar API. An `.ics` is accepted by Outlook,
 Teams, Google Calendar and Apple Calendar alike, and needs no tenant admin
 consent, no per-company app registration and no calendar write scope — which is
 the whole point of a tool that has to work everywhere.
@@ -196,7 +220,7 @@ Built and tested: the matching engine, the provider abstraction with five
 implementations, ICS generation, bilingual invite content with topics, the email
 transport layer, the simulator, the nightly job, and a Next.js app — per-day
 opt-in, a matching console that shows the score behind every table, and the
-confirm-by-10:00 flow that reseats people when a table collapses. 127 tests.
+confirm-by-10:00 flow that reseats people when a table collapses. 138 tests.
 
 Run it with `npm run dev` and sign in as **onur / 1234**, or take a random
 colleague from the same screen — a shared link means several people clicking at
@@ -273,7 +297,7 @@ Copy `.env.example` to `.env.local`.
 ```
 src/core/       the matching engine — pure, no I/O, no framework
 src/providers/  the only place that knows a desk-booking system exists
-src/notify/     invite content, ICS generation, email transports
+src/notify/     invite content, ICS generation, and the delivery channels
 src/store/      persistence behind one interface; an in-memory demo implementation
 src/lib/        sign-in, session, config, dates, and the nightly job
 src/sim/        synthetic company and the simulator
@@ -286,7 +310,7 @@ app/            Next.js app router: sign-in, opt-in page, matching console, RSVP
 npm run typecheck   # tsc, strict, noUncheckedIndexedAccess
 npm run lint        # eslint, zero warnings tolerated
 npm run format      # prettier
-npm test            # 127 tests
+npm test            # 138 tests
 npm run build       # production build
 ```
 

@@ -1,5 +1,5 @@
 import { matchLunches } from '../core/matcher';
-import type { EmailTransport } from '../notify/transport';
+import type { InviteChannel } from '../notify/channels';
 import { deliverPending } from './notifications';
 import type { Store } from '../store/types';
 import type { MatchResult } from '../core/types';
@@ -8,7 +8,7 @@ import { todayInZone, upcomingWeekdays } from './dates';
 
 export interface NightlyOptions {
   store: Store;
-  transport: EmailTransport;
+  channel: InviteChannel;
   from: string;
   /** Override the day being planned. Defaults to each office's next weekday. */
   date?: string;
@@ -60,7 +60,7 @@ export async function planDay(store: Store, officeId: string, date: string): Pro
  * be tested without waiting for tomorrow.
  */
 export async function runNightlyMatching(options: NightlyOptions): Promise<OfficeOutcome[]> {
-  const { store, transport, from } = options;
+  const { store, channel, from } = options;
   const outcomes: OfficeOutcome[] = [];
 
   for (const office of store.listOffices()) {
@@ -69,7 +69,13 @@ export async function runNightlyMatching(options: NightlyOptions): Promise<Offic
 
     const result = await planDay(store, office.id, date);
 
-    const delivered = await deliverPending({ store, transport, from, date, officeId: office.id });
+    const delivered = await deliverPending({
+      store,
+      channel,
+      from,
+      date,
+      officeId: office.id,
+    });
 
     outcomes.push({
       officeId: office.id,
