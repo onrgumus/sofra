@@ -115,7 +115,7 @@ describe('TeamsChannel', () => {
       calls.push({ method, path, body });
       return path === '/chats' ? { id: '19:chat-id' } : {};
     };
-    return { calls, channel: new TeamsChannel({ graph }) };
+    return { calls, channel: new TeamsChannel({ graph, canSendMessages: true }) };
   }
 
   it('creates a group chat for the table and posts a card into it', async () => {
@@ -155,6 +155,33 @@ describe('TeamsChannel', () => {
     const { calls, channel } = teams();
     await channel.sendInvite({ ...delivery, members: members.slice(0, 2) });
     expect(calls).toHaveLength(0);
+  });
+});
+
+describe('TeamsChannel app-only guard', () => {
+  it('refuses to try, rather than failing at send time with a 403', async () => {
+    // POST /chats/{id}/messages has no application permission beyond
+    // Teamwork.Migrate.All, so client credentials cannot deliver this.
+    const channel = new TeamsChannel({ graph: async () => ({ id: 'x' }) });
+    await expect(channel.sendInvite(delivery)).rejects.toThrow(/app-only credentials/);
+    await expect(channel.sendCancellation(delivery)).rejects.toThrow(/app-only credentials/);
+  });
+
+  it('says what would make it work', async () => {
+    const channel = new TeamsChannel({ graph: async () => ({ id: 'x' }) });
+    await expect(channel.sendInvite(delivery)).rejects.toThrow(/bot or delegated/);
+  });
+
+  it('never opens a chat it then cannot post into', async () => {
+    const calls: string[] = [];
+    const channel = new TeamsChannel({
+      graph: async (_m, path) => {
+        calls.push(path);
+        return { id: 'x' };
+      },
+    });
+    await expect(channel.sendInvite(delivery)).rejects.toThrow();
+    expect(calls).toEqual([]);
   });
 });
 

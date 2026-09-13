@@ -27,7 +27,10 @@ export function configuredChannel(): InviteChannel {
     channels.push(new SlackChannel({ token: slackToken, onUnreachable: warn('slack') }));
   }
 
-  const { MS_TENANT_ID, MS_CLIENT_ID, MS_CLIENT_SECRET } = process.env;
+  // Teams group chat is off by default, and the flag is named for the thing that
+  // actually gates it. Client credentials alone cannot post a chat message, so
+  // wiring this up without a bot or delegated backend only buys you a 403.
+  const { MS_TENANT_ID, MS_CLIENT_ID, MS_CLIENT_SECRET, MS_CAN_SEND_CHAT_MESSAGES } = process.env;
   if (MS_TENANT_ID && MS_CLIENT_ID && MS_CLIENT_SECRET) {
     channels.push(
       new TeamsChannel({
@@ -36,6 +39,7 @@ export function configuredChannel(): InviteChannel {
           clientId: MS_CLIENT_ID,
           clientSecret: MS_CLIENT_SECRET,
         }),
+        canSendMessages: MS_CAN_SEND_CHAT_MESSAGES === 'true',
         onUnreachable: warn('teams'),
       }),
     );

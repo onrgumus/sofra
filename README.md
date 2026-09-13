@@ -197,52 +197,36 @@ for sport, music, the city, where people grew up, what they care about.
 ### Slack and Teams
 
 Where a company has them, the invite is better as a conversation than as a mail.
-Both channels open a group chat with exactly the four people and post the
-invite into it, so "shall we try the new place instead" happens where the plan
-was made, and the cancellation lands in the same chat.
+Both channels open a group chat with exactly the people at the table and post
+the invite into it, so "shall we try the new place instead" happens where the
+plan was made, and the cancellation lands in the same chat.
 
-| Channel            | What it does                                                                    | What it costs                                                                    |
-| ------------------ | ------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| `EmailChannel`     | One mail to the table, `.ics` attached                                          | nothing, always on                                                               |
-| `SlackChannel`     | `conversations.open` with the four, then a Block Kit post with a confirm button | a bot token: `mpim:write`, `chat:write`, `users:read.email`                      |
-| `TeamsChannel`     | `POST /chats` with the four, then an Adaptive Card                              | a Graph app with `Chat.Create` and `ChatMessage.Send`, plus tenant admin consent |
-| `CompositeChannel` | All of the above; one being down does not stop the others                       | none                                                                             |
+Slack works with a plain bot token. `conversations.open` with the four user ids
+returns a multi-person DM, and it is idempotent for the same set of people, so
+re-sending an updated invite posts into the chat that already exists instead of
+starting a second one. Scopes: `mpim:write`, `chat:write`, `users:read.email`.
 
-Both are idempotent about the conversation: re-sending an updated invite posts
-into the chat that already exists rather than starting a second one.
+Teams cannot do this app-only, and it is worth knowing before you build a plan
+around it. Creating the chat is fine: `POST /chats` has an application
+permission, `Chat.Create`. Posting into it does not. The Graph reference for
+`POST /chats/{id}/messages` lists one application permission, and it is
+`Teamwork.Migrate.All`, which exists for importing history into a chat in
+migration mode; the higher-privileged column reads "Not available". A nightly
+cron has no signed-in user to borrow, so the supported route is a Teams bot
+sending a proactive message, which means a Bot Framework registration and an
+endpoint to host. `TeamsChannel` refuses app-only credentials up front rather
+than letting that arrive as a 403 at five in the evening.
 
-Being honest about the trade: the Teams channel is the one part of Sofra that
-needs IT to say yes. Email and the `.ics` need nothing, which is why they are
-the default and why the product still works at a company that never approves
-anything.
+So today: Slack gets the group chat, Teams gets the tab and the calendar invite,
+and everybody gets the mail. A Teams bot backend slots in behind the same
+interface when it is worth the registration.
 
-## Inside Teams
-
-Sofra also runs as a Teams personal tab: its own pages, rendered in Teams,
-with the person already signed in. `teams/README.md` has the app registration
-and packaging; `npm run teams:package` produces the uploadable zip.
-
-Signing in is the part worth being careful about. The tempting shortcut is
-`app.getContext()`, which hands you the user's email in one line, client-side,
-where anyone can put whatever they like in a `fetch`. Sofra instead takes the
-signed token from `authentication.getAuthToken()` and verifies it on the server
-against Microsoft's published keys: signature, algorithm, audience, issuer,
-tenant and expiry. The tests in `tests/teams-auth.test.ts` mint tokens with a
-real key pair and check that a forged signature, `alg: none`, another
-application's audience, another tenant, an expired token and an unknown signing
-key are each refused.
-
-Two details that are easy to miss and break everything quietly:
-
-- A tab is a cross-site iframe, so a `SameSite=Lax` session cookie is never
-  sent and the session appears to vanish on every request. `SOFRA_ALLOW_EMBEDDING`
-  switches it to `SameSite=None; Secure`.
-- The app has to allow being framed. `frame-ancestors` names the Teams hosts
-  explicitly rather than leaving it open.
-
-The tab needs no bot, no `Chat.Create`, and no application permissions, unlike
-the Teams _group chat_ above, which does. They are independent: you can have the
-tab without the chat, or neither, and Sofra still works.
+| Channel            | What it does                                                          | What it costs                                    |
+| ------------------ | --------------------------------------------------------------------- | ------------------------------------------------ |
+| `EmailChannel`     | One mail to the table, `.ics` attached                                | nothing, always on                               |
+| `SlackChannel`     | A group DM with the four, then a Block Kit post with a confirm button | a bot token                                      |
+| `TeamsChannel`     | `POST /chats`, then an Adaptive Card                                  | a bot or delegated backend; app-only cannot post |
+| `CompositeChannel` | All of the above; one being down does not stop the others             | none                                             |
 
 ### The calendar invite
 
