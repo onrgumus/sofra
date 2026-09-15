@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { getStore } from '../../src/store/instance';
 import { currentEmployeeId } from '../../src/lib/session';
+import { safeRedirectPath } from '../../src/lib/redirect';
 import { DEMO_PASSWORD } from '../../src/lib/auth';
 import { DEMO_USERNAME, FEATURED_EMPLOYEE } from '../../src/store/featured';
 import { signIn } from '../actions';
@@ -16,7 +17,8 @@ export default async function LoginPage({
   searchParams: Promise<{ error?: string; next?: string }>;
 }) {
   const params = await searchParams;
-  if (await currentEmployeeId(getStore())) redirect(params.next ?? '/');
+  const next = safeRedirectPath(params.next);
+  if (await currentEmployeeId(getStore())) redirect(next);
 
   return (
     <main className="signin">
@@ -34,7 +36,7 @@ export default async function LoginPage({
       <TeamsBootstrap />
 
       <form action={signIn} className="card stack" style={{ maxWidth: 380 }}>
-        <input type="hidden" name="next" value={params.next ?? '/'} />
+        <input type="hidden" name="next" value={next} />
 
         <label className="field">
           <span>Username</span>

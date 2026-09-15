@@ -7,6 +7,7 @@ import { deliverPending } from '../src/lib/notifications';
 import { configuredChannel, FROM_EMAIL } from '../src/lib/channel';
 import { endSession, startSession } from '../src/lib/session';
 import { checkPassword } from '../src/lib/auth';
+import { safeRedirectPath } from '../src/lib/redirect';
 import { DEMO_USERNAME, pickRandomColleague } from '../src/store/featured';
 import { redirect } from 'next/navigation';
 import { SLOT } from '../src/store/demo';
@@ -28,7 +29,7 @@ export async function signIn(formData: FormData): Promise<void> {
     .toLowerCase();
   const password = String(formData.get('password') ?? '');
   const asColleague = formData.get('mode') === 'random';
-  const next = String(formData.get('next') ?? '/') || '/';
+  const next = safeRedirectPath(formData.get('next'));
 
   const store = getStore();
   const employee = asColleague
@@ -44,7 +45,7 @@ export async function signIn(formData: FormData): Promise<void> {
   }
 
   await startSession(employee.id);
-  redirect(next.startsWith('/') ? next : '/');
+  redirect(next);
 }
 
 export async function signOut(): Promise<void> {

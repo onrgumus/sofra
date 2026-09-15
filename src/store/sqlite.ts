@@ -308,27 +308,38 @@ export class SqliteStore implements Store {
   }
 
   async setRsvp(groupId: string, employeeId: string, status: RsvpStatus): Promise<void> {
-    const group = await this.getGroup(groupId);
-    if (!group) return;
-
-    const tables = this.groupsOn(group.date, group.officeId);
-    const changed = applyRsvp({
-      tables,
-      groupId,
-      employeeId,
-      status,
-      pastMatches: await this.listPastMatches(),
-      config: this.config,
-    });
-
-    // The reseating logic works on plain objects, so persisting is a matter of
-    // writing back whichever tables it touched.
+    // Read, decide and write in one synchronous transaction.
+    //
+    // A reply is a read-modify-write over every table that day, because a
+    // decline can move people between them. Awaiting anything in the middle
+    // hands the event loop to the next reply, which then reads the state this
+    // one has not written yet; both write back from their own stale snapshot
+    // and people vanish from tables. Four colleagues replying at once took a
+    // day from twenty-six seats to fourteen. Everything below is synchronous
+    // on purpose, so there is no point at which another reply can interleave.
     this.transaction(() => {
+      const row = this.get<GroupRow>('SELECT date, office_id FROM groups WHERE id = ?', groupId);
+      if (!row) return;
+
+      const changed = applyRsvp({
+        tables: this.groupsOn(row.date, row.office_id),
+        groupId,
+        employeeId,
+        status,
+        pastMatches: this.pastMatchesSync(),
+        config: this.config,
+      });
+
       for (const table of changed) this.persist(table as StoredGroup);
     });
   }
 
   async listPastMatches(): Promise<PastMatch[]> {
+    return this.pastMatchesSync();
+  }
+
+  /** The same read without yielding, for use inside a transaction. */
+  private pastMatchesSync(): PastMatch[] {
     const seeded = this.all<{ date: string; member_ids: string }>(
       'SELECT date, member_ids FROM past_matches',
     ).map((r) => ({ date: r.date, memberIds: JSON.parse(r.member_ids) as string[] }));

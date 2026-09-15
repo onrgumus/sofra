@@ -190,6 +190,29 @@ describe.each(subjects)('$name', (subject) => {
     expect(seated).toHaveLength(result.groups.reduce((n, g) => n + g.members.length, 0));
   });
 
+  it('survives a whole table replying at the same moment', async () => {
+    // A reply is a read-modify-write across every table that day, because a
+    // decline can move people between them. Without a transaction each reply
+    // reads state the others have not written yet and the last one wins: the
+    // collapse silently did not happen.
+    await planDay(store, OFFICE, date);
+    const table = (await store.listGroups(date, OFFICE)).find((g) => g.members.length === 4)!;
+    const before = (await store.listGroups(date, OFFICE)).flatMap((g) =>
+      g.members.map((m) => m.id),
+    );
+
+    await Promise.all(
+      table.members.map((m, i) => store.setRsvp(table.id, m.id, i < 2 ? 'declined' : 'accepted')),
+    );
+
+    const after = await store.listGroups(date, OFFICE);
+    const seats = after.flatMap((g) => g.members.map((m) => m.id));
+
+    expect(after.filter((g) => g.cancelled)).toHaveLength(1);
+    expect(new Set(seats).size).toBe(seats.length);
+    expect(before.filter((id) => !seats.includes(id))).toEqual([]);
+  });
+
   it('forgets a day when it is cleared', async () => {
     await planDay(store, OFFICE, date);
     await store.clearGroups(date, OFFICE);
