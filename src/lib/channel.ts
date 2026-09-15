@@ -2,6 +2,7 @@ import {
   CompositeChannel,
   EmailChannel,
   SlackChannel,
+  TeamsActivityChannel,
   TeamsChannel,
   type InviteChannel,
 } from '../notify/channels';
@@ -27,22 +28,36 @@ export function configuredChannel(): InviteChannel {
     channels.push(new SlackChannel({ token: slackToken, onUnreachable: warn('slack') }));
   }
 
-  // Teams group chat is off by default, and the flag is named for the thing that
-  // actually gates it. Client credentials alone cannot post a chat message, so
-  // wiring this up without a bot or delegated backend only buys you a 403.
-  const { MS_TENANT_ID, MS_CLIENT_ID, MS_CLIENT_SECRET, MS_CAN_SEND_CHAT_MESSAGES } = process.env;
+  const { MS_TENANT_ID, MS_CLIENT_ID, MS_CLIENT_SECRET, MS_CAN_SEND_CHAT_MESSAGES, TEAMS_APP_ID } =
+    process.env;
+
   if (MS_TENANT_ID && MS_CLIENT_ID && MS_CLIENT_SECRET) {
-    channels.push(
-      new TeamsChannel({
-        graph: createGraphClient({
-          tenantId: MS_TENANT_ID,
-          clientId: MS_CLIENT_ID,
-          clientSecret: MS_CLIENT_SECRET,
+    const graph = createGraphClient({
+      tenantId: MS_TENANT_ID,
+      clientId: MS_CLIENT_ID,
+      clientSecret: MS_CLIENT_SECRET,
+    });
+
+    // The activity feed is the Teams route that works on a schedule:
+    // sendActivityNotification has an application permission, and a chat
+    // message does not. Needs the Teams app id to deep-link into the tab.
+    if (TEAMS_APP_ID) {
+      channels.push(
+        new TeamsActivityChannel({
+          graph,
+          teamsAppId: TEAMS_APP_ID,
+          onUnreachable: warn('teams-activity'),
         }),
-        canSendMessages: MS_CAN_SEND_CHAT_MESSAGES === 'true',
-        onUnreachable: warn('teams'),
-      }),
-    );
+      );
+    }
+
+    // The group chat stays opt-in behind a flag naming what actually gates it,
+    // because client credentials alone only buy you a 403.
+    if (MS_CAN_SEND_CHAT_MESSAGES === 'true') {
+      channels.push(
+        new TeamsChannel({ graph, canSendMessages: true, onUnreachable: warn('teams') }),
+      );
+    }
   }
 
   if (channels.length === 1) return channels[0]!;

@@ -196,37 +196,45 @@ for sport, music, the city, where people grew up, what they care about.
 
 ### Slack and Teams
 
-Where a company has them, the invite is better as a conversation than as a mail.
-Both channels open a group chat with exactly the people at the table and post
-the invite into it, so "shall we try the new place instead" happens where the
-plan was made, and the cancellation lands in the same chat.
+Where a company has them, the invite is better delivered where people already
+are. What that looks like differs sharply between the two, and the difference is
+not a matter of effort.
 
-Slack works with a plain bot token. `conversations.open` with the four user ids
-returns a multi-person DM, and it is idempotent for the same set of people, so
-re-sending an updated invite posts into the chat that already exists instead of
-starting a second one. Scopes: `mpim:write`, `chat:write`, `users:read.email`.
+Slack gets a group chat. `conversations.open` with the four user ids returns a
+multi-person DM, and the docs confirm it is idempotent for the same set of
+people, so re-sending an updated invite posts into the chat that already exists
+rather than starting a second one. "Shall we try the new place instead" then
+happens where the plan was made. A plain bot token does it: `mpim:write`,
+`chat:write`, `users:read.email`.
 
-Teams cannot do this app-only, and it is worth knowing before you build a plan
-around it. Creating the chat is fine: `POST /chats` has an application
-permission, `Chat.Create`. Posting into it does not. The Graph reference for
-`POST /chats/{id}/messages` lists one application permission, and it is
-`Teamwork.Migrate.All`, which exists for importing history into a chat in
-migration mode; the higher-privileged column reads "Not available". A nightly
-cron has no signed-in user to borrow, so the supported route is a Teams bot
-sending a proactive message, which means a Bot Framework registration and an
-endpoint to host. `TeamsChannel` refuses app-only credentials up front rather
-than letting that arrive as a 403 at five in the evening.
+Teams does not, and cannot. Two facts from Microsoft's own reference close off
+the obvious routes:
 
-So today: Slack gets the group chat, Teams gets the tab and the calendar invite,
-and everybody gets the mail. A Teams bot backend slots in behind the same
-interface when it is worth the registration.
+- `POST /chats/{id}/messages` has one application permission,
+  `Teamwork.Migrate.All`, which exists for importing history into a chat in
+  migration mode. The higher-privileged column reads "Not available", so a cron
+  holding client credentials cannot post a chat message.
+- A bot does not rescue it: "You can't create a new group chat or a new channel
+  in a team with proactive messaging."
 
-| Channel            | What it does                                                          | What it costs                                    |
-| ------------------ | --------------------------------------------------------------------- | ------------------------------------------------ |
-| `EmailChannel`     | One mail to the table, `.ics` attached                                | nothing, always on                               |
-| `SlackChannel`     | A group DM with the four, then a Block Kit post with a confirm button | a bot token                                      |
-| `TeamsChannel`     | `POST /chats`, then an Adaptive Card                                  | a bot or delegated backend; app-only cannot post |
-| `CompositeChannel` | All of the above; one being down does not stop the others             | none                                             |
+What does work app-only is the activity feed.
+`POST /users/{id}/teamwork/sendActivityNotification` has the application
+permission `TeamsActivity.Send`, so each person at the table gets a notification
+that opens the Sofra tab, where the names and the RSVP buttons already are. Four
+notifications instead of one shared conversation is a real loss next to Slack,
+and it is the best Teams allows on a schedule.
+
+| Channel                | What it does                                                          | What it costs                                    |
+| ---------------------- | --------------------------------------------------------------------- | ------------------------------------------------ |
+| `EmailChannel`         | One mail to the table, `.ics` attached                                | nothing, always on                               |
+| `SlackChannel`         | A group DM with the four, then a Block Kit post with a confirm button | a bot token                                      |
+| `TeamsActivityChannel` | An activity feed notification each, deep-linked to the tab            | `TeamsActivity.Send`, and the tab installed      |
+| `TeamsChannel`         | `POST /chats`, then an Adaptive Card                                  | a bot or delegated backend; app-only cannot post |
+| `CompositeChannel`     | All of the above; one being down does not stop the others             | none                                             |
+
+`TeamsChannel` is kept because the shape is right and a delegated backend slots
+in behind the same `graph` function, but it refuses app-only credentials up
+front rather than opening four chats it cannot post into.
 
 ### The calendar invite
 

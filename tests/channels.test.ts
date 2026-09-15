@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
-import { CompositeChannel, SlackChannel, TeamsChannel } from '../src/notify/channels';
+import {
+  CompositeChannel,
+  SlackChannel,
+  TeamsActivityChannel,
+  TeamsChannel,
+} from '../src/notify/channels';
 import type { Delivery, InviteChannel } from '../src/notify/channels';
 import { employee } from './helpers';
 
@@ -155,6 +160,72 @@ describe('TeamsChannel', () => {
     const { calls, channel } = teams();
     await channel.sendInvite({ ...delivery, members: members.slice(0, 2) });
     expect(calls).toHaveLength(0);
+  });
+});
+
+describe('TeamsActivityChannel', () => {
+  function activity(fail?: string) {
+    const calls: { path: string; body: Record<string, unknown> }[] = [];
+    const graph = async (_m: 'GET' | 'POST', path: string, body?: unknown) => {
+      if (fail && path.includes(encodeURIComponent(fail))) throw new Error('app not installed');
+      calls.push({ path, body: body as Record<string, unknown> });
+      return {};
+    };
+    return {
+      calls,
+      channel: new TeamsActivityChannel({ graph, teamsAppId: 'app-123' }),
+    };
+  }
+
+  it('notifies everyone at the table, one call each', async () => {
+    const { calls, channel } = activity();
+    await channel.sendInvite(delivery);
+
+    expect(calls).toHaveLength(4);
+    expect(calls[0]!.path).toBe('/users/ada%40example.com/teamwork/sendActivityNotification');
+  });
+
+  it('uses an activity type the manifest declares', async () => {
+    // Graph rejects an activityType that is not in the app manifest.
+    const { calls, channel } = activity();
+    await channel.sendInvite(delivery);
+    expect(calls[0]!.body['activityType']).toBe('lunchMatched');
+
+    calls.length = 0;
+    await channel.sendCancellation(delivery);
+    expect(calls[0]!.body['activityType']).toBe('lunchCancelled');
+  });
+
+  it('deep-links into the Sofra tab', async () => {
+    const { calls, channel } = activity();
+    await channel.sendInvite(delivery);
+
+    const topic = calls[0]!.body['topic'] as Record<string, string>;
+    expect(topic['source']).toBe('text');
+    // webUrl is required when the topic source is text.
+    expect(topic['webUrl']).toBe('https://teams.microsoft.com/l/entity/app-123/sofra.lunches');
+  });
+
+  it('leads the preview with the names, inside the 150 characters Teams shows', async () => {
+    const { calls, channel } = activity();
+    await channel.sendInvite(delivery);
+
+    const preview = (calls[0]!.body['previewText'] as Record<string, string>)['content']!;
+    expect(preview).toContain('Ada Yılmaz');
+    expect(preview.length).toBeLessThanOrEqual(150);
+  });
+
+  it('one uninstalled app does not cost the other three their notification', async () => {
+    const onUnreachable = vi.fn();
+    const graph = async (_m: 'GET' | 'POST', path: string) => {
+      if (path.includes('chloe')) throw new Error('app not installed');
+      return {};
+    };
+    const channel = new TeamsActivityChannel({ graph, teamsAppId: 'a', onUnreachable });
+
+    await channel.sendInvite(delivery);
+    expect(onUnreachable).toHaveBeenCalledTimes(1);
+    expect(onUnreachable.mock.calls[0]![0].displayName).toBe('Chloe Kaya');
   });
 });
 
