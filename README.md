@@ -294,6 +294,14 @@ employee id cannot be forged in devtools. Replacing `src/lib/auth.ts` and
 `src/lib/session.ts` is the whole of adding real sign-in.
 
 Persistence is a swap of `src/store/instance.ts` for an implementation of the
+same interface, and until that is done this cannot go live. Measured against a
+production build rather than guessed at: restart the server and every tick, RSVP
+and table is gone, while the seeded company comes back because it is generated
+from a fixed seed. Worse, "this invite was already sent" is memory too, so after
+a restart nine of sixteen tables were mailed the identical invite a second time.
+A deploy at 16:59 with the cron at 17:00 means the whole building gets it twice.
+
+Persistence is a swap of `src/store/instance.ts` for an implementation of the
 same interface. That claim used to be false: every method on `Store` returned a
 plain value, which no database can do, so the only implementation that could
 ever have existed was the in-memory one. The interface is fully async now, at a

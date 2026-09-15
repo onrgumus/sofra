@@ -13,6 +13,8 @@ const TEAMS_FRAME_ANCESTORS = [
 
 /** @type {import('next').NextConfig} */
 export default {
+  // No reason to tell every caller which framework and version to look up CVEs for.
+  poweredByHeader: false,
   experimental: {
     // The matching engine lives outside app/, so let the server bundle reach it.
     externalDir: true,
