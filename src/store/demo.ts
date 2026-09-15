@@ -1,7 +1,6 @@
 import { matchLunches } from '../core/matcher';
+import { applyRsvp } from '../core/reseating';
 import { createRng } from '../core/rng';
-import { MatchHistory } from '../core/history';
-import { RELAXATION_LADDER, canJoin } from '../core/constraints';
 import { DEFAULT_CONFIG } from '../core/types';
 import type { Employee, MatchResult, OptIn, PastMatch, Unmatched } from '../core/types';
 import { generateCompany } from '../sim/company';
@@ -9,7 +8,7 @@ import { FEATURED_EMPLOYEE } from './featured';
 import { CompositeAttendanceProvider } from '../providers/composite';
 import { ManualAttendanceProvider } from '../providers/manual';
 import { WebhookAttendanceProvider } from '../providers/webhook';
-import type { AttendanceRecord } from '../providers/types';
+import type { AttendanceProvider, AttendanceRecord } from '../providers/types';
 import { pastWeekdays, todayInZone, upcomingWeekdays } from '../lib/dates';
 import type { AttendanceSource, Office, RsvpStatus, Store, StoredGroup } from './types';
 
@@ -82,6 +81,28 @@ export class DemoStore implements Store {
     const bookings = this.seedDeskBookings(seed);
     this.seedHistory(seed);
     this.seedOptIns(seed, bookings);
+  }
+
+  /**
+   * The synthetic world this store was seeded with, so another Store
+   * implementation can be built on exactly the same data. That is what makes a
+   * contract test possible: run one suite against both and any disagreement is
+   * a bug in one of them rather than a difference in fixtures.
+   */
+  world(): {
+    employees: Employee[];
+    offices: Office[];
+    attendance: AttendanceProvider;
+    history: PastMatch[];
+    optIns: OptIn[];
+  } {
+    return {
+      employees: [...this.employees],
+      offices: [...OFFICES],
+      attendance: this.deskFeed,
+      history: [...this.seededHistory],
+      optIns: [...this.optIns.values()],
+    };
   }
 
   // --- reference data -------------------------------------------------------
@@ -239,83 +260,18 @@ export class DemoStore implements Store {
 
   async setRsvp(groupId: string, employeeId: string, status: RsvpStatus): Promise<void> {
     const group = this.groups.get(groupId);
-    if (!group || !(employeeId in group.rsvps)) return;
+    if (!group) return;
 
-    group.rsvps[employeeId] = status;
-
-    if (group.cancelled) {
-      // A dissolved table does not come back; the others have already been
-      // moved. Someone changing their mind gets a seat of their own instead.
-      const person = group.members.find((m) => m.id === employeeId);
-      if (person && status !== 'declined') this.moveOut(group, [person]);
-      return;
-    }
-
-    const stillComing = group.members.filter((m) => group.rsvps[m.id] !== 'declined');
-    if (stillComing.length >= this.config.minGroupSize) return;
-
-    // A table of two is a meeting, not a lunch. The invite promises to reseat
-    // people who are left behind, so do that before giving up on them.
-    this.moveOut(group, stillComing);
-    group.cancelled = true;
-    group.sequence += 1;
-  }
-
-  /**
-   * Moves the given people to other tables that day which have room and pass the
-   * same rules the matcher used. Anyone nobody can take stays where they are and
-   * is told the lunch is off.
-   */
-  private moveOut(group: StoredGroup, people: readonly Employee[]): void {
-    const history = new MatchHistory(
-      this.pastMatches().filter((m) => m.date !== group.date),
-      group.date,
-    );
-    const hosts = this.groupsOn(group.date, group.officeId).filter(
-      (g) => g.id !== group.id && !g.cancelled,
-    );
-
-    for (const person of people) {
-      const host = this.findHost(hosts, person, history);
-      if (!host) continue;
-
-      host.members.push(person);
-      host.rsvps[person.id] = group.rsvps[person.id] ?? 'pending';
-      // The table changed after the invite went out, so it needs re-sending,
-      // as an update to the same event, not a second one.
-      host.sequence += 1;
-      host.invitesSentAt = null;
-      host.cancellationSentAt = null;
-
-      group.members = group.members.filter((m) => m.id !== person.id);
-      delete group.rsvps[person.id];
-    }
-  }
-
-  /**
-   * Tables are three or four by design, so on a day where every table is full
-   * there is no free seat to move anyone into. Rather than send someone away, a
-   * receiving table may go to five, but only after every table with genuine
-   * room, and every relaxation of the matching rules, has been tried first.
-   */
-  private findHost(
-    hosts: readonly StoredGroup[],
-    person: Employee,
-    history: MatchHistory,
-  ): StoredGroup | null {
-    const capacities = [this.config.maxGroupSize, this.config.maxGroupSize + 1];
-
-    for (const capacity of capacities) {
-      for (const relaxation of RELAXATION_LADDER) {
-        const host = hosts.find(
-          (g) =>
-            g.members.filter((m) => g.rsvps[m.id] !== 'declined').length < capacity &&
-            canJoin(g.members, person, history, this.config, relaxation),
-        );
-        if (host) return host;
-      }
-    }
-    return null;
+    // The tables are the stored objects, so applying the reply mutates them in
+    // place and there is nothing to write back.
+    applyRsvp({
+      tables: this.groupsOn(group.date, group.officeId),
+      groupId,
+      employeeId,
+      status,
+      pastMatches: this.pastMatches(),
+      config: this.config,
+    });
   }
 
   async listPastMatches(): Promise<PastMatch[]> {

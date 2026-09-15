@@ -10,10 +10,18 @@ import type { Store } from './types';
  */
 export const DEMO_USERNAME = 'onur';
 
+/**
+ * Set SOFRA_DEMO_EMAIL to a real address to receive the invites yourself once a
+ * mail key is configured. It stays an env var rather than a literal here
+ * because this repo is public: hardcoding a real address would make whoever
+ * clones it and runs with a Resend key mail a stranger.
+ */
+const DEMO_EMAIL = process.env.SOFRA_DEMO_EMAIL ?? 'onur@example.com';
+
 export const FEATURED_EMPLOYEE: Employee = {
   id: 'onur',
   displayName: 'Onur GG',
-  email: 'onur@example.com',
+  email: DEMO_EMAIL,
   title: 'AI Digital Transformation Manager',
   seniority: 'manager',
   department: 'Digital Transformation',

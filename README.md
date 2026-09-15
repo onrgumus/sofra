@@ -293,20 +293,33 @@ demo gate, not authentication, though the session cookie is HMAC-signed so an
 employee id cannot be forged in devtools. Replacing `src/lib/auth.ts` and
 `src/lib/session.ts` is the whole of adding real sign-in.
 
-Persistence is a swap of `src/store/instance.ts` for an implementation of the
-same interface, and until that is done this cannot go live. Measured against a
-production build rather than guessed at: restart the server and every tick, RSVP
-and table is gone, while the seeded company comes back because it is generated
-from a fixed seed. Worse, "this invite was already sent" is memory too, so after
-a restart nine of sixteen tables were mailed the identical invite a second time.
-A deploy at 16:59 with the cron at 17:00 means the whole building gets it twice.
+Persistence is a file away. Set `SOFRA_DATABASE` and state lives in SQLite,
+which ships with Node and therefore gets tested rather than reviewed and hoped
+over; `src/store/schema.sql` notes the two type changes Postgres needs.
 
-Persistence is a swap of `src/store/instance.ts` for an implementation of the
-same interface. That claim used to be false: every method on `Store` returned a
-plain value, which no database can do, so the only implementation that could
-ever have existed was the in-memory one. The interface is fully async now, at a
-type errors' worth of change, which is exactly the bill that would otherwise
-have arrived on the first real deployment.
+This was not a tidy-up. Measured against a production build before the store
+existed: restart the server and every tick, reply and table was gone, and
+because "this invite was already sent" was memory too, the next cron run mailed
+nine of sixteen tables the identical invite a second time. With the database,
+the same restart finds sixteen tables, sends zero invites and mails nobody.
+
+Both stores are held to one suite. `tests/store-contract.test.ts` runs the same
+thirty-one cases against the in-memory and the SQLite implementation, so a
+disagreement between them fails the build instead of waiting for production to
+find it.
+
+The nightly job is idempotent for the same reason. A day that already has tables
+is not re-planned, because a platform retry or a second schedule would otherwise
+rebuild identical tables whose invites had not been sent and mail the whole
+building again. The console's re-run button asks for that explicitly.
+
+Still missing before this is a product: real authentication, and a directory
+sync in place of the synthetic company. Sign-in is one shared password so
+anyone with the link can try it, a demo gate rather than authentication, though
+the session cookie is HMAC-signed so an employee id cannot be forged in
+devtools. Replacing `src/lib/auth.ts` and `src/lib/session.ts` is the whole of
+the first; reference data is already injected into the store rather than stored
+by it, which is most of the second.
 
 ## The nightly job
 

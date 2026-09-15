@@ -12,6 +12,11 @@ export interface NightlyOptions {
   from: string;
   /** Override the day being planned. Defaults to each office's next weekday. */
   date?: string;
+  /**
+   * Replace a plan that already exists. Off by default so a repeated cron run
+   * is harmless; the console's "re-run matching" button sets it.
+   */
+  replan?: boolean;
 }
 
 export interface OfficeOutcome {
@@ -69,7 +74,16 @@ export async function runNightlyMatching(options: NightlyOptions): Promise<Offic
     // Each office plans its own next working day, in its own timezone.
     const date = options.date ?? upcomingWeekdays(1, todayInZone(office.timeZone))[0]!;
 
-    const result = await planDay(store, office.id, date);
+    // Do not re-plan a day that already has tables. A cron that fires twice,
+    // whether from a platform retry or a second schedule, would otherwise
+    // rebuild identical tables whose invites have not been sent yet and mail
+    // the whole building a second time. Delivery below is idempotent on its
+    // own, so a repeat run simply finds nothing to do.
+    const existing = await store.listGroups(date, office.id);
+    const result =
+      existing.length > 0 && !options.replan
+        ? { groups: existing, unmatched: await store.listUnmatched(date, office.id) }
+        : await planDay(store, office.id, date);
 
     const delivered = await deliverPending({
       store,
