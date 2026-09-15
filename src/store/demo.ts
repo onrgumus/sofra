@@ -177,7 +177,7 @@ export class DemoStore implements Store {
     } else {
       // Also override the desk feed, which we do not own and cannot edit.
       this.suppressed.add(id);
-      this.removeOptIn(employeeId, date, officeId);
+      await this.removeOptIn(employeeId, date, officeId);
     }
   }
 
@@ -225,7 +225,7 @@ export class DemoStore implements Store {
   }
 
   async saveMatchResult(result: MatchResult): Promise<void> {
-    this.clearGroups(result.date, result.officeId);
+    await this.clearGroups(result.date, result.officeId);
     this.unmatched.set(key(result.date, result.officeId), result.unmatched);
     for (const group of result.groups) {
       this.groups.set(group.id, {

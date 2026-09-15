@@ -122,7 +122,7 @@ export async function respondToInvite(formData: FormData): Promise<void> {
   const group = await store.getGroup(groupId);
   if (!group) return;
 
-  store.setRsvp(
+  await store.setRsvp(
     groupId,
     required(formData, 'employeeId'),
     required(formData, 'status') as RsvpStatus,
