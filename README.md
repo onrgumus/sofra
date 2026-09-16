@@ -386,6 +386,34 @@ openly. Anyone who could reach it would be able to reshuffle tomorrow's tables
 and mail the whole company. The admin console's button calls exactly the same
 `planDay`, so what you see there is what the cron produces.
 
+## Who runs this
+
+Sofra is built to be installed by a company, not subscribed to. One instance
+serves one company: its database, its hosting, its Entra app registration, its
+mail. That is not an accident of how far it has got. The product's whole input
+is who is in which building today and who works for whom, which is exactly the
+data a bank will not hand to a third party, and the Outlook feed needs
+credentials inside their tenant anyway. Self-hosting removes a procurement
+conversation rather than starting one.
+
+So there is no notion of a tenant anywhere in the domain model, and adding one
+would not be a small change: every table would need a tenant column and row
+level security, offices and credentials would become per-tenant records rather
+than configuration, and sessions would have to be scoped. If you want a
+multi-tenant SaaS, that is the work, and it is worth deciding before rather than
+after.
+
+Nothing here is tied to Vercel. `vercel.json` only schedules the cron, and the
+job is an ordinary authenticated `GET /api/cron`: Azure Container Apps with a
+timer, a Kubernetes CronJob, or a line in crontab all do the same thing. For a
+company already on Microsoft, which a company using Teams is, Azure Database for
+PostgreSQL and App Service is the more likely pairing than anything in this
+repo's examples.
+
+The public demo is the exception. It runs on somebody's personal Supabase and
+Vercel because its job is to be clickable from a link, and it holds nothing but
+a synthetic company.
+
 ## Configuration
 
 Copy `.env.example` to `.env.local`.

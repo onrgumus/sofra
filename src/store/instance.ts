@@ -3,6 +3,7 @@ import { SqliteStore } from './sqlite';
 import { PostgresStore } from './postgres';
 import pg from 'pg';
 import type { Store } from './types';
+import { parseOffices } from '../lib/offices';
 
 const { Pool } = pg;
 
@@ -24,6 +25,9 @@ export function getStore(): Store {
 
 function create(): Store {
   const world = new DemoStore().world();
+  // Configured offices win over the demo's two invented ones. A deployment that
+  // forgets this ends up matching people into a building that does not exist.
+  const offices = parseOffices(process.env.SOFRA_OFFICES) ?? world.offices;
 
   // Postgres first: on a serverless platform the filesystem is ephemeral, so a
   // SQLite file would be empty on every cold start and we would be back to
@@ -39,7 +43,7 @@ function create(): Store {
         idleTimeoutMillis: 10_000,
       }),
       employees: world.employees,
-      offices: world.offices,
+      offices,
       attendance: world.attendance,
     });
     void seedOnce(store, world);
@@ -54,7 +58,7 @@ function create(): Store {
   const store = new SqliteStore({
     path,
     employees: world.employees,
-    offices: world.offices,
+    offices,
     attendance: world.attendance,
   });
 
