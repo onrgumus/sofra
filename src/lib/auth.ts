@@ -11,8 +11,29 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
  */
 export const DEMO_PASSWORD = process.env.SOFRA_DEMO_PASSWORD ?? '1234';
 
-const SESSION_SECRET =
-  process.env.SOFRA_SESSION_SECRET ?? 'sofra-demo-secret-change-me-in-production';
+/**
+ * The fallback is fine on a laptop and a hole in public.
+ *
+ * It is published in this repository, so a deployment that forgets to set its
+ * own means anyone who has read the source can compute a valid cookie for any
+ * employee id and sign in as them without the password. Running insecurely and
+ * quietly is the worst of the three options, so production refuses to boot.
+ */
+const DEVELOPMENT_SECRET = 'sofra-demo-secret-change-me-in-production';
+
+function sessionSecret(): string {
+  const configured = process.env.SOFRA_SESSION_SECRET;
+  if (configured && configured !== DEVELOPMENT_SECRET) return configured;
+
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error(
+      'SOFRA_SESSION_SECRET is not set. The fallback is published in the repository, so ' +
+        'without your own value anyone can forge a session cookie. Set it to a long random ' +
+        'string and redeploy.',
+    );
+  }
+  return DEVELOPMENT_SECRET;
+}
 
 export function checkPassword(candidate: string): boolean {
   const expected = Buffer.from(DEMO_PASSWORD, 'utf8');
@@ -23,7 +44,7 @@ export function checkPassword(candidate: string): boolean {
 }
 
 function sign(value: string): string {
-  return createHmac('sha256', SESSION_SECRET).update(value).digest('base64url');
+  return createHmac('sha256', sessionSecret()).update(value).digest('base64url');
 }
 
 export function createSessionValue(employeeId: string): string {

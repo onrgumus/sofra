@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   checkPassword,
   createSessionValue,
@@ -17,6 +17,43 @@ describe('checkPassword', () => {
     for (const wrong of ['', '123', '12345', '1234 ', 'onur', 'Password1']) {
       expect(checkPassword(wrong)).toBe(false);
     }
+  });
+});
+
+describe('the session secret', () => {
+  const original = { env: process.env.NODE_ENV, secret: process.env.SOFRA_SESSION_SECRET };
+
+  afterEach(() => {
+    vi.stubEnv('NODE_ENV', original.env ?? 'test');
+    if (original.secret === undefined) vi.stubEnv('SOFRA_SESSION_SECRET', '');
+    else vi.stubEnv('SOFRA_SESSION_SECRET', original.secret);
+    vi.unstubAllEnvs();
+  });
+
+  it('refuses to run in production on the published fallback', () => {
+    // It is in this repository. Without a real one, anyone who has read the
+    // source can forge a cookie for any employee and skip the password.
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('SOFRA_SESSION_SECRET', '');
+    expect(() => createSessionValue('onur')).toThrow(/SOFRA_SESSION_SECRET is not set/);
+  });
+
+  it('refuses the fallback even when it is set explicitly', () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('SOFRA_SESSION_SECRET', 'sofra-demo-secret-change-me-in-production');
+    expect(() => createSessionValue('onur')).toThrow(/SOFRA_SESSION_SECRET is not set/);
+  });
+
+  it('is happy in production with a real one', () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('SOFRA_SESSION_SECRET', 'a-long-random-string-from-the-deployment');
+    expect(readSessionValue(createSessionValue('onur'))).toBe('onur');
+  });
+
+  it('leaves development alone, so a laptop needs no ceremony', () => {
+    vi.stubEnv('NODE_ENV', 'development');
+    vi.stubEnv('SOFRA_SESSION_SECRET', '');
+    expect(readSessionValue(createSessionValue('onur'))).toBe('onur');
   });
 });
 
