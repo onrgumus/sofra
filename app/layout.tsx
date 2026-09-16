@@ -67,6 +67,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
             <nav className="nav">
               <Link href="/">Your lunches</Link>
+              <Link href="/you">Your details</Link>
               {isAdmin(current) ? <Link href="/admin">Admin</Link> : null}
               <form action={signOut}>
                 <button type="submit" data-variant="quiet">

@@ -3,7 +3,8 @@ import { getStore } from '../src/store/instance';
 import { currentEmployeeId } from '../src/lib/session';
 import { redirect } from 'next/navigation';
 import { SLOT } from '../src/store/demo';
-import { formatDay, todayInZone, upcomingWeekdays } from '../src/lib/dates';
+import { formatDay, previousWeekday, todayInZone, upcomingWeekdays } from '../src/lib/dates';
+import { MATCHING_HOUR } from '../src/lib/config';
 import type { StoredGroup } from '../src/store/types';
 import { setAttendance, toggleLunch } from './actions';
 import { AutoSubmitCheckbox } from './AutoSubmit';
@@ -80,7 +81,10 @@ export default async function EmployeePage() {
                   <p className="faint" style={{ marginTop: 6 }}>
                     {day.matched
                       ? 'Tables for this day were already set before you asked, so there is no seat for you today. Your tick still counts if matching runs again.'
-                      : 'Matching runs the evening before. Your table, the three people and what they do, will appear here.'}
+                      : `Your table appears here after ${MATCHING_HOUR} on ${formatDay(
+                          previousWeekday(day.date),
+                          office.locale,
+                        )}, and the invite reaches you by email at the same time.`}
                   </p>
                 ) : null}
               </div>

@@ -61,3 +61,10 @@ export function formatDay(isoDate: string, locale = 'en-GB'): string {
     timeZone: 'UTC',
   });
 }
+
+/** The working day before `isoDate`. Friday for a Monday, not Sunday. */
+export function previousWeekday(isoDate: string): string {
+  let cursor = addDays(isoDate, -1);
+  while (isWeekend(cursor)) cursor = addDays(cursor, -1);
+  return cursor;
+}

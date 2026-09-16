@@ -261,6 +261,9 @@ form.inline {
 }
 
 .who {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
   min-width: 0;
   flex: 1 1 auto;
 }
@@ -395,6 +398,42 @@ form.inline {
 .error-text {
   color: var(--bad);
   font-size: 0.85rem;
+}
+
+/* --- facts --- */
+
+.facts {
+  display: grid;
+  grid-template-columns: minmax(120px, max-content) minmax(0, 1fr);
+  gap: 8px 20px;
+  margin: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 16px 18px;
+}
+.facts dt {
+  color: var(--text-soft);
+  font-size: 0.85rem;
+}
+.facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+ul.plain {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 4px;
+}
+ul.plain li {
+  padding: 8px 0;
+  border-top: 1px solid var(--border);
+}
+ul.plain li:first-child {
+  border-top: none;
 }
 
 /* --- misc --- */
