@@ -8,6 +8,8 @@ import { configuredChannel, FROM_EMAIL } from '../src/lib/channel';
 import { endSession, startSession } from '../src/lib/session';
 import { checkPassword } from '../src/lib/auth';
 import { safeRedirectPath } from '../src/lib/redirect';
+import { demoModeEnabled, isAdmin } from '../src/lib/authz';
+import { currentEmployeeId } from '../src/lib/session';
 import { DEMO_USERNAME, pickRandomColleague } from '../src/store/featured';
 import { redirect } from 'next/navigation';
 import { SLOT } from '../src/store/demo';
@@ -15,6 +17,17 @@ import type { RsvpStatus } from '../src/store/types';
 
 function refresh(): void {
   revalidatePath('/', 'layout');
+}
+
+/**
+ * The console's buttons re-plan a whole office's day and mail everyone in it.
+ * Guarding only the page would leave the actions callable directly, which is
+ * the same hole with an extra step.
+ */
+async function requireAdmin(): Promise<boolean> {
+  const store = getStore();
+  const employeeId = await currentEmployeeId(store);
+  return isAdmin(employeeId ? await store.getEmployee(employeeId) : undefined);
 }
 
 function required(formData: FormData, field: string): string {
@@ -55,6 +68,9 @@ export async function signOut(): Promise<void> {
 
 /** Demo affordance: look at the same day through a colleague's eyes. */
 export async function switchEmployee(formData: FormData): Promise<void> {
+  // Becoming a colleague is a demo affordance, not a feature.
+  if (!demoModeEnabled()) return;
+
   const employeeId = required(formData, 'employeeId');
   if (!(await getStore().getEmployee(employeeId))) return;
 
@@ -97,16 +113,22 @@ export async function toggleLunch(formData: FormData): Promise<void> {
  * takes, so what you see here is what the cron will produce.
  */
 export async function runMatching(formData: FormData): Promise<void> {
+  if (!(await requireAdmin())) return;
+
   await planDay(getStore(), required(formData, 'officeId'), required(formData, 'date'));
   refresh();
 }
 
 export async function clearMatching(formData: FormData): Promise<void> {
+  if (!(await requireAdmin())) return;
+
   await getStore().clearGroups(required(formData, 'date'), required(formData, 'officeId'));
   refresh();
 }
 
 export async function sendInvites(formData: FormData): Promise<void> {
+  if (!(await requireAdmin())) return;
+
   await deliverPending({
     store: getStore(),
     channel: configuredChannel(),

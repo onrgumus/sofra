@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { getStore } from '../src/store/instance';
 import { currentEmployeeId } from '../src/lib/session';
 import { signOut, switchEmployee } from './actions';
+import { demoModeEnabled, isAdmin } from '../src/lib/authz';
 import { AutoSubmitSelect } from './AutoSubmit';
 
 export const metadata = {
@@ -47,19 +48,26 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             {/* Names only: a select showing "Name Long Title, Department" is
                 wider than any sensible header and just truncates. The role goes
                 next to it, where it can wrap. */}
-            <form action={switchEmployee} className="inline who">
-              <AutoSubmitSelect
-                name="employeeId"
-                defaultValue={currentId}
-                aria-label="Signed in as"
-                options={colleagues.map((e) => ({ value: e.id, label: e.displayName }))}
-              />
-              {current ? <span className="who-role">{current.title}</span> : null}
-            </form>
+            {demoModeEnabled() ? (
+              <form action={switchEmployee} className="inline who">
+                <AutoSubmitSelect
+                  name="employeeId"
+                  defaultValue={currentId}
+                  aria-label="Signed in as"
+                  options={colleagues.map((e) => ({ value: e.id, label: e.displayName }))}
+                />
+                {current ? <span className="who-role">{current.title}</span> : null}
+              </form>
+            ) : (
+              <span className="who">
+                <strong>{current?.displayName}</strong>
+                {current ? <span className="who-role">{current.title}</span> : null}
+              </span>
+            )}
 
             <nav className="nav">
               <Link href="/">Your lunches</Link>
-              <Link href="/admin">Admin</Link>
+              {isAdmin(current) ? <Link href="/admin">Admin</Link> : null}
               <form action={signOut}>
                 <button type="submit" data-variant="quiet">
                   Sign out

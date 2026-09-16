@@ -1,4 +1,6 @@
 import { getStore } from '../../src/store/instance';
+import { currentEmployeeId } from '../../src/lib/session';
+import { isAdmin } from '../../src/lib/authz';
 import { SLOT } from '../../src/store/demo';
 import { formatDay, todayInZone, upcomingWeekdays } from '../../src/lib/dates';
 import { toVenue } from '../../src/lib/venue';
@@ -18,6 +20,13 @@ export default async function AdminPage({
   searchParams: Promise<{ date?: string; officeId?: string }>;
 }) {
   const store = getStore();
+
+  // Every table, every name and every reply for a whole office. Signed in is
+  // not a reason to see it.
+  const viewerId = await currentEmployeeId(store);
+  const viewer = viewerId ? await store.getEmployee(viewerId) : undefined;
+  if (!isAdmin(viewer)) return <NotYours />;
+
   const params = await searchParams;
 
   const offices = await store.listOffices();
@@ -297,4 +306,21 @@ function summarise(groups: readonly StoredGroup[], history: MatchHistory) {
     strangerPairs,
     relaxed: groups.filter((g) => g.relaxation !== 'none').length,
   };
+}
+
+function NotYours() {
+  return (
+    <main>
+      <div className="page-head">
+        <h1>Not your console</h1>
+        <p>
+          The matching console shows every table and every reply for a whole office, so it is
+          limited to named people. Your lunches are on the home page.
+        </p>
+      </div>
+      <a className="button" href="/">
+        Back to your lunches
+      </a>
+    </main>
+  );
 }

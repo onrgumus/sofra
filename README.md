@@ -336,6 +336,16 @@ is not re-planned, because a platform retry or a second schedule would otherwise
 rebuild identical tables whose invites had not been sent and mail the whole
 building again. The console's re-run button asks for that explicitly.
 
+Two things guard the parts that are not about your own lunch. `SOFRA_ADMINS`
+names who may open the matching console, which shows every table and every
+reply for a whole office and whose buttons re-plan the day and mail everyone in
+it; empty means nobody, because an unconfigured deployment should refuse rather
+than hand that to the first person who signs in. The page and the three actions
+are checked separately, since guarding only the page leaves them callable
+directly. `SOFRA_DEMO_MODE` controls the account switcher, which is the point of
+a public demo and impersonation in a company: off in production unless asked
+for.
+
 Still missing before this is a product: real authentication, and a directory
 sync in place of the synthetic company. Sign-in is one shared password so
 anyone with the link can try it, a demo gate rather than authentication, though
