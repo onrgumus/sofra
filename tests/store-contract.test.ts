@@ -6,6 +6,7 @@ import { DemoStore, SLOT } from '../src/store/demo';
 import { SqliteStore } from '../src/store/sqlite';
 import { PostgresStore, type PgPool } from '../src/store/postgres';
 import { newDb } from 'pg-mem';
+import pg from 'pg';
 import type { Store } from '../src/store/types';
 import { planDay } from '../src/lib/nightly';
 import { todayInZone, upcomingWeekdays } from '../src/lib/dates';
@@ -34,15 +35,26 @@ interface Subject {
 const directory = mkdtempSync(join(tmpdir(), 'sofra-'));
 
 /**
- * pg-mem runs Postgres's dialect in process, which is what this is for: the
- * port from SQLite is mostly SQL, and SQL is where a port goes wrong. It is a
- * single-threaded emulator, so it proves the statements and the logic, not the
- * locking; FOR UPDATE is parsed and accepted but never contended. Real
- * concurrency needs a real server.
+ * A real server when one is reachable, pg-mem otherwise.
+ *
+ * pg-mem parses the real dialect in process, which catches the SQL mistakes a
+ * port makes, but it is single-threaded: it accepts FOR UPDATE and never
+ * contends on it, so it cannot show that concurrent replies are serialised.
+ * Point TEST_DATABASE_URL at a server and that case runs for real.
  */
+const REAL_POSTGRES = process.env.TEST_DATABASE_URL;
+
 function postgresPool(): PgPool {
+  if (REAL_POSTGRES) return new pg.Pool({ connectionString: REAL_POSTGRES, max: 8 }) as PgPool;
   const { Pool } = newDb().adapters.createPg() as { Pool: new () => PgPool };
   return new Pool();
+}
+
+/** Each run needs its own tables when they all share one server. */
+async function freshSchema(pool: PgPool): Promise<void> {
+  if (!REAL_POSTGRES) return;
+  await pool.query(`DROP TABLE IF EXISTS group_members, groups, opt_ins, unmatched,
+    past_matches, self_declared_attendance, suppressed_attendance, day_locks CASCADE`);
 }
 
 const subjects: Subject[] = [
@@ -57,8 +69,10 @@ const subjects: Subject[] = [
     make: async () => {
       const seed = new DemoStore(7, 160);
       const world = seed.world();
+      const pool = postgresPool();
+      await freshSchema(pool);
       const store = new PostgresStore({
-        pool: postgresPool(),
+        pool,
         employees: world.employees,
         offices: world.offices,
         attendance: world.attendance,
@@ -68,8 +82,8 @@ const subjects: Subject[] = [
       return store;
     },
     cleanUp: () => {},
-    // Needs a real server: see the note on postgresPool above.
-    serialisesConcurrentWrites: false,
+    // pg-mem cannot show this; a real server can. See postgresPool above.
+    serialisesConcurrentWrites: REAL_POSTGRES !== undefined,
   },
   {
     name: 'SqliteStore',

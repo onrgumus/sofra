@@ -384,21 +384,24 @@ export class PostgresStore implements Store {
       'SELECT * FROM groups WHERE date = $1 AND office_id = $2 ORDER BY id',
       [date, officeId],
     );
-    return Promise.all(
-      (rows.rows as unknown as GroupRow[]).map((row) => this.hydrate(row, client)),
-    );
+    // One client cannot run two queries at once, so these are sequential. A
+    // Promise.all here is the deprecation warning pg prints and the undefined
+    // behaviour it is warning about.
+    const groups: StoredGroup[] = [];
+    for (const row of rows.rows as unknown as GroupRow[]) {
+      groups.push(await this.hydrate(row, client));
+    }
+    return groups;
   }
 
   private async loadHistory(client: PgClient): Promise<PastMatch[]> {
     const seeded = await client.query('SELECT date, member_ids FROM past_matches');
     const live = await client.query('SELECT id, date FROM groups');
 
-    const fromGroups = await Promise.all(
-      (live.rows as { id: string; date: string }[]).map(async (g) => ({
-        date: g.date,
-        memberIds: await this.memberIds(g.id, client),
-      })),
-    );
+    const fromGroups: PastMatch[] = [];
+    for (const g of live.rows as { id: string; date: string }[]) {
+      fromGroups.push({ date: g.date, memberIds: await this.memberIds(g.id, client) });
+    }
 
     return [
       ...(seeded.rows as { date: string; member_ids: string }[]).map((r) => ({

@@ -308,9 +308,22 @@ the same restart finds sixteen tables, sends zero invites and mails nobody.
 All three stores are held to one suite. `tests/store-contract.test.ts` runs the
 same cases against the in-memory, SQLite and Postgres implementations, so a
 disagreement between them fails the build instead of waiting for production to
-find it. Postgres runs against pg-mem, which parses the real dialect in process:
-that proves the statements and the logic, not the locking. One case is skipped
-there and says so, because pg-mem accepts `FOR UPDATE` and never contends on it.
+find it.
+
+By default Postgres runs against pg-mem, which parses the real dialect in
+process. That catches the SQL a port gets wrong, and it caught two here, but it
+is single-threaded: it accepts `FOR UPDATE` and never contends on it, so the
+concurrency case is skipped and says why rather than passing and meaning
+nothing. Point `TEST_DATABASE_URL` at a server and it runs for real:
+
+```bash
+TEST_DATABASE_URL=postgresql://localhost/sofra_test npm test
+```
+
+Verified that way against PostgreSQL 16, which is also how the last real bug
+turned up: inside a transaction every query shares one client, and a pg client
+cannot run two at once, so the `Promise.all` reads in the store were the
+deprecation warning pg prints and the undefined behaviour behind it.
 
 The locking matters because a reply is a read-modify-write across every table
 that day. SQLite gets its atomicity from doing that synchronously; Postgres
