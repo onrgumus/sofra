@@ -372,6 +372,27 @@ export class SqliteStore implements Store {
     });
   }
 
+  // --- sign-in throttling ----------------------------------------------------
+
+  async recordSignInFailure(key: string, atIso: string): Promise<void> {
+    this.run('INSERT INTO sign_in_failures (key, at) VALUES (?, ?)', key, atIso);
+  }
+
+  async countSignInFailures(key: string, sinceIso: string): Promise<number> {
+    // Prune while counting: nothing older than the window can matter again.
+    this.run('DELETE FROM sign_in_failures WHERE at < ?', sinceIso);
+    const row = this.get<{ n: number }>(
+      'SELECT COUNT(*) AS n FROM sign_in_failures WHERE key = ? AND at >= ?',
+      key,
+      sinceIso,
+    );
+    return row?.n ?? 0;
+  }
+
+  async clearSignInFailures(key: string): Promise<void> {
+    this.run('DELETE FROM sign_in_failures WHERE key = ?', key);
+  }
+
   // --- internals ------------------------------------------------------------
 
   private clearDay(date: string, officeId: string): void {

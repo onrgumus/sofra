@@ -81,3 +81,11 @@ CREATE TABLE IF NOT EXISTS day_locks (
   office_id TEXT NOT NULL,
   PRIMARY KEY (date, office_id)
 );
+
+-- Failed sign-ins, so a password can be rate limited across instances. Rows are
+-- pruned as they are counted; nothing here is worth keeping for long.
+CREATE TABLE IF NOT EXISTS sign_in_failures (
+  key     TEXT NOT NULL,
+  at      TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS sign_in_failures_by_key ON sign_in_failures (key, at);

@@ -100,4 +100,15 @@ export interface Store {
   setRsvp(groupId: string, employeeId: string, status: RsvpStatus): Promise<void>;
 
   listPastMatches(): Promise<PastMatch[]>;
+
+  /**
+   * Failed sign-in attempts, so a password can be rate limited.
+   *
+   * In the store because it is the only state shared between instances. A
+   * counter in memory would reset on every cold start and be per-instance
+   * besides, which on a serverless platform is barely a speed bump.
+   */
+  recordSignInFailure(key: string, atIso: string): Promise<void>;
+  countSignInFailures(key: string, sinceIso: string): Promise<number>;
+  clearSignInFailures(key: string): Promise<void>;
 }

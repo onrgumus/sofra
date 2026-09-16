@@ -59,6 +59,7 @@ export class DemoStore implements Store {
   private readonly groups = new Map<string, StoredGroup>();
   private readonly seededHistory: PastMatch[] = [];
   private readonly unmatched = new Map<string, Unmatched[]>();
+  private readonly signInFailures = new Map<string, string[]>();
 
   private readonly config = DEFAULT_CONFIG;
 
@@ -289,6 +290,20 @@ export class DemoStore implements Store {
       memberIds: g.members.map((m) => m.id),
     }));
     return [...this.seededHistory, ...fromGroups];
+  }
+
+  // --- sign-in throttling ----------------------------------------------------
+
+  async recordSignInFailure(key: string, atIso: string): Promise<void> {
+    this.signInFailures.set(key, [...(this.signInFailures.get(key) ?? []), atIso]);
+  }
+
+  async countSignInFailures(key: string, sinceIso: string): Promise<number> {
+    return (this.signInFailures.get(key) ?? []).filter((at) => at >= sinceIso).length;
+  }
+
+  async clearSignInFailures(key: string): Promise<void> {
+    this.signInFailures.delete(key);
   }
 
   // --- seeding --------------------------------------------------------------

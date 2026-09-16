@@ -296,6 +296,30 @@ describe.each(subjects)('$name', (subject) => {
     expect((await store.getGroup(table.id))?.cancelled).toBe(true);
   });
 
+  it('counts failed sign-ins, and forgets them once one works', async () => {
+    // In the store rather than in memory: a counter that resets on a cold start
+    // and is per-instance besides is barely a speed bump on a serverless host.
+    expect(await store.countSignInFailures('signin:onur', '2000-01-01T00:00:00.000Z')).toBe(0);
+
+    await store.recordSignInFailure('signin:onur', new Date().toISOString());
+    await store.recordSignInFailure('signin:onur', new Date().toISOString());
+    expect(await store.countSignInFailures('signin:onur', '2000-01-01T00:00:00.000Z')).toBe(2);
+
+    // Somebody else's attempts are not yours.
+    expect(await store.countSignInFailures('signin:other', '2000-01-01T00:00:00.000Z')).toBe(0);
+
+    await store.clearSignInFailures('signin:onur');
+    expect(await store.countSignInFailures('signin:onur', '2000-01-01T00:00:00.000Z')).toBe(0);
+  });
+
+  it('ignores attempts older than the window', async () => {
+    const old = new Date(Date.now() - 60 * 60_000).toISOString();
+    await store.recordSignInFailure('signin:onur', old);
+
+    const since = new Date(Date.now() - 15 * 60_000).toISOString();
+    expect(await store.countSignInFailures('signin:onur', since)).toBe(0);
+  });
+
   it('forgets a day when it is cleared', async () => {
     await planDay(store, OFFICE, date);
     await store.clearGroups(date, OFFICE);

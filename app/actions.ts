@@ -8,6 +8,7 @@ import { configuredChannel, FROM_EMAIL } from '../src/lib/channel';
 import { endSession, startSession } from '../src/lib/session';
 import { checkPassword } from '../src/lib/auth';
 import { safeRedirectPath } from '../src/lib/redirect';
+import { checkSignInAllowed, clearSignInFailures, recordSignInFailure } from '../src/lib/throttle';
 import { demoModeEnabled, isAdmin } from '../src/lib/authz';
 import { currentEmployeeId } from '../src/lib/session';
 import { DEMO_USERNAME, pickRandomColleague } from '../src/store/featured';
@@ -45,6 +46,14 @@ export async function signIn(formData: FormData): Promise<void> {
   const next = safeRedirectPath(formData.get('next'));
 
   const store = getStore();
+
+  // A short password with no limit is not a password. Counted per username, so
+  // an attacker cannot lock out an office by hammering from one address.
+  const throttle = await checkSignInAllowed(store, username);
+  if (!throttle.allowed) {
+    redirect(`/login?error=throttled&next=${encodeURIComponent(next)}`);
+  }
+
   const employee = asColleague
     ? await pickRandomColleague(store)
     : username === DEMO_USERNAME
@@ -52,11 +61,14 @@ export async function signIn(formData: FormData): Promise<void> {
       : (await store.listEmployees()).find((e) => e.email.toLowerCase() === username);
 
   if (!employee || !checkPassword(password)) {
+    await recordSignInFailure(store, username);
     // Same message either way: which half was wrong is not the visitor's
     // business, and saying so only helps someone guessing usernames.
     redirect(`/login?error=1&next=${encodeURIComponent(next)}`);
   }
 
+  // A password that worked clears the count, so an honest typo costs nothing.
+  await clearSignInFailures(store, username);
   await startSession(employee.id);
   redirect(next);
 }

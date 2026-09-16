@@ -3,6 +3,7 @@ import { getStore } from '../../src/store/instance';
 import { currentEmployeeId } from '../../src/lib/session';
 import { safeRedirectPath } from '../../src/lib/redirect';
 import { DEMO_PASSWORD } from '../../src/lib/auth';
+import { WINDOW_MINUTES } from '../../src/lib/throttle';
 import { DEMO_USERNAME, FEATURED_EMPLOYEE } from '../../src/store/featured';
 import { signIn } from '../actions';
 import { TeamsBootstrap } from '../TeamsBootstrap';
@@ -48,7 +49,9 @@ export default async function LoginPage({
           <input name="password" type="password" autoComplete="current-password" required />
         </label>
 
-        {params.error ? (
+        {params.error === 'throttled' ? (
+          <p className="error-text">Too many attempts. Try again in {WINDOW_MINUTES} minutes.</p>
+        ) : params.error ? (
           <p className="error-text">That username and password did not match.</p>
         ) : null}
 

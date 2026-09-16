@@ -370,6 +370,26 @@ export class PostgresStore implements Store {
     }
   }
 
+  // --- sign-in throttling ----------------------------------------------------
+
+  async recordSignInFailure(key: string, atIso: string): Promise<void> {
+    await this.query('INSERT INTO sign_in_failures (key, at) VALUES ($1, $2)', [key, atIso]);
+  }
+
+  async countSignInFailures(key: string, sinceIso: string): Promise<number> {
+    // Prune while counting: nothing older than the window can matter again.
+    await this.query('DELETE FROM sign_in_failures WHERE at < $1', [sinceIso]);
+    const row = await this.one<{ n: string }>(
+      'SELECT COUNT(*) AS n FROM sign_in_failures WHERE key = $1 AND at >= $2',
+      [key, sinceIso],
+    );
+    return Number(row?.n ?? 0);
+  }
+
+  async clearSignInFailures(key: string): Promise<void> {
+    await this.query('DELETE FROM sign_in_failures WHERE key = $1', [key]);
+  }
+
   // --- internals ------------------------------------------------------------
 
   private async inTransaction(work: (client: PgClient) => Promise<void>): Promise<void> {
