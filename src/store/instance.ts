@@ -1,6 +1,10 @@
 import { DemoStore } from './demo';
 import { SqliteStore } from './sqlite';
+import { PostgresStore } from './postgres';
+import pg from 'pg';
 import type { Store } from './types';
+
+const { Pool } = pg;
 
 /**
  * One store per server process, cached on globalThis so it survives the module
@@ -19,12 +23,34 @@ export function getStore(): Store {
 }
 
 function create(): Store {
+  const world = new DemoStore().world();
+
+  // Postgres first: on a serverless platform the filesystem is ephemeral, so a
+  // SQLite file would be empty on every cold start and we would be back to
+  // mailing the building twice.
+  const connectionString = process.env.DATABASE_URL;
+  if (connectionString) {
+    const store = new PostgresStore({
+      pool: new Pool({
+        connectionString,
+        // Supabase's pooler terminates idle connections; a small pool with a
+        // short idle timeout is what fits a serverless function anyway.
+        max: Number(process.env.DATABASE_POOL_MAX ?? 3),
+        idleTimeoutMillis: 10_000,
+      }),
+      employees: world.employees,
+      offices: world.offices,
+      attendance: world.attendance,
+    });
+    void seedOnce(store, world);
+    return store;
+  }
+
   const path = process.env.SOFRA_DATABASE;
   if (!path) return new DemoStore();
 
   // The synthetic company is still the reference data; only what changes is
   // persisted. A directory sync replaces this half without touching the store.
-  const world = new DemoStore().world();
   const store = new SqliteStore({
     path,
     employees: world.employees,
@@ -38,9 +64,12 @@ function create(): Store {
   return store;
 }
 
-async function seedOnce(store: SqliteStore, world: ReturnType<DemoStore['world']>): Promise<void> {
+async function seedOnce(
+  store: SqliteStore | PostgresStore,
+  world: ReturnType<DemoStore['world']>,
+): Promise<void> {
   if ((await store.listPastMatches()).length > 0) return;
 
-  store.recordPastMatches(world.history);
+  await store.recordPastMatches(world.history);
   for (const optIn of world.optIns) await store.setOptIn(optIn);
 }

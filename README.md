@@ -293,9 +293,11 @@ demo gate, not authentication, though the session cookie is HMAC-signed so an
 employee id cannot be forged in devtools. Replacing `src/lib/auth.ts` and
 `src/lib/session.ts` is the whole of adding real sign-in.
 
-Persistence is a file away. Set `SOFRA_DATABASE` and state lives in SQLite,
-which ships with Node and therefore gets tested rather than reviewed and hoped
-over; `src/store/schema.sql` notes the two type changes Postgres needs.
+Persistence is a connection string away. Set `DATABASE_URL` and state lives in
+Postgres, which is what a serverless deployment needs: the filesystem on Vercel
+is ephemeral, so a file would be empty on every cold start. Set
+`SOFRA_DATABASE` instead and it is SQLite, which ships with Node and is the
+right answer on one machine.
 
 This was not a tidy-up. Measured against a production build before the store
 existed: restart the server and every tick, reply and table was gone, and
@@ -303,10 +305,18 @@ because "this invite was already sent" was memory too, the next cron run mailed
 nine of sixteen tables the identical invite a second time. With the database,
 the same restart finds sixteen tables, sends zero invites and mails nobody.
 
-Both stores are held to one suite. `tests/store-contract.test.ts` runs the same
-thirty-one cases against the in-memory and the SQLite implementation, so a
+All three stores are held to one suite. `tests/store-contract.test.ts` runs the
+same cases against the in-memory, SQLite and Postgres implementations, so a
 disagreement between them fails the build instead of waiting for production to
-find it.
+find it. Postgres runs against pg-mem, which parses the real dialect in process:
+that proves the statements and the logic, not the locking. One case is skipped
+there and says so, because pg-mem accepts `FOR UPDATE` and never contends on it.
+
+The locking matters because a reply is a read-modify-write across every table
+that day. SQLite gets its atomicity from doing that synchronously; Postgres
+cannot, so the day is locked for the duration of a reply. On a serverless
+platform an in-process mutex would be useless anyway, since the next reply may
+land on a different instance.
 
 The nightly job is idempotent for the same reason. A day that already has tables
 is not re-planned, because a platform retry or a second schedule would otherwise

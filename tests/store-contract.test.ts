@@ -4,6 +4,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DemoStore, SLOT } from '../src/store/demo';
 import { SqliteStore } from '../src/store/sqlite';
+import { PostgresStore, type PgPool } from '../src/store/postgres';
+import { newDb } from 'pg-mem';
 import type { Store } from '../src/store/types';
 import { planDay } from '../src/lib/nightly';
 import { todayInZone, upcomingWeekdays } from '../src/lib/dates';
@@ -21,15 +23,53 @@ interface Subject {
   name: string;
   make: () => Promise<Store>;
   cleanUp: () => void;
+  /**
+   * Whether this subject can actually demonstrate that concurrent writes are
+   * serialised. pg-mem parses FOR UPDATE and never contends on it, so the
+   * Postgres subject proves the statements and the logic but not the lock.
+   */
+  serialisesConcurrentWrites?: boolean;
 }
 
 const directory = mkdtempSync(join(tmpdir(), 'sofra-'));
+
+/**
+ * pg-mem runs Postgres's dialect in process, which is what this is for: the
+ * port from SQLite is mostly SQL, and SQL is where a port goes wrong. It is a
+ * single-threaded emulator, so it proves the statements and the logic, not the
+ * locking; FOR UPDATE is parsed and accepted but never contended. Real
+ * concurrency needs a real server.
+ */
+function postgresPool(): PgPool {
+  const { Pool } = newDb().adapters.createPg() as { Pool: new () => PgPool };
+  return new Pool();
+}
 
 const subjects: Subject[] = [
   {
     name: 'DemoStore',
     make: async () => new DemoStore(7, 160),
     cleanUp: () => {},
+    serialisesConcurrentWrites: true,
+  },
+  {
+    name: 'PostgresStore',
+    make: async () => {
+      const seed = new DemoStore(7, 160);
+      const world = seed.world();
+      const store = new PostgresStore({
+        pool: postgresPool(),
+        employees: world.employees,
+        offices: world.offices,
+        attendance: world.attendance,
+      });
+      await store.recordPastMatches(world.history);
+      for (const optIn of world.optIns) await store.setOptIn(optIn);
+      return store;
+    },
+    cleanUp: () => {},
+    // Needs a real server: see the note on postgresPool above.
+    serialisesConcurrentWrites: false,
   },
   {
     name: 'SqliteStore',
@@ -47,6 +87,7 @@ const subjects: Subject[] = [
       return store;
     },
     cleanUp: () => {},
+    serialisesConcurrentWrites: true,
   },
 ];
 
@@ -190,28 +231,31 @@ describe.each(subjects)('$name', (subject) => {
     expect(seated).toHaveLength(result.groups.reduce((n, g) => n + g.members.length, 0));
   });
 
-  it('survives a whole table replying at the same moment', async () => {
-    // A reply is a read-modify-write across every table that day, because a
-    // decline can move people between them. Without a transaction each reply
-    // reads state the others have not written yet and the last one wins: the
-    // collapse silently did not happen.
-    await planDay(store, OFFICE, date);
-    const table = (await store.listGroups(date, OFFICE)).find((g) => g.members.length === 4)!;
-    const before = (await store.listGroups(date, OFFICE)).flatMap((g) =>
-      g.members.map((m) => m.id),
-    );
+  it.runIf(subject.serialisesConcurrentWrites)(
+    'survives a whole table replying at the same moment',
+    async () => {
+      // A reply is a read-modify-write across every table that day, because a
+      // decline can move people between them. Without a transaction each reply
+      // reads state the others have not written yet and the last one wins: the
+      // collapse silently did not happen.
+      await planDay(store, OFFICE, date);
+      const table = (await store.listGroups(date, OFFICE)).find((g) => g.members.length === 4)!;
+      const before = (await store.listGroups(date, OFFICE)).flatMap((g) =>
+        g.members.map((m) => m.id),
+      );
 
-    await Promise.all(
-      table.members.map((m, i) => store.setRsvp(table.id, m.id, i < 2 ? 'declined' : 'accepted')),
-    );
+      await Promise.all(
+        table.members.map((m, i) => store.setRsvp(table.id, m.id, i < 2 ? 'declined' : 'accepted')),
+      );
 
-    const after = await store.listGroups(date, OFFICE);
-    const seats = after.flatMap((g) => g.members.map((m) => m.id));
+      const after = await store.listGroups(date, OFFICE);
+      const seats = after.flatMap((g) => g.members.map((m) => m.id));
 
-    expect(after.filter((g) => g.cancelled)).toHaveLength(1);
-    expect(new Set(seats).size).toBe(seats.length);
-    expect(before.filter((id) => !seats.includes(id))).toEqual([]);
-  });
+      expect(after.filter((g) => g.cancelled)).toHaveLength(1);
+      expect(new Set(seats).size).toBe(seats.length);
+      expect(before.filter((id) => !seats.includes(id))).toEqual([]);
+    },
+  );
 
   it('forgets a day when it is cleared', async () => {
     await planDay(store, OFFICE, date);
