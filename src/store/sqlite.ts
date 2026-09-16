@@ -6,7 +6,7 @@ import { applyRsvp, type SeatedTable } from '../core/reseating';
 import { DEFAULT_CONFIG } from '../core/types';
 import type { Employee, MatchResult, OptIn, PastMatch, Relaxation, Unmatched } from '../core/types';
 import type { AttendanceProvider } from '../providers/types';
-import type { AttendanceSource, Office, RsvpStatus, Store, StoredGroup } from './types';
+import type { AdminGrant, AttendanceSource, Office, RsvpStatus, Store, StoredGroup } from './types';
 
 /**
  * Loaded at runtime rather than imported.
@@ -370,6 +370,75 @@ export class SqliteStore implements Store {
         );
       }
     });
+  }
+
+  // --- admins ----------------------------------------------------------------
+
+  async listAdmins(): Promise<AdminGrant[]> {
+    return this.all<{ employee_id: string; granted_by: string; granted_at: string }>(
+      'SELECT employee_id, granted_by, granted_at FROM admins ORDER BY granted_at',
+    ).map((r) => ({ employeeId: r.employee_id, grantedBy: r.granted_by, grantedAt: r.granted_at }));
+  }
+
+  async grantAdmin(grant: AdminGrant): Promise<void> {
+    this.run(
+      `INSERT INTO admins (employee_id, granted_by, granted_at) VALUES (?, ?, ?)
+       ON CONFLICT (employee_id) DO UPDATE SET granted_by = excluded.granted_by,
+         granted_at = excluded.granted_at`,
+      grant.employeeId,
+      grant.grantedBy,
+      grant.grantedAt,
+    );
+  }
+
+  async revokeAdmin(employeeId: string): Promise<void> {
+    this.run('DELETE FROM admins WHERE employee_id = ?', employeeId);
+  }
+
+  // --- reminders -------------------------------------------------------------
+
+  async listNotified(kind: string, date: string, officeId: string): Promise<string[]> {
+    return this.all<{ employee_id: string }>(
+      'SELECT employee_id FROM notified WHERE kind = ? AND date = ? AND office_id = ?',
+      kind,
+      date,
+      officeId,
+    ).map((r) => r.employee_id);
+  }
+
+  async recordNotified(
+    kind: string,
+    date: string,
+    officeId: string,
+    employeeIds: readonly string[],
+  ): Promise<void> {
+    for (const employeeId of employeeIds) {
+      this.run(
+        `INSERT INTO notified (kind, date, office_id, employee_id) VALUES (?, ?, ?, ?)
+         ON CONFLICT DO NOTHING`,
+        kind,
+        date,
+        officeId,
+        employeeId,
+      );
+    }
+  }
+
+  async listRemindersOff(): Promise<string[]> {
+    return this.all<{ employee_id: string }>('SELECT employee_id FROM reminders_off').map(
+      (r) => r.employee_id,
+    );
+  }
+
+  async setReminders(employeeId: string, enabled: boolean): Promise<void> {
+    if (enabled) {
+      this.run('DELETE FROM reminders_off WHERE employee_id = ?', employeeId);
+      return;
+    }
+    this.run(
+      'INSERT INTO reminders_off (employee_id) VALUES (?) ON CONFLICT DO NOTHING',
+      employeeId,
+    );
   }
 
   // --- sign-in throttling ----------------------------------------------------

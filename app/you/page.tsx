@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { getStore } from '../../src/store/instance';
 import { currentEmployeeId } from '../../src/lib/session';
 import { formatDay, todayInZone, upcomingWeekdays } from '../../src/lib/dates';
+import { setReminders } from '../actions';
 import { teamName } from '../ui';
 
 // Reads mutable store state on every request, so it must never be prerendered.
@@ -36,6 +37,7 @@ export default async function ProfilePage() {
   ).filter((date): date is string => date !== null);
 
   const past = (await store.listPastMatches()).filter((match) => match.memberIds.includes(me.id));
+  const remindersOn = !(await store.listRemindersOff()).includes(me.id);
 
   return (
     <main>
@@ -70,8 +72,27 @@ export default async function ProfilePage() {
           <Fact label="Email" value={me.email} />
         </dl>
         <p className="faint" style={{ marginTop: 8 }}>
-          One mail per lunch, to the whole table at once. Nothing else is ever sent here.
+          One mail per lunch, to the whole table at once, and at most one short question on a day
+          you are already coming in. Nothing else is ever sent here.
         </p>
+      </section>
+
+      <section>
+        <div className="section-head">
+          <h2>Being asked</h2>
+          <p>
+            On days your desk booking says you will be in, Sofra asks once whether you want lunch
+            with people from other teams. Turn it off and you will only hear from Sofra when you
+            have ticked a day yourself.
+          </p>
+        </div>
+        <form action={setReminders} className="inline">
+          <input type="hidden" name="enabled" value={remindersOn ? 'false' : 'true'} />
+          <span>{remindersOn ? 'Reminders are on.' : 'Reminders are off.'}</span>
+          <button type="submit" data-variant={remindersOn ? 'quiet' : 'primary'}>
+            {remindersOn ? 'Turn them off' : 'Turn them on'}
+          </button>
+        </form>
       </section>
 
       <section>

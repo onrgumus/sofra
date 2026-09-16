@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { runNightlyMatching } from '../src/lib/nightly';
 import { DemoStore, SLOT } from '../src/store/demo';
-import { todayInZone, upcomingWeekdays } from '../src/lib/dates';
+import { nextWeekday, todayInZone, upcomingWeekdays } from '../src/lib/dates';
 import type { EmailMessage, EmailTransport } from '../src/notify/transport';
 import { EmailChannel } from '../src/notify/channels';
 
@@ -106,6 +106,23 @@ describe('runNightlyMatching', () => {
     const outcomes = await runNightlyMatching({ store, channel, from, date });
     expect(outcomes.every((o) => o.tables === 0 && o.optedIn === 0)).toBe(true);
     expect(sent).toHaveLength(0);
+  });
+
+  it('plans tomorrow, not the lunch that already happened today', async () => {
+    // The job runs in the evening. Planning today would seat people for a meal
+    // five hours after it, and the employee page already tells them their table
+    // appears the previous weekday, so the two disagreed.
+    const store = new DemoStore(7, 160);
+    const { channel } = recorder();
+
+    const outcomes = await runNightlyMatching({ store, channel, from });
+
+    for (const outcome of outcomes) {
+      const office = (await store.getOffice(outcome.officeId))!;
+      const today = todayInZone(office.timeZone);
+      expect(outcome.date > today).toBe(true);
+      expect(outcome.date).toBe(nextWeekday(today));
+    }
   });
 
   it('uses the slot the rest of the app uses', async () => {

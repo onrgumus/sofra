@@ -10,6 +10,7 @@ import { checkPassword } from '../src/lib/auth';
 import { safeRedirectPath } from '../src/lib/redirect';
 import { checkSignInAllowed, clearSignInFailures, recordSignInFailure } from '../src/lib/throttle';
 import { demoModeEnabled, isAdmin } from '../src/lib/authz';
+import type { Employee } from '../src/core/types';
 import { currentEmployeeId } from '../src/lib/session';
 import { DEMO_USERNAME, pickRandomColleague } from '../src/store/featured';
 import { redirect } from 'next/navigation';
@@ -25,10 +26,11 @@ function refresh(): void {
  * Guarding only the page would leave the actions callable directly, which is
  * the same hole with an extra step.
  */
-async function requireAdmin(): Promise<boolean> {
+async function requireAdmin(): Promise<Employee | null> {
   const store = getStore();
   const employeeId = await currentEmployeeId(store);
-  return isAdmin(employeeId ? await store.getEmployee(employeeId) : undefined);
+  const employee = employeeId ? await store.getEmployee(employeeId) : undefined;
+  return employee && (await isAdmin(store, employee)) ? employee : null;
 }
 
 function required(formData: FormData, field: string): string {
@@ -137,6 +139,22 @@ export async function toggleLunch(formData: FormData): Promise<void> {
 }
 
 /**
+ * Turn the daily question on or off for yourself.
+ *
+ * Takes the id from the session rather than the form: an opt-out somebody else
+ * can set for you is not an opt-out, and the only person who gets to decide
+ * whether you are asked is you.
+ */
+export async function setReminders(formData: FormData): Promise<void> {
+  const store = getStore();
+  const employeeId = await currentEmployeeId(store);
+  if (!employeeId) return;
+
+  await store.setReminders(employeeId, formData.get('enabled') === 'true');
+  refresh();
+}
+
+/**
  * The admin console's "run matching" button. Same code path the nightly job
  * takes, so what you see here is what the cron will produce.
  */
@@ -189,5 +207,42 @@ export async function respondToInvite(formData: FormData): Promise<void> {
     date: group.date,
     officeId: group.officeId,
   });
+  refresh();
+}
+
+/**
+ * Give somebody the console.
+ *
+ * Recorded with who did it and when, so "why can this person see everyone's
+ * replies" has an answer that does not depend on anybody remembering.
+ */
+export async function grantAdmin(formData: FormData): Promise<void> {
+  const granter = await requireAdmin();
+  if (!granter) return;
+
+  const store = getStore();
+  const employeeId = required(formData, 'employeeId');
+  if (!(await store.getEmployee(employeeId))) return;
+
+  await store.grantAdmin({
+    employeeId,
+    grantedBy: granter.id,
+    grantedAt: new Date().toISOString(),
+  });
+  refresh();
+}
+
+export async function revokeAdmin(formData: FormData): Promise<void> {
+  const revoker = await requireAdmin();
+  if (!revoker) return;
+
+  const store = getStore();
+  const employeeId = required(formData, 'employeeId');
+
+  // Removing yourself is how a company ends up with no administrator at all,
+  // and the bootstrap list is the way back in rather than a thing to lean on.
+  if (employeeId === revoker.id) return;
+
+  await store.revokeAdmin(employeeId);
   refresh();
 }

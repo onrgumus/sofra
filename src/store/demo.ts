@@ -10,7 +10,7 @@ import { ManualAttendanceProvider } from '../providers/manual';
 import { WebhookAttendanceProvider } from '../providers/webhook';
 import type { AttendanceProvider, AttendanceRecord } from '../providers/types';
 import { pastWeekdays, todayInZone, upcomingWeekdays } from '../lib/dates';
-import type { AttendanceSource, Office, RsvpStatus, Store, StoredGroup } from './types';
+import type { AdminGrant, AttendanceSource, Office, RsvpStatus, Store, StoredGroup } from './types';
 
 export const SLOT = '12:00';
 
@@ -60,6 +60,10 @@ export class DemoStore implements Store {
   private readonly seededHistory: PastMatch[] = [];
   private readonly unmatched = new Map<string, Unmatched[]>();
   private readonly signInFailures = new Map<string, string[]>();
+  private readonly admins = new Map<string, AdminGrant>();
+  /** `${kind}|${date}|${officeId}` → who has already been told. */
+  private readonly notified = new Map<string, Set<string>>();
+  private readonly remindersOff = new Set<string>();
 
   private readonly config = DEFAULT_CONFIG;
 
@@ -292,6 +296,47 @@ export class DemoStore implements Store {
     return [...this.seededHistory, ...fromGroups];
   }
 
+  // --- admins ----------------------------------------------------------------
+
+  async listAdmins(): Promise<AdminGrant[]> {
+    return [...this.admins.values()];
+  }
+
+  async grantAdmin(grant: AdminGrant): Promise<void> {
+    this.admins.set(grant.employeeId, grant);
+  }
+
+  async revokeAdmin(employeeId: string): Promise<void> {
+    this.admins.delete(employeeId);
+  }
+
+  // --- reminders -------------------------------------------------------------
+
+  async listNotified(kind: string, date: string, officeId: string): Promise<string[]> {
+    return [...(this.notified.get(notifyKey(kind, date, officeId)) ?? [])];
+  }
+
+  async recordNotified(
+    kind: string,
+    date: string,
+    officeId: string,
+    employeeIds: readonly string[],
+  ): Promise<void> {
+    const key = notifyKey(kind, date, officeId);
+    const seen = this.notified.get(key) ?? new Set<string>();
+    for (const id of employeeIds) seen.add(id);
+    this.notified.set(key, seen);
+  }
+
+  async listRemindersOff(): Promise<string[]> {
+    return [...this.remindersOff];
+  }
+
+  async setReminders(employeeId: string, enabled: boolean): Promise<void> {
+    if (enabled) this.remindersOff.delete(employeeId);
+    else this.remindersOff.add(employeeId);
+  }
+
   // --- sign-in throttling ----------------------------------------------------
 
   async recordSignInFailure(key: string, atIso: string): Promise<void> {
@@ -394,4 +439,8 @@ export class DemoStore implements Store {
       }
     }
   }
+}
+
+function notifyKey(kind: string, date: string, officeId: string): string {
+  return `${kind}|${date}|${officeId}`;
 }

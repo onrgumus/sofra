@@ -4,7 +4,7 @@ import { deliverPending } from './notifications';
 import type { Store } from '../store/types';
 import type { MatchResult } from '../core/types';
 import { SLOT } from '../store/demo';
-import { todayInZone, upcomingWeekdays } from './dates';
+import { nextWeekday, todayInZone } from './dates';
 
 export interface NightlyOptions {
   store: Store;
@@ -74,7 +74,7 @@ export async function runNightlyMatching(options: NightlyOptions): Promise<Offic
 
   for (const office of await store.listOffices()) {
     // Each office plans its own next working day, in its own timezone.
-    const date = options.date ?? upcomingWeekdays(1, todayInZone(office.timeZone))[0]!;
+    const date = options.date ?? nextWeekday(todayInZone(office.timeZone));
 
     // Do not re-plan a day that already has tables. A cron that fires twice,
     // whether from a platform retry or a second schedule, would otherwise

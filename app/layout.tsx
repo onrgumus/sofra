@@ -31,6 +31,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   }
 
   const current = await store.getEmployee(currentId);
+  const viewerIsAdmin = await isAdmin(store, current);
   const colleagues = (await store.listEmployees(current?.officeId))
     .slice()
     .sort((a, b) => a.displayName.localeCompare(b.displayName));
@@ -68,7 +69,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <nav className="nav">
               <Link href="/">Your lunches</Link>
               <Link href="/you">Your details</Link>
-              {isAdmin(current) ? <Link href="/admin">Admin</Link> : null}
+              {viewerIsAdmin ? <Link href="/admin">Admin</Link> : null}
+              {viewerIsAdmin ? <Link href="/admin/people">Admins</Link> : null}
               <form action={signOut}>
                 <button type="submit" data-variant="quiet">
                   Sign out

@@ -48,6 +48,15 @@ which does nothing to any other day. Nobody is enrolled by their manager, there
 is no standing setting to forget about, and untick is always available until
 matching runs the evening before.
 
+Being asked is a different thing from being matched, and the distinction is
+worth stating because the reminder does use the desk booking. On a day the
+system says you will be in, you get one short question with one link. It is one
+message per person per day, it never leads anywhere by itself, and it can be
+turned off for good at `/you`. An explicit opt-in that nobody is ever offered is
+not consent, it is a page nobody visits, so the asking is what makes the rest of
+this honest rather than a loophole in it. What presence never does is put you at
+a table: no message is the same as no.
+
 ## Data minimisation
 
 The matcher needs surprisingly little, and takes nothing beyond it:

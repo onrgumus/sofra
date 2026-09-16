@@ -1,3 +1,4 @@
+import type { Reminder } from '../reminder';
 import type { Delivery, InviteChannel } from './types';
 
 /**
@@ -20,6 +21,23 @@ export class CompositeChannel implements InviteChannel {
 
   async sendCancellation(delivery: Delivery): Promise<void> {
     await this.each((channel) => channel.sendCancellation(delivery));
+  }
+
+  /**
+   * The first channel that can reach this person, not all of them. An invite
+   * going out twice is a duplicate of something they wanted; a reminder going
+   * out twice is being asked the same question twice by the same company.
+   */
+  async sendReminder(reminder: Reminder): Promise<void> {
+    for (const channel of this.channels) {
+      if (!channel.sendReminder) continue;
+      try {
+        await channel.sendReminder(reminder);
+        return;
+      } catch (error) {
+        this.onError(channel.name, error);
+      }
+    }
   }
 
   private async each(run: (channel: InviteChannel) => Promise<void>): Promise<void> {

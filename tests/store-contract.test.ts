@@ -53,8 +53,12 @@ function postgresPool(): PgPool {
 /** Each run needs its own tables when they all share one server. */
 async function freshSchema(pool: PgPool): Promise<void> {
   if (!REAL_POSTGRES) return;
+  // Every table, not the interesting ones: a leftover `sign_in_failures` row
+  // from the previous run makes the throttle case fail on the second run and
+  // pass on the first, which is the worst way for a test to be wrong.
   await pool.query(`DROP TABLE IF EXISTS group_members, groups, opt_ins, unmatched,
-    past_matches, self_declared_attendance, suppressed_attendance, day_locks CASCADE`);
+    past_matches, self_declared_attendance, suppressed_attendance, day_locks,
+    sign_in_failures, admins, notified, reminders_off CASCADE`);
 }
 
 const subjects: Subject[] = [
@@ -318,6 +322,67 @@ describe.each(subjects)('$name', (subject) => {
 
     const since = new Date(Date.now() - 15 * 60_000).toISOString();
     expect(await store.countSignInFailures('signin:onur', since)).toBe(0);
+  });
+
+  it('remembers who was already asked about a day, and who was not', async () => {
+    // The reminder is the one message that goes to somebody who never asked for
+    // anything. Sending it twice about the same lunch is the difference between
+    // a useful nudge and the thing people set up a mail rule for.
+    expect(await store.listNotified('reminder', date, OFFICE)).toEqual([]);
+
+    await store.recordNotified('reminder', date, OFFICE, ['e0001', 'e0002']);
+    expect(new Set(await store.listNotified('reminder', date, OFFICE))).toEqual(
+      new Set(['e0001', 'e0002']),
+    );
+
+    // Recording the same person again is not an error and does not duplicate.
+    await store.recordNotified('reminder', date, OFFICE, ['e0001']);
+    expect(await store.listNotified('reminder', date, OFFICE)).toHaveLength(2);
+
+    // Scoped to the day, the office and the kind of message.
+    expect(await store.listNotified('reminder', '2999-01-01', OFFICE)).toEqual([]);
+    expect(await store.listNotified('something-else', date, OFFICE)).toEqual([]);
+  });
+
+  it('records an empty send without complaining', async () => {
+    // Every office where nobody needs asking takes this path, and an INSERT
+    // built from an empty list is not valid SQL.
+    await store.recordNotified('reminder', date, OFFICE, []);
+    expect(await store.listNotified('reminder', date, OFFICE)).toEqual([]);
+  });
+
+  it('honours an opt-out, and lets it be taken back', async () => {
+    expect(await store.listRemindersOff()).toEqual([]);
+
+    await store.setReminders('e0001', false);
+    expect(await store.listRemindersOff()).toEqual(['e0001']);
+
+    // Turning it off twice leaves one row, not two.
+    await store.setReminders('e0001', false);
+    expect(await store.listRemindersOff()).toEqual(['e0001']);
+
+    await store.setReminders('e0001', true);
+    expect(await store.listRemindersOff()).toEqual([]);
+  });
+
+  it('grants and revokes the console as data', async () => {
+    const at = new Date().toISOString();
+    expect(await store.listAdmins()).toEqual([]);
+
+    await store.grantAdmin({ employeeId: 'e0001', grantedBy: 'onur', grantedAt: at });
+    expect(await store.listAdmins()).toEqual([
+      { employeeId: 'e0001', grantedBy: 'onur', grantedAt: at },
+    ]);
+
+    // Granting again re-records who and when rather than failing.
+    const later = new Date(Date.now() + 1000).toISOString();
+    await store.grantAdmin({ employeeId: 'e0001', grantedBy: 'e0002', grantedAt: later });
+    expect(await store.listAdmins()).toEqual([
+      { employeeId: 'e0001', grantedBy: 'e0002', grantedAt: later },
+    ]);
+
+    await store.revokeAdmin('e0001');
+    expect(await store.listAdmins()).toEqual([]);
   });
 
   it('forgets a day when it is cleared', async () => {

@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { runNightlyMatching } from '../../../src/lib/nightly';
 import { configuredChannel, FROM_EMAIL } from '../../../src/lib/channel';
+import { refuseUnlessScheduled } from '../../../src/lib/cron-auth';
 import { getStore } from '../../../src/store/instance';
 
 export const dynamic = 'force-dynamic';
@@ -14,15 +15,8 @@ export const dynamic = 'force-dynamic';
  * send mail to the whole company.
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) {
-    return NextResponse.json({ error: 'CRON_SECRET is not configured' }, { status: 503 });
-  }
-
-  const provided = request.headers.get('authorization');
-  if (provided !== `Bearer ${secret}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const refusal = refuseUnlessScheduled(request);
+  if (refusal) return refusal;
 
   const outcomes = await runNightlyMatching({
     store: getStore(),

@@ -336,15 +336,21 @@ is not re-planned, because a platform retry or a second schedule would otherwise
 rebuild identical tables whose invites had not been sent and mail the whole
 building again. The console's re-run button asks for that explicitly.
 
-Two things guard the parts that are not about your own lunch. `SOFRA_ADMINS`
-names who may open the matching console, which shows every table and every
-reply for a whole office and whose buttons re-plan the day and mail everyone in
-it; empty means nobody, because an unconfigured deployment should refuse rather
-than hand that to the first person who signs in. The page and the three actions
-are checked separately, since guarding only the page leaves them callable
-directly. `SOFRA_DEMO_MODE` controls the account switcher, which is the point of
-a public demo and impersonation in a company: off in production unless asked
-for.
+Two things guard the parts that are not about your own lunch. The matching
+console shows every table and every reply for a whole office, and its buttons
+re-plan the day and mail everyone in it, so who may open it is a real question.
+`SOFRA_ADMINS` answers it for a new deployment and nothing else: empty means
+nobody, because an unconfigured instance should refuse rather than hand that to
+whoever signs in first. Everyone after the first is granted in the app, at
+`/admin/people`, and stored as rows. Administration that needs a deployment is
+not administration, and an operations tool where giving a colleague access means
+opening a pull request is one nobody will run. The environment list stays
+un-revokable from the UI on purpose: it is the way back in if the granted list
+ends up empty, and a list that can delete itself is not a way back. The page and
+every action are checked separately, since guarding only the page leaves the
+actions callable directly. `SOFRA_DEMO_MODE` controls the account switcher,
+which is the point of a public demo and impersonation in a company: off in
+production unless asked for.
 
 Still missing before this is a product: real authentication, and a directory
 sync in place of the synthetic company. Sign-in is one shared password so
@@ -353,6 +359,53 @@ the session cookie is HMAC-signed so an employee id cannot be forged in
 devtools. Replacing `src/lib/auth.ts` and `src/lib/session.ts` is the whole of
 the first; reference data is already injected into the store rather than stored
 by it, which is most of the second.
+
+## How anybody hears about it
+
+Everything else in Sofra waits for somebody to have ticked a box on a page they
+have no reason to visit. A company that installs this and sends nothing gets a
+handful of enthusiasts in week one and silence in week two, so the morning job
+is not a nicety.
+
+`GET /api/cron/reminders` asks everyone whose desk booking says they will be in
+tomorrow, and who has not already answered, one short question with one link.
+`vercel.json` schedules it for 09:00 on weekdays, before the evening matching
+run needs the answer.
+
+Three things keep it from being the mail people write a rule for, and all three
+are load-bearing. It only goes to people who are already coming in, so it is
+never a question about a day that does not exist. It goes at most once per
+person per day: sends are recorded after they succeed, so a retried cron or a
+second schedule sends nothing, and a bounced address is tried again tomorrow
+rather than counted as somebody who was asked. And it carries its own off
+switch, at `/you`, honoured everywhere.
+
+```bash
+curl -H "Authorization: Bearer $CRON_SECRET" https://your-instance/api/cron/reminders
+```
+
+```json
+{
+  "ranAt": "2026-09-15T06:00:00.102Z",
+  "offices": [
+    {
+      "officeId": "IST-HQ",
+      "date": "2026-09-16",
+      "inTheBuilding": 69,
+      "sent": 43,
+      "alreadyIn": 26,
+      "alreadyAsked": 0,
+      "optedOut": 0,
+      "failed": []
+    }
+  ]
+}
+```
+
+By email always. Slack sends it as a direct message where a token is configured,
+and the composite channel uses the first one that can reach a given person
+rather than all of them: an invite arriving twice is a duplicate of something
+you wanted, a question arriving twice is the same company asking you twice.
 
 ## The nightly job
 
@@ -428,12 +481,13 @@ a synthetic company.
 
 Copy `.env.example` to `.env.local`.
 
-| Variable           | What it does                                                                                |
-| ------------------ | ------------------------------------------------------------------------------------------- |
-| `SOFRA_BASE_URL`   | Public URL of this instance. The confirm link goes into an email, so it cannot be relative. |
-| `CRON_SECRET`      | Shared secret for `/api/cron`. No secret, no nightly run.                                   |
-| `SOFRA_FROM_EMAIL` | Envelope sender for invites.                                                                |
-| `RESEND_API_KEY`   | Only once you swap `ConsoleTransport` for `ResendTransport`.                                |
+| Variable           | What it does                                                                                       |
+| ------------------ | -------------------------------------------------------------------------------------------------- |
+| `SOFRA_BASE_URL`   | Public URL of this instance. The confirm link goes into an email, so it cannot be relative.        |
+| `CRON_SECRET`      | Shared secret for both scheduled endpoints. No secret, no nightly run.                             |
+| `SOFRA_ADMINS`     | Who can open the console on a fresh deployment. Everyone after that is granted at `/admin/people`. |
+| `SOFRA_FROM_EMAIL` | Envelope sender for invites.                                                                       |
+| `RESEND_API_KEY`   | Only once you swap `ConsoleTransport` for `ResendTransport`.                                       |
 
 ## Project layout
 

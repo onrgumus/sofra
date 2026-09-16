@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { addDays, isWeekend, pastWeekdays, todayInZone, upcomingWeekdays } from '../src/lib/dates';
+import {
+  addDays,
+  isWeekend,
+  nextWeekday,
+  pastWeekdays,
+  todayInZone,
+  upcomingWeekdays,
+} from '../src/lib/dates';
 
 describe('todayInZone', () => {
   it('uses the office clock, not the server clock', () => {
@@ -66,5 +73,19 @@ describe('isWeekend', () => {
     expect(isWeekend('2026-09-19')).toBe(true);
     expect(isWeekend('2026-09-20')).toBe(true);
     expect(isWeekend('2026-09-21')).toBe(false);
+  });
+});
+
+describe('nextWeekday', () => {
+  it('never returns the day it was given', () => {
+    // The whole point: a job running today plans tomorrow. Returning today
+    // meant the evening run planned a lunch that had already happened.
+    expect(nextWeekday('2026-09-16')).toBe('2026-09-17');
+  });
+
+  it('skips the weekend from either side of it', () => {
+    expect(nextWeekday('2026-09-18')).toBe('2026-09-21'); // Friday to Monday
+    expect(nextWeekday('2026-09-19')).toBe('2026-09-21'); // Saturday to Monday
+    expect(nextWeekday('2026-09-20')).toBe('2026-09-21'); // Sunday to Monday
   });
 });

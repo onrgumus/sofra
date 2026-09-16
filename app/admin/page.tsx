@@ -25,7 +25,7 @@ export default async function AdminPage({
   // not a reason to see it.
   const viewerId = await currentEmployeeId(store);
   const viewer = viewerId ? await store.getEmployee(viewerId) : undefined;
-  if (!isAdmin(viewer)) return <NotYours />;
+  if (!(await isAdmin(store, viewer))) return <NotYours />;
 
   const params = await searchParams;
 

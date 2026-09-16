@@ -1,5 +1,6 @@
 import type { Employee } from '../../core/types';
 import type { Invite } from '../invite';
+import type { Reminder } from '../reminder';
 
 /**
  * How a table is told about its lunch.
@@ -24,6 +25,15 @@ export interface InviteChannel {
   readonly name: string;
   sendInvite(delivery: Delivery): Promise<void>;
   sendCancellation(delivery: Delivery): Promise<void>;
+  /**
+   * One message to one person, before there is a table: the nudge that asks
+   * whether they want lunch on a day they are already coming in.
+   *
+   * Optional because it is a different shape from everything else here. A
+   * channel that can only address a group leaves it out and the reminder goes
+   * by whatever channel can.
+   */
+  sendReminder?(reminder: Reminder): Promise<void>;
 }
 
 /**

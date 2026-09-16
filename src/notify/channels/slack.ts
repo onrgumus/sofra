@@ -1,4 +1,5 @@
 import type { Employee } from '../../core/types';
+import type { Reminder } from '../reminder';
 import type { AccountResolver, Delivery, InviteChannel } from './types';
 import { resolveByEmail } from './types';
 
@@ -49,6 +50,38 @@ export class SlackChannel implements InviteChannel {
     await this.post(channel, {
       text: `${delivery.invite.subject}\n\n${delivery.invite.text}`,
       blocks: [section(`*${delivery.invite.subject}*\n\n${delivery.invite.text}`)],
+    });
+  }
+
+  /**
+   * A direct message rather than a group chat: there is no table yet, and
+   * opening a conversation with three strangers to ask each of them separately
+   * whether they fancy lunch would be worse than saying nothing.
+   */
+  async sendReminder(reminder: Reminder): Promise<void> {
+    const resolve = this.options.resolveAccount ?? resolveByEmail;
+    const account = await resolve(reminder.employee);
+    const id = account ? await this.lookupUser(account) : null;
+    if (!id) {
+      this.options.onUnreachable?.(reminder.employee, 'no Slack account for this person');
+      throw new Error('no Slack account for this person');
+    }
+
+    await this.post(id, {
+      text: `${reminder.subject}\n\n${reminder.text}`,
+      blocks: [
+        section(`*${reminder.subject}*\n\n${reminder.text}`),
+        {
+          type: 'actions',
+          elements: [
+            {
+              type: 'button',
+              text: { type: 'plain_text', text: reminder.actionLabel },
+              url: reminder.actionUrl,
+            },
+          ],
+        },
+      ],
     });
   }
 

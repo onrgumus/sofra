@@ -39,6 +39,13 @@ export interface StoredGroup extends MatchedGroup {
 /** Where we learned someone would be in the office. */
 export type AttendanceSource = 'desk-booking' | 'self-declared';
 
+/** Who was given the console, by whom, and when. */
+export interface AdminGrant {
+  employeeId: string;
+  grantedBy: string;
+  grantedAt: string;
+}
+
 export interface DayStatus {
   date: string;
   officeId: string;
@@ -100,6 +107,38 @@ export interface Store {
   setRsvp(groupId: string, employeeId: string, status: RsvpStatus): Promise<void>;
 
   listPastMatches(): Promise<PastMatch[]>;
+
+  /**
+   * Who may open the matching console, beyond the bootstrap list in the
+   * environment. Rows rather than configuration, so granting somebody the
+   * console does not mean redeploying the application.
+   */
+  listAdmins(): Promise<AdminGrant[]>;
+  grantAdmin(grant: AdminGrant): Promise<void>;
+  revokeAdmin(employeeId: string): Promise<void>;
+
+  /**
+   * Who has already been sent a given message about a given day.
+   *
+   * Without this the reminder is a liability: a cron that retries, or a second
+   * schedule somebody added, mails the whole building twice about the same
+   * lunch. Recorded only after a send succeeds, so a failure is retried rather
+   * than counted as delivered.
+   */
+  listNotified(kind: string, date: string, officeId: string): Promise<string[]>;
+  recordNotified(
+    kind: string,
+    date: string,
+    officeId: string,
+    employeeIds: readonly string[],
+  ): Promise<void>;
+
+  /**
+   * People who have asked not to be reminded. An opt-out has to exist and has
+   * to be honoured everywhere, or the reminder is spam with extra steps.
+   */
+  listRemindersOff(): Promise<string[]>;
+  setReminders(employeeId: string, enabled: boolean): Promise<void>;
 
   /**
    * Failed sign-in attempts, so a password can be rate limited.

@@ -82,3 +82,27 @@ CREATE TABLE IF NOT EXISTS sign_in_failures (
   at      TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS sign_in_failures_by_key ON sign_in_failures (key, at);
+
+-- Who may open the matching console. Recording who granted it and when turns
+-- "why can this person see everyone's replies" into a question with an answer.
+CREATE TABLE IF NOT EXISTS admins (
+  employee_id TEXT PRIMARY KEY,
+  granted_by  TEXT NOT NULL,
+  granted_at  TEXT NOT NULL
+);
+
+-- Who has already been told about a day, per kind of message. Without it a
+-- retried cron mails the whole building a second time about the same lunch.
+CREATE TABLE IF NOT EXISTS notified (
+  kind        TEXT NOT NULL,
+  date        TEXT NOT NULL,
+  office_id   TEXT NOT NULL,
+  employee_id TEXT NOT NULL,
+  PRIMARY KEY (kind, date, office_id, employee_id)
+);
+
+-- People who asked not to be reminded. A row means off; no row means on, so
+-- the default costs nothing at sign-up.
+CREATE TABLE IF NOT EXISTS reminders_off (
+  employee_id TEXT PRIMARY KEY
+);

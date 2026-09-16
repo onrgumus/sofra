@@ -1,4 +1,5 @@
 import { sendInvite, type EmailTransport } from '../transport';
+import type { Reminder } from '../reminder';
 import type { Delivery, InviteChannel } from './types';
 
 export interface EmailChannelOptions {
@@ -23,6 +24,18 @@ export class EmailChannel implements InviteChannel {
 
   async sendCancellation(delivery: Delivery): Promise<void> {
     await this.send(delivery);
+  }
+
+  async sendReminder(reminder: Reminder): Promise<void> {
+    // No .ics: there is nothing in the calendar yet, and an attachment on a
+    // message that asks a yes-or-no question only makes it look like spam.
+    await this.options.transport.send({
+      from: this.options.from,
+      to: [reminder.employee.email],
+      subject: reminder.subject,
+      text: reminder.text,
+      html: reminder.html,
+    });
   }
 
   private async send(delivery: Delivery): Promise<void> {

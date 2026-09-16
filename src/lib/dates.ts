@@ -41,6 +41,18 @@ export function upcomingWeekdays(count: number, fromIso: string): string[] {
   return days;
 }
 
+/**
+ * The first weekday strictly after `fromIso`.
+ *
+ * What a job running today is planning for. `upcomingWeekdays(1, today)` is not
+ * it: that returns today whenever today is a weekday, so the evening job would
+ * plan a lunch five hours after it happened and the morning reminder would ask
+ * about a table that is already sitting down.
+ */
+export function nextWeekday(fromIso: string): string {
+  return upcomingWeekdays(1, addDays(fromIso, 1))[0]!;
+}
+
 /** The `count` weekdays before `beforeIso`, oldest first. Used to seed history. */
 export function pastWeekdays(count: number, beforeIso: string): string[] {
   const days: string[] = [];

@@ -5,7 +5,7 @@ import { applyRsvp } from '../core/reseating';
 import { DEFAULT_CONFIG } from '../core/types';
 import type { Employee, MatchResult, OptIn, PastMatch, Relaxation, Unmatched } from '../core/types';
 import type { AttendanceProvider } from '../providers/types';
-import type { AttendanceSource, Office, RsvpStatus, Store, StoredGroup } from './types';
+import type { AdminGrant, AttendanceSource, Office, RsvpStatus, Store, StoredGroup } from './types';
 
 /**
  * The bit of `pg` this store uses. Typed structurally so a test can hand it an
@@ -368,6 +368,75 @@ export class PostgresStore implements Store {
         JSON.stringify(match.memberIds),
       ]);
     }
+  }
+
+  // --- admins ----------------------------------------------------------------
+
+  async listAdmins(): Promise<AdminGrant[]> {
+    const rows = await this.query<{ employee_id: string; granted_by: string; granted_at: string }>(
+      'SELECT employee_id, granted_by, granted_at FROM admins ORDER BY granted_at',
+    );
+    return rows.map((r) => ({
+      employeeId: r.employee_id,
+      grantedBy: r.granted_by,
+      grantedAt: r.granted_at,
+    }));
+  }
+
+  async grantAdmin(grant: AdminGrant): Promise<void> {
+    await this.query(
+      `INSERT INTO admins (employee_id, granted_by, granted_at) VALUES ($1, $2, $3)
+       ON CONFLICT (employee_id) DO UPDATE SET granted_by = EXCLUDED.granted_by,
+         granted_at = EXCLUDED.granted_at`,
+      [grant.employeeId, grant.grantedBy, grant.grantedAt],
+    );
+  }
+
+  async revokeAdmin(employeeId: string): Promise<void> {
+    await this.query('DELETE FROM admins WHERE employee_id = $1', [employeeId]);
+  }
+
+  // --- reminders -------------------------------------------------------------
+
+  async listNotified(kind: string, date: string, officeId: string): Promise<string[]> {
+    const rows = await this.query<{ employee_id: string }>(
+      'SELECT employee_id FROM notified WHERE kind = $1 AND date = $2 AND office_id = $3',
+      [kind, date, officeId],
+    );
+    return rows.map((r) => r.employee_id);
+  }
+
+  async recordNotified(
+    kind: string,
+    date: string,
+    officeId: string,
+    employeeIds: readonly string[],
+  ): Promise<void> {
+    if (employeeIds.length === 0) return;
+
+    // One statement rather than one round trip per person: this runs over a
+    // whole building, and a serverless database charges for every hop.
+    const values = employeeIds.map((_, i) => `($1, $2, $3, $${i + 4})`).join(', ');
+    await this.query(
+      `INSERT INTO notified (kind, date, office_id, employee_id) VALUES ${values}
+       ON CONFLICT DO NOTHING`,
+      [kind, date, officeId, ...employeeIds],
+    );
+  }
+
+  async listRemindersOff(): Promise<string[]> {
+    const rows = await this.query<{ employee_id: string }>('SELECT employee_id FROM reminders_off');
+    return rows.map((r) => r.employee_id);
+  }
+
+  async setReminders(employeeId: string, enabled: boolean): Promise<void> {
+    if (enabled) {
+      await this.query('DELETE FROM reminders_off WHERE employee_id = $1', [employeeId]);
+      return;
+    }
+    await this.query('INSERT INTO reminders_off (employee_id) VALUES ($1) ON CONFLICT DO NOTHING', [
+      employeeId,
+    ]);
   }
 
   // --- sign-in throttling ----------------------------------------------------

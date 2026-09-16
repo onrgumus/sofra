@@ -13,8 +13,15 @@ import { Pill, PersonRow } from './ui';
 // Reads mutable store state on every request, so it must never be prerendered.
 export const dynamic = 'force-dynamic';
 
-export default async function EmployeePage() {
+export default async function EmployeePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ day?: string }>;
+}) {
   const store = getStore();
+  // The reminder mail links straight at one day, so it opens on the day it was
+  // asking about rather than on a list the reader has to search.
+  const { day: highlighted } = await searchParams;
   const employeeId = await currentEmployeeId(store);
   if (!employeeId) redirect('/login');
 
@@ -52,7 +59,13 @@ export default async function EmployeePage() {
 
         <div className="stack">
           {days.map((day) => (
-            <article className="day" key={day.date} data-attending={day.source !== null}>
+            <article
+              className="day"
+              key={day.date}
+              id={day.date}
+              data-attending={day.source !== null}
+              data-highlight={day.date === highlighted}
+            >
               <div className="day-date">
                 {formatDay(day.date).split(' ')[0]}
                 <small>{formatDay(day.date).split(' ').slice(1).join(' ')}</small>
