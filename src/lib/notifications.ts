@@ -1,6 +1,6 @@
 import { buildInvite } from '../notify/invite';
 import type { InviteChannel } from '../notify/channels';
-import type { Store } from '../store/types';
+import type { Store, StoredGroup } from '../store/types';
 import { toVenue } from './venue';
 import { confirmUrl } from './config';
 
@@ -17,6 +17,8 @@ export interface DeliveryOptions {
 export interface DeliveryResult {
   invitesSent: number;
   cancellationsSent: number;
+  /** Tables whose send failed. Reported, never fatal. */
+  failed: { groupId: string; reason: string }[];
 }
 
 /**
@@ -34,53 +36,67 @@ export interface DeliveryResult {
  */
 export async function deliverPending(options: DeliveryOptions): Promise<DeliveryResult> {
   const { store, channel, from, date, officeId } = options;
+  const result: DeliveryResult = { invitesSent: 0, cancellationsSent: 0, failed: [] };
 
   const office = await store.getOffice(officeId);
-  if (!office) return { invitesSent: 0, cancellationsSent: 0 };
+  if (!office) return result;
 
   const venue = toVenue(office);
   const organizer = { name: 'Sofra', email: from };
-  const result: DeliveryResult = { invitesSent: 0, cancellationsSent: 0 };
 
   for (const group of await store.listGroups(date, officeId)) {
     if (group.members.length === 0) continue;
 
-    if (group.cancelled) {
-      // Only worth cancelling if they were told about it in the first place.
-      if (group.invitesSentAt === null || group.cancellationSentAt !== null) continue;
+    // One table must not take down the rest. A single undeliverable address is
+    // ordinary in a real directory: somebody has left, a contractor has no
+    // mailbox, a provider refuses a domain. Letting that throw meant the nightly
+    // job died on the first bad recipient and nobody at all got an invite.
+    try {
+      if (group.cancelled) {
+        // Only worth cancelling if they were told about it in the first place.
+        if (group.invitesSentAt === null || group.cancellationSentAt !== null) continue;
 
-      await channel.sendCancellation({
+        await channel.sendCancellation({
+          groupId: group.id,
+          members: group.members,
+          invite: buildInvite({
+            group,
+            venue,
+            organizer,
+            sequence: group.sequence,
+            method: 'CANCEL',
+          }),
+        });
+        await store.markCancellationSent(group.id);
+        result.cancellationsSent++;
+        continue;
+      }
+
+      if (group.invitesSentAt !== null) continue;
+
+      await channel.sendInvite({
         groupId: group.id,
         members: group.members,
         invite: buildInvite({
           group,
           venue,
           organizer,
+          confirmUrl: confirmUrl(group.id),
           sequence: group.sequence,
-          method: 'CANCEL',
         }),
       });
-      await store.markCancellationSent(group.id);
-      result.cancellationsSent++;
-      continue;
+      await store.markInviteSent(group.id);
+      result.invitesSent++;
+    } catch (error) {
+      // Left unmarked, so the next run tries again rather than treating a
+      // failure as delivery.
+      result.failed.push({ groupId: group.id, reason: describe(error) });
     }
-
-    if (group.invitesSentAt !== null) continue;
-
-    await channel.sendInvite({
-      groupId: group.id,
-      members: group.members,
-      invite: buildInvite({
-        group,
-        venue,
-        organizer,
-        confirmUrl: confirmUrl(group.id),
-        sequence: group.sequence,
-      }),
-    });
-    await store.markInviteSent(group.id);
-    result.invitesSent++;
   }
 
   return result;
+}
+
+function describe(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }

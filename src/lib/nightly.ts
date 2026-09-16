@@ -27,6 +27,8 @@ export interface OfficeOutcome {
   seated: number;
   unseated: number;
   invitesSent: number;
+  /** Tables whose invite could not be delivered. The run continues regardless. */
+  failedToDeliver: number;
 }
 
 /**
@@ -102,6 +104,7 @@ export async function runNightlyMatching(options: NightlyOptions): Promise<Offic
       seated: result.groups.reduce((sum, g) => sum + g.members.length, 0),
       unseated: result.unmatched.length,
       invitesSent: delivered.invitesSent,
+      failedToDeliver: delivered.failed.length,
     });
   }
 

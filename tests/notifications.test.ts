@@ -4,7 +4,7 @@ import { planDay } from '../src/lib/nightly';
 import { DemoStore } from '../src/store/demo';
 import { todayInZone, upcomingWeekdays } from '../src/lib/dates';
 import type { EmailMessage, EmailTransport } from '../src/notify/transport';
-import { EmailChannel } from '../src/notify/channels';
+import { EmailChannel, type InviteChannel } from '../src/notify/channels';
 
 const OFFICE = 'IST-HQ';
 const from = 'sofra@example.com';
@@ -137,7 +137,56 @@ describe('deliverPending', () => {
 
     const result = await deliverPending({ store, channel, from, date: empty, officeId: OFFICE });
 
-    expect(result).toEqual({ invitesSent: 0, cancellationsSent: 0 });
+    expect(result).toEqual({ invitesSent: 0, cancellationsSent: 0, failed: [] });
     expect(sent).toHaveLength(0);
+  });
+});
+
+describe('when a table cannot be delivered', () => {
+  function brokenFor(badGroupId: string): InviteChannel {
+    return {
+      name: 'flaky',
+      async sendInvite(delivery) {
+        if (delivery.groupId === badGroupId) {
+          // What Resend actually answers for an address it will not accept.
+          throw new Error('Resend rejected the message: 422 validation_error');
+        }
+      },
+      async sendCancellation() {},
+    };
+  }
+
+  it('delivers every other table anyway', async () => {
+    // The failure this exists for: one undeliverable address threw, the nightly
+    // job died on the first table, and nobody in the building got an invite.
+    const { store, date } = await setUp();
+    const all = await store.listGroups(date, OFFICE);
+    const doomed = all[0]!.id;
+
+    const result = await deliverPending({
+      store,
+      channel: brokenFor(doomed),
+      from,
+      date,
+      officeId: OFFICE,
+    });
+
+    expect(result.invitesSent).toBe(all.length - 1);
+    expect(result.failed).toHaveLength(1);
+    expect(result.failed[0]!.groupId).toBe(doomed);
+    expect(result.failed[0]!.reason).toMatch(/422/);
+  });
+
+  it('leaves the failed table unmarked, so the next run retries it', async () => {
+    const { store, date } = await setUp();
+    const doomed = (await store.listGroups(date, OFFICE))[0]!.id;
+
+    await deliverPending({ store, channel: brokenFor(doomed), from, date, officeId: OFFICE });
+
+    expect((await store.getGroup(doomed))?.invitesSentAt).toBeNull();
+    // And a later run with a working channel picks it up.
+    const { channel } = recorder();
+    const second = await deliverPending({ store, channel, from, date, officeId: OFFICE });
+    expect(second.invitesSent).toBe(1);
   });
 });

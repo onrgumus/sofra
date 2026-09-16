@@ -178,6 +178,13 @@ export class DemoStore implements Store {
       // Also override the desk feed, which we do not own and cannot edit.
       this.suppressed.add(id);
       await this.removeOptIn(employeeId, date, officeId);
+
+      // Not coming in is not coming to lunch. Leaving the seat behind meant three
+      // people kept expecting somebody who had said they would not be there, and
+      // a table that should have collapsed did not. A decline runs the reseating
+      // the invite already promises.
+      const seated = await this.groupForEmployee(employeeId, date, officeId);
+      if (seated) await this.setRsvp(seated.id, employeeId, 'declined');
     }
   }
 

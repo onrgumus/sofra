@@ -31,5 +31,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     from: FROM_EMAIL,
   });
 
-  return NextResponse.json({ ranAt: new Date().toISOString(), offices: outcomes });
+  // A run that could not deliver some tables is not a successful run, even
+  // though it did everything else it could. 207 says so without pretending the
+  // whole thing failed.
+  const undelivered = outcomes.reduce((total, o) => total + o.failedToDeliver, 0);
+  return NextResponse.json(
+    { ranAt: new Date().toISOString(), offices: outcomes },
+    { status: undelivered > 0 ? 207 : 200 },
+  );
 }

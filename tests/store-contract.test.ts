@@ -271,6 +271,31 @@ describe.each(subjects)('$name', (subject) => {
     },
   );
 
+  it('takes the seat back when someone stops coming in', async () => {
+    // Not coming in is not coming to lunch. Leaving the seat behind meant three
+    // people kept expecting somebody who had already said they would not be
+    // there.
+    await planDay(store, OFFICE, date);
+    const table = (await store.listGroups(date, OFFICE)).find((g) => g.members.length === 4)!;
+    const leaver = table.members[0]!;
+
+    await store.setSelfDeclaredAttendance(leaver.id, date, OFFICE, false);
+
+    expect(await store.getOptIn(leaver.id, date, OFFICE)).toBeNull();
+    const seat = await store.getGroup(table.id);
+    expect(seat?.rsvps[leaver.id]).toBe('declined');
+  });
+
+  it('collapses a table when enough people stop coming in', async () => {
+    await planDay(store, OFFICE, date);
+    const table = (await store.listGroups(date, OFFICE)).find((g) => g.members.length === 4)!;
+
+    await store.setSelfDeclaredAttendance(table.members[0]!.id, date, OFFICE, false);
+    await store.setSelfDeclaredAttendance(table.members[1]!.id, date, OFFICE, false);
+
+    expect((await store.getGroup(table.id))?.cancelled).toBe(true);
+  });
+
   it('forgets a day when it is cleared', async () => {
     await planDay(store, OFFICE, date);
     await store.clearGroups(date, OFFICE);

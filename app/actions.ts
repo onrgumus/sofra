@@ -80,12 +80,28 @@ export async function switchEmployee(formData: FormData): Promise<void> {
 
 export async function setAttendance(formData: FormData): Promise<void> {
   const store = getStore();
+  const date = required(formData, 'date');
+  const officeId = required(formData, 'officeId');
+  const attending = formData.get('attending') === 'true';
+
   await store.setSelfDeclaredAttendance(
     required(formData, 'employeeId'),
-    required(formData, 'date'),
-    required(formData, 'officeId'),
-    formData.get('attending') === 'true',
+    date,
+    officeId,
+    attending,
   );
+
+  // Dropping out of the office can collapse a table and move people, exactly as
+  // a decline does, so the same mail has to go out.
+  if (!attending) {
+    await deliverPending({
+      store,
+      channel: configuredChannel(),
+      from: FROM_EMAIL,
+      date,
+      officeId,
+    });
+  }
   refresh();
 }
 
