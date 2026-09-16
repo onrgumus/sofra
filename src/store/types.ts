@@ -15,7 +15,6 @@ export interface Office {
   /** IANA zone, used for the calendar invite. */
   timeZone: string;
   meetingPoint: string;
-  locale: string;
 }
 
 export interface StoredGroup extends MatchedGroup {

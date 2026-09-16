@@ -7,7 +7,6 @@ const ONE = JSON.stringify([
     displayName: 'Ankara',
     timeZone: 'Europe/Istanbul',
     meetingPoint: 'Ground floor, by the lifts',
-    locale: 'tr-TR',
   },
 ]);
 
@@ -20,7 +19,6 @@ describe('parseOffices', () => {
       displayName: 'Ankara',
       timeZone: 'Europe/Istanbul',
       meetingPoint: 'Ground floor, by the lifts',
-      locale: 'tr-TR',
     });
   });
 
@@ -28,13 +26,6 @@ describe('parseOffices', () => {
     expect(parseOffices(undefined)).toBeNull();
     expect(parseOffices('')).toBeNull();
     expect(parseOffices('   ')).toBeNull();
-  });
-
-  it('defaults the locale, which only affects how dates are spelled', () => {
-    const raw = JSON.stringify([
-      { id: 'A', displayName: 'A', timeZone: 'Europe/Amsterdam', meetingPoint: 'Kitchen' },
-    ]);
-    expect(parseOffices(raw)![0]!.locale).toBe('en-GB');
   });
 
   it('refuses a timezone that is not real, rather than booting and being an hour out', () => {

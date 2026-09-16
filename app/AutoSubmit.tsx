@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 /**
  * A select that submits its form on change, so the demo needs no Apply button.
@@ -35,14 +35,31 @@ export function AutoSubmitSelect(props: {
   );
 }
 
-/** A checkbox that saves immediately, used for the balanced-group preference. */
+/**
+ * A checkbox that saves the moment it changes.
+ *
+ * Submitting re-renders the page from the server, which drops focus to the
+ * body: someone using the keyboard ticks a day and lands back at the top of the
+ * document with no idea whether anything happened. So the checkbox remembers
+ * that it submitted and takes focus back, and says what changed in a live
+ * region for anyone who cannot see the tick.
+ */
 export function AutoSubmitCheckbox(props: {
   name: string;
   defaultChecked: boolean;
   label: string;
   title?: string;
+  /** Tells one day's checkbox from another's when focus is restored. */
+  focusKey: string;
 }) {
   const ref = useRef<HTMLInputElement>(null);
+  const [announcement, setAnnouncement] = useState('');
+
+  useEffect(() => {
+    if (sessionStorage.getItem(FOCUS_KEY) !== props.focusKey) return;
+    sessionStorage.removeItem(FOCUS_KEY);
+    ref.current?.focus();
+  }, [props.focusKey, props.defaultChecked]);
 
   return (
     <label className="check" title={props.title}>
@@ -52,9 +69,18 @@ export function AutoSubmitCheckbox(props: {
         type="checkbox"
         name={props.name}
         defaultChecked={props.defaultChecked}
-        onChange={() => ref.current?.form?.requestSubmit()}
+        onChange={(event) => {
+          sessionStorage.setItem(FOCUS_KEY, props.focusKey);
+          setAnnouncement(event.target.checked ? `${props.label}: yes` : `${props.label}: no`);
+          ref.current?.form?.requestSubmit();
+        }}
       />
       {props.label}
+      <span className="sr-only" role="status" aria-live="polite">
+        {announcement}
+      </span>
     </label>
   );
 }
+
+const FOCUS_KEY = 'sofra:restore-focus';

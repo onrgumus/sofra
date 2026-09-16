@@ -20,14 +20,12 @@ const OFFICES: Office[] = [
     displayName: 'Istanbul HQ',
     timeZone: 'Europe/Istanbul',
     meetingPoint: 'Ground floor cafeteria, by the coffee bar',
-    locale: 'tr-TR',
   },
   {
     id: 'AMS-1',
     displayName: 'Amsterdam Zuidas',
     timeZone: 'Europe/Amsterdam',
     meetingPoint: '2nd floor kitchen, next to the big window',
-    locale: 'en-GB',
   },
 ];
 

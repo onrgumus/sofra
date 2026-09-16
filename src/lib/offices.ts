@@ -8,7 +8,7 @@ import type { Office } from '../store/types';
  * two invented offices have no business being in anybody's production instance.
  *
  * SOFRA_OFFICES holds JSON: an array of
- *   { id, displayName, timeZone, meetingPoint, locale }
+ *   { id, displayName, timeZone, meetingPoint }
  *
  * The timezone is not decoration. Each office plans its own next working day in
  * its own zone, so Istanbul and Amsterdam do not get yesterday's lunch for part
@@ -42,7 +42,6 @@ function toOffice(entry: unknown, index: number): Office {
     displayName: text(record, 'displayName', where),
     timeZone: text(record, 'timeZone', where),
     meetingPoint: text(record, 'meetingPoint', where),
-    locale: typeof record['locale'] === 'string' ? record['locale'] : 'en-GB',
   };
 
   // A bad zone here would not fail until the first invite, at which point the

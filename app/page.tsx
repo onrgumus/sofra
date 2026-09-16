@@ -81,10 +81,7 @@ export default async function EmployeePage() {
                   <p className="faint" style={{ marginTop: 6 }}>
                     {day.matched
                       ? 'Tables for this day were already set before you asked, so there is no seat for you today. Your tick still counts if matching runs again.'
-                      : `Your table appears here after ${MATCHING_HOUR} on ${formatDay(
-                          previousWeekday(day.date),
-                          office.locale,
-                        )}, and the invite reaches you by email at the same time.`}
+                      : `Your table appears here after ${MATCHING_HOUR} on ${formatDay(previousWeekday(day.date))}, and the invite reaches you by email at the same time.`}
                   </p>
                 ) : null}
               </div>
@@ -110,6 +107,7 @@ export default async function EmployeePage() {
                       <input type="hidden" name="officeId" value={office.id} />
                       <AutoSubmitCheckbox
                         name="wantsLunch"
+                        focusKey={day.date}
                         defaultChecked={day.optIn !== null}
                         label="Meet other teams today"
                         title="Sofra will seat you with three people from other teams at 12:00. Untick any time before the evening before."
