@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
+import { envOptional, envText } from './env';
 
 /**
  * A demo gate, not authentication.
@@ -9,7 +10,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
  * a session cookie being forged by hand: the employee id is signed, so you
  * cannot become a colleague by editing a cookie in devtools.
  */
-export const DEMO_PASSWORD = process.env.SOFRA_DEMO_PASSWORD ?? '1234';
+export const DEMO_PASSWORD = envText('SOFRA_DEMO_PASSWORD', '1234');
 
 /**
  * The fallback is fine on a laptop and a hole in public.
@@ -22,7 +23,7 @@ export const DEMO_PASSWORD = process.env.SOFRA_DEMO_PASSWORD ?? '1234';
 const DEVELOPMENT_SECRET = 'sofra-demo-secret-change-me-in-production';
 
 function sessionSecret(): string {
-  const configured = process.env.SOFRA_SESSION_SECRET;
+  const configured = envOptional('SOFRA_SESSION_SECRET');
   if (configured && configured !== DEVELOPMENT_SECRET) return configured;
 
   if (process.env.NODE_ENV === 'production') {

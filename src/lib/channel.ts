@@ -8,8 +8,9 @@ import {
 } from '../notify/channels';
 import { ConsoleTransport, ResendTransport, type EmailTransport } from '../notify/transport';
 import { createGraphClient } from './graph';
+import { envText } from './env';
 
-export const FROM_EMAIL = process.env.SOFRA_FROM_EMAIL ?? 'Sofra <sofra@example.com>';
+export const FROM_EMAIL = envText('SOFRA_FROM_EMAIL', 'Sofra <sofra@example.com>');
 
 /**
  * Assembles the channels this deployment actually has credentials for.

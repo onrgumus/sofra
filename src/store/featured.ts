@@ -1,5 +1,6 @@
 import type { Employee } from '../core/types';
 import type { Store } from './types';
+import { envText } from '../lib/env';
 
 /**
  * The account the demo signs you in as.
@@ -16,7 +17,7 @@ export const DEMO_USERNAME = 'onur';
  * because this repo is public: hardcoding a real address would make whoever
  * clones it and runs with a Resend key mail a stranger.
  */
-const DEMO_EMAIL = process.env.SOFRA_DEMO_EMAIL ?? 'onur@example.com';
+const DEMO_EMAIL = envText('SOFRA_DEMO_EMAIL', 'onur@example.com');
 
 export const FEATURED_EMPLOYEE: Employee = {
   id: 'onur',

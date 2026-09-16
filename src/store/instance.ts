@@ -4,6 +4,7 @@ import { PostgresStore } from './postgres';
 import pg from 'pg';
 import type { Store } from './types';
 import { parseOffices } from '../lib/offices';
+import { envNumber, envOptional } from '../lib/env';
 
 const { Pool } = pg;
 
@@ -39,7 +40,7 @@ function create(): Store {
         connectionString,
         // Supabase's pooler terminates idle connections; a small pool with a
         // short idle timeout is what fits a serverless function anyway.
-        max: Number(process.env.DATABASE_POOL_MAX ?? 3),
+        max: envNumber('DATABASE_POOL_MAX', 3),
         idleTimeoutMillis: 10_000,
       }),
       employees: world.employees,

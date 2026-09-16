@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { verifyTeamsToken } from '../../../../src/lib/teams-auth';
 import { getStore } from '../../../../src/store/instance';
 import { startSession } from '../../../../src/lib/session';
+import { envOptional, envText } from '../../../../src/lib/env';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,8 +14,8 @@ export const dynamic = 'force-dynamic';
  * is taken at face value, only what the signature proves.
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  const clientId = process.env.AAD_CLIENT_ID;
-  const tenantId = process.env.AAD_TENANT_ID ?? 'common';
+  const clientId = envOptional('AAD_CLIENT_ID');
+  const tenantId = envText('AAD_TENANT_ID', 'common');
 
   if (!clientId) {
     return NextResponse.json({ error: 'Teams sign-in is not configured' }, { status: 503 });
