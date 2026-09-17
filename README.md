@@ -45,6 +45,51 @@ Who is in this building on this day? That is the entire integration surface.
 
 Start with `Manual`, add a real feed once the habit exists.
 
+## Where the people come from
+
+The second seam, and the one that blocks everything: attendance answers who is
+in the building today, and the directory answers who works here at all. Set
+`SOFRA_DIRECTORY_CSV` to a URL or a file path and Sofra reads its people from
+there. Unset, it matches 240 invented people, and the console says so in a
+banner rather than letting a company discover it on the first lunch.
+
+```
+employee_id,display_name,email,title,seniority,department,team,office_id,languages,tenure_months,interests
+e1001,Deniz Arslan,deniz@example.com,Credit Risk Analyst,senior,Risk,Risk/Credit,IST-HQ,tr;en,42,cycling;cooking
+e1005,Joris Bakker,joris@example.com,,,People,,AMS-1,,,
+```
+
+Five columns are required, and they are the five without which somebody cannot
+be seated or told about it: `employee_id`, `display_name`, `email`,
+`department`, `office_id`. The rest improve the match and degrade honestly when
+missing, which is the second row above: no title falls back to the department,
+no languages means English, no interests means the icebreaker comes from the
+seniority gap instead. Lists use semicolons, because a comma inside a CSV field
+needs quoting and no export does it. `seniority` must be one of `intern`,
+`junior`, `mid`, `senior`, `lead`, `manager`, `director`, and an unrecognised
+value skips the row rather than defaulting, which would quietly put a director
+on the junior end of every spread. Column names that do not match yours are a
+constructor option, not a reason to transform the file.
+
+A bad row is skipped and counted, never thrown: one malformed line out of ten
+thousand must not leave a company with no directory at all. Set
+`SOFRA_DIRECTORY_TOKEN` if the export sits behind one, which it should, because
+the list of everyone who works somewhere along with their addresses is not a
+thing to leave on an open URL.
+
+A CSV is not what anybody should run forever, and that is the point. An export
+beats an integration that has to clear procurement before a single lunch
+happens. Entra ID, Workday, BambooHR or SCIM land later as another `Directory`,
+which is one method:
+
+```ts
+interface Directory {
+  listEmployees(): Promise<Employee[]>;
+}
+```
+
+`docs/directory.example.csv` is a file to copy.
+
 ## Why not just use a Teams channel
 
 You can, and for a small office you should. A `#lunch` channel where people post
@@ -481,19 +526,22 @@ a synthetic company.
 
 Copy `.env.example` to `.env.local`.
 
-| Variable           | What it does                                                                                       |
-| ------------------ | -------------------------------------------------------------------------------------------------- |
-| `SOFRA_BASE_URL`   | Public URL of this instance. The confirm link goes into an email, so it cannot be relative.        |
-| `CRON_SECRET`      | Shared secret for both scheduled endpoints. No secret, no nightly run.                             |
-| `SOFRA_ADMINS`     | Who can open the console on a fresh deployment. Everyone after that is granted at `/admin/people`. |
-| `SOFRA_FROM_EMAIL` | Envelope sender for invites.                                                                       |
-| `RESEND_API_KEY`   | Only once you swap `ConsoleTransport` for `ResendTransport`.                                       |
+| Variable                | What it does                                                                                       |
+| ----------------------- | -------------------------------------------------------------------------------------------------- |
+| `SOFRA_BASE_URL`        | Public URL of this instance. The confirm link goes into an email, so it cannot be relative.        |
+| `CRON_SECRET`           | Shared secret for both scheduled endpoints. No secret, no nightly run.                             |
+| `SOFRA_ADMINS`          | Who can open the console on a fresh deployment. Everyone after that is granted at `/admin/people`. |
+| `SOFRA_DIRECTORY_CSV`   | URL or path to your people. Unset means the synthetic company.                                     |
+| `SOFRA_DIRECTORY_TOKEN` | Bearer token, when the export is behind one.                                                       |
+| `SOFRA_FROM_EMAIL`      | Envelope sender for invites.                                                                       |
+| `RESEND_API_KEY`        | Only once you swap `ConsoleTransport` for `ResendTransport`.                                       |
 
 ## Project layout
 
 ```
 src/core/       the matching engine, pure: no I/O, no framework
 src/providers/  the only place that knows a desk-booking system exists
+src/directory/  where a company's people come from; a CSV reader and the seam
 src/notify/     invite content, ICS generation, and the delivery channels
 src/store/      persistence behind one interface; an in-memory demo implementation
 src/lib/        sign-in, session, config, dates, and the nightly job

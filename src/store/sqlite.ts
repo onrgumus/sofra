@@ -6,6 +6,7 @@ import { applyRsvp, type SeatedTable } from '../core/reseating';
 import { DEFAULT_CONFIG } from '../core/types';
 import type { Employee, MatchResult, OptIn, PastMatch, Relaxation, Unmatched } from '../core/types';
 import type { AttendanceProvider } from '../providers/types';
+import type { Directory } from '../directory/types';
 import type { AdminGrant, AttendanceSource, Office, RsvpStatus, Store, StoredGroup } from './types';
 
 /**
@@ -17,6 +18,8 @@ import type { AdminGrant, AttendanceSource, Office, RsvpStatus, Store, StoredGro
  * hands it to Node, which does have it. Types come from the type-only import
  * below, which is erased at compile time and so costs nothing.
  */
+type People = ReadonlyMap<string, Employee>;
+
 type Sqlite = typeof import('node:sqlite');
 type Database = InstanceType<Sqlite['DatabaseSync']>;
 
@@ -25,8 +28,8 @@ const loadSqlite = (): Sqlite => createRequire(import.meta.url)('node:sqlite') a
 export interface SqliteStoreOptions {
   /** File path, or ':memory:' for a database that dies with the process. */
   path: string;
-  /** Reference data, from a directory sync in production. */
-  employees: readonly Employee[];
+  /** Where the company's people come from. See `src/directory`. */
+  directory: Directory;
   offices: readonly Office[];
   /** The desk-booking feed. Its answers are not stored, only overridden. */
   attendance: AttendanceProvider;
@@ -45,14 +48,18 @@ export interface SqliteStoreOptions {
  */
 export class SqliteStore implements Store {
   private readonly db: Database;
-  private readonly employeeById: Map<string, Employee>;
+  /**
+   * Filled on first use and kept for the life of the process. A directory is a
+   * file or an HTTP call, and re-reading it on every page would turn one lunch
+   * page into a few hundred lookups.
+   */
+  private employeeById: Map<string, Employee> | null = null;
   private readonly config = DEFAULT_CONFIG;
 
   constructor(private readonly options: SqliteStoreOptions) {
     this.db = new (loadSqlite().DatabaseSync)(options.path);
     this.db.exec('PRAGMA foreign_keys = ON');
     this.db.exec(readSchema());
-    this.employeeById = new Map(options.employees.map((e) => [e.id, e]));
   }
 
   close(): void {
@@ -70,12 +77,19 @@ export class SqliteStore implements Store {
   }
 
   async listEmployees(officeId?: string): Promise<Employee[]> {
-    const all = [...this.options.employees];
+    const all = [...(await this.people()).values()];
     return officeId ? all.filter((e) => e.officeId === officeId) : all;
   }
 
   async getEmployee(employeeId: string): Promise<Employee | undefined> {
-    return this.employeeById.get(employeeId);
+    return (await this.people()).get(employeeId);
+  }
+
+  private async people(): Promise<Map<string, Employee>> {
+    this.employeeById ??= new Map(
+      (await this.options.directory.listEmployees()).map((e) => [e.id, e]),
+    );
+    return this.employeeById;
   }
 
   // --- attendance -----------------------------------------------------------
@@ -217,12 +231,13 @@ export class SqliteStore implements Store {
   // --- groups ---------------------------------------------------------------
 
   async listGroups(date: string, officeId: string): Promise<StoredGroup[]> {
-    return this.groupsOn(date, officeId);
+    return this.groupsOn(date, officeId, await this.people());
   }
 
   async getGroup(groupId: string): Promise<StoredGroup | null> {
+    const people = await this.people();
     const row = this.get<GroupRow>('SELECT * FROM groups WHERE id = ?', groupId);
-    return row ? this.hydrate(row) : null;
+    return row ? this.hydrate(row, people) : null;
   }
 
   async groupForEmployee(
@@ -230,6 +245,7 @@ export class SqliteStore implements Store {
     date: string,
     officeId: string,
   ): Promise<StoredGroup | null> {
+    const people = await this.people();
     const row = this.get<GroupRow>(
       `SELECT g.* FROM groups g
        JOIN group_members m ON m.group_id = g.id
@@ -238,7 +254,7 @@ export class SqliteStore implements Store {
       date,
       officeId,
     );
-    return row ? this.hydrate(row) : null;
+    return row ? this.hydrate(row, people) : null;
   }
 
   async saveMatchResult(result: MatchResult): Promise<void> {
@@ -282,13 +298,14 @@ export class SqliteStore implements Store {
   }
 
   async listUnmatched(date: string, officeId: string): Promise<Unmatched[]> {
+    const people = await this.people();
     return this.all<{ employee_id: string; reason: string }>(
       'SELECT employee_id, reason FROM unmatched WHERE date = ? AND office_id = ?',
       date,
       officeId,
     )
       .map((r) => {
-        const employee = this.employeeById.get(r.employee_id);
+        const employee = people.get(r.employee_id);
         return employee ? { employee, reason: r.reason as Unmatched['reason'] } : null;
       })
       .filter((u): u is Unmatched => u !== null);
@@ -315,6 +332,9 @@ export class SqliteStore implements Store {
   }
 
   async setRsvp(groupId: string, employeeId: string, status: RsvpStatus): Promise<void> {
+    // Resolved before the transaction opens, never inside it. See `hydrate`.
+    const people = await this.people();
+
     // Read, decide and write in one synchronous transaction.
     //
     // A reply is a read-modify-write over every table that day, because a
@@ -329,7 +349,7 @@ export class SqliteStore implements Store {
       if (!row) return;
 
       const changed = applyRsvp({
-        tables: this.groupsOn(row.date, row.office_id),
+        tables: this.groupsOn(row.date, row.office_id, people),
         groupId,
         employeeId,
         status,
@@ -470,22 +490,28 @@ export class SqliteStore implements Store {
     this.run('DELETE FROM unmatched WHERE date = ? AND office_id = ?', date, officeId);
   }
 
-  private groupsOn(date: string, officeId: string): StoredGroup[] {
+  private groupsOn(date: string, officeId: string, people: People): StoredGroup[] {
     return this.all<GroupRow>(
       'SELECT * FROM groups WHERE date = ? AND office_id = ? ORDER BY id',
       date,
       officeId,
-    ).map((row) => this.hydrate(row));
+    ).map((row) => this.hydrate(row, people));
   }
 
-  private hydrate(row: GroupRow): StoredGroup {
+  /**
+   * Takes the directory as an argument rather than reading a field, because
+   * every caller inside the reply transaction must stay synchronous and a
+   * directory read is I/O. Resolving it before the transaction opens keeps both
+   * properties: the people are loaded, and nothing awaits mid-transaction.
+   */
+  private hydrate(row: GroupRow, people: People): StoredGroup {
     const seats = this.all<{ employee_id: string; rsvp: string }>(
       'SELECT employee_id, rsvp FROM group_members WHERE group_id = ? ORDER BY seat',
       row.id,
     );
 
     const members = seats
-      .map((s) => this.employeeById.get(s.employee_id))
+      .map((s) => people.get(s.employee_id))
       .filter((e): e is Employee => e !== undefined);
 
     return {

@@ -1,6 +1,7 @@
 import { getStore } from '../../src/store/instance';
 import { currentEmployeeId } from '../../src/lib/session';
 import { isAdmin } from '../../src/lib/authz';
+import { usingDemoDirectory } from '../../src/lib/directory';
 import { SLOT } from '../../src/store/demo';
 import { formatDay, todayInZone, upcomingWeekdays } from '../../src/lib/dates';
 import { toVenue } from '../../src/lib/venue';
@@ -57,6 +58,7 @@ export default async function AdminPage({
 
   const stats = summarise(groups, context.history);
   const invitesSent = groups.some((g) => g.invitesSentAt !== null);
+  const employees = await store.listEmployees();
 
   return (
     <main>
@@ -67,6 +69,16 @@ export default async function AdminPage({
           computed by the same engine the cron entry point will call.
         </p>
       </div>
+
+      {usingDemoDirectory() ? (
+        <section>
+          <div className="note">
+            These are {employees.length} invented people, not your company. Sofra reads its
+            directory from <code>SOFRA_DIRECTORY_CSV</code>, a URL or a file path; until that is
+            set, every table below is a demonstration. See the README for the columns.
+          </div>
+        </section>
+      ) : null}
 
       <section>
         <form method="get" action="/admin" className="inline">

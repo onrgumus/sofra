@@ -5,6 +5,7 @@ import { applyRsvp } from '../core/reseating';
 import { DEFAULT_CONFIG } from '../core/types';
 import type { Employee, MatchResult, OptIn, PastMatch, Relaxation, Unmatched } from '../core/types';
 import type { AttendanceProvider } from '../providers/types';
+import type { Directory } from '../directory/types';
 import type { AdminGrant, AttendanceSource, Office, RsvpStatus, Store, StoredGroup } from './types';
 
 /**
@@ -24,7 +25,8 @@ export interface PgClient {
 
 export interface PostgresStoreOptions {
   pool: PgPool;
-  employees: readonly Employee[];
+  /** Where the company's people come from. See `src/directory`. */
+  directory: Directory;
   offices: readonly Office[];
   attendance: AttendanceProvider;
 }
@@ -41,13 +43,16 @@ export interface PostgresStoreOptions {
  * synchronously, and nothing here is synchronous, so the day is locked instead.
  */
 export class PostgresStore implements Store {
-  private readonly employeeById: Map<string, Employee>;
+  /**
+   * Filled on first use and kept for the life of the process. A directory is a
+   * file or an HTTP call, and re-reading it on every page would turn one lunch
+   * page into a few hundred lookups.
+   */
+  private employeeById: Map<string, Employee> | null = null;
   private readonly config = DEFAULT_CONFIG;
   private ready: Promise<void> | null = null;
 
-  constructor(private readonly options: PostgresStoreOptions) {
-    this.employeeById = new Map(options.employees.map((e) => [e.id, e]));
-  }
+  constructor(private readonly options: PostgresStoreOptions) {}
 
   /** Applies the schema once, and only once, however many callers race here. */
   private migrate(): Promise<void> {
@@ -76,12 +81,19 @@ export class PostgresStore implements Store {
   }
 
   async listEmployees(officeId?: string): Promise<Employee[]> {
-    const all = [...this.options.employees];
+    const all = [...(await this.people()).values()];
     return officeId ? all.filter((e) => e.officeId === officeId) : all;
   }
 
   async getEmployee(employeeId: string): Promise<Employee | undefined> {
-    return this.employeeById.get(employeeId);
+    return (await this.people()).get(employeeId);
+  }
+
+  private async people(): Promise<Map<string, Employee>> {
+    this.employeeById ??= new Map(
+      (await this.options.directory.listEmployees()).map((e) => [e.id, e]),
+    );
+    return this.employeeById;
   }
 
   // --- attendance -----------------------------------------------------------
@@ -276,13 +288,14 @@ export class PostgresStore implements Store {
   }
 
   async listUnmatched(date: string, officeId: string): Promise<Unmatched[]> {
+    const people = await this.people();
     const rows = await this.query<{ employee_id: string; reason: string }>(
       'SELECT employee_id, reason FROM unmatched WHERE date = $1 AND office_id = $2',
       [date, officeId],
     );
     return rows
       .map((r) => {
-        const employee = this.employeeById.get(r.employee_id);
+        const employee = people.get(r.employee_id);
         return employee ? { employee, reason: r.reason as Unmatched['reason'] } : null;
       })
       .filter((u): u is Unmatched => u !== null);
@@ -509,6 +522,7 @@ export class PostgresStore implements Store {
   }
 
   private async hydrate(row: GroupRow, client?: PgClient): Promise<StoredGroup> {
+    const people = await this.people();
     const seats = await this.run<{ employee_id: string; rsvp: string }>(
       'SELECT employee_id, rsvp FROM group_members WHERE group_id = $1 ORDER BY seat',
       [row.id],
@@ -516,7 +530,7 @@ export class PostgresStore implements Store {
     );
 
     const members = seats
-      .map((s) => this.employeeById.get(s.employee_id))
+      .map((s) => people.get(s.employee_id))
       .filter((e): e is Employee => e !== undefined);
 
     return {

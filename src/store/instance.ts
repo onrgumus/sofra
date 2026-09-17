@@ -4,6 +4,7 @@ import { PostgresStore } from './postgres';
 import pg from 'pg';
 import type { Store } from './types';
 import { parseOffices } from '../lib/offices';
+import { configuredDirectory } from '../lib/directory';
 import { envNumber, envOptional } from '../lib/env';
 
 const { Pool } = pg;
@@ -43,7 +44,7 @@ function create(): Store {
         max: envNumber('DATABASE_POOL_MAX', 3),
         idleTimeoutMillis: 10_000,
       }),
-      employees: world.employees,
+      directory: configuredDirectory(world.employees),
       offices,
       attendance: world.attendance,
     });
@@ -58,7 +59,7 @@ function create(): Store {
   // persisted. A directory sync replaces this half without touching the store.
   const store = new SqliteStore({
     path,
-    employees: world.employees,
+    directory: configuredDirectory(world.employees),
     offices,
     attendance: world.attendance,
   });

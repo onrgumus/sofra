@@ -8,6 +8,7 @@ import { PostgresStore, type PgPool } from '../src/store/postgres';
 import { newDb } from 'pg-mem';
 import pg from 'pg';
 import type { Store } from '../src/store/types';
+import { staticDirectory } from '../src/directory';
 import { planDay } from '../src/lib/nightly';
 import { todayInZone, upcomingWeekdays } from '../src/lib/dates';
 
@@ -77,7 +78,7 @@ const subjects: Subject[] = [
       await freshSchema(pool);
       const store = new PostgresStore({
         pool,
-        employees: world.employees,
+        directory: staticDirectory(world.employees),
         offices: world.offices,
         attendance: world.attendance,
       });
@@ -96,7 +97,7 @@ const subjects: Subject[] = [
       const world = seed.world();
       const store = new SqliteStore({
         path: join(directory, `contract-${Math.random().toString(36).slice(2)}.db`),
-        employees: world.employees,
+        directory: staticDirectory(world.employees),
         offices: world.offices,
         attendance: world.attendance,
       });
@@ -413,7 +414,7 @@ describe('SqliteStore persistence', () => {
     const open = () =>
       new SqliteStore({
         path,
-        employees: world.employees,
+        directory: staticDirectory(world.employees),
         offices: world.offices,
         attendance: world.attendance,
       });
