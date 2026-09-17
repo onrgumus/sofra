@@ -41,6 +41,14 @@ export default async function EmployeePage({
         group: await store.groupForEmployee(employeeId, date, office.id),
         /** Tables for this day already exist, so the cut-off has passed. */
         matched: (await store.listGroups(date, office.id)).length > 0,
+        /**
+         * Why the engine could not seat you. Being told nothing was the worst
+         * outcome the product had: you tick the box, no table appears, and you
+         * are left to conclude that nobody wanted to eat with you.
+         */
+        unseated:
+          (await store.listUnmatched(date, office.id)).find((u) => u.employee.id === employeeId)
+            ?.reason ?? null,
       };
     }),
   );
@@ -92,9 +100,13 @@ export default async function EmployeePage({
                   <TablePreview group={day.group} meId={employeeId} />
                 ) : day.optIn ? (
                   <p className="faint" style={{ marginTop: 6 }}>
-                    {day.matched
-                      ? 'Tables for this day were already set before you asked, so there is no seat for you today. Your tick still counts if matching runs again.'
-                      : `Your table appears here after ${MATCHING_HOUR} on ${formatDay(previousWeekday(day.date))}, and the invite reaches you by email at the same time.`}
+                    {day.unseated === 'no-common-language'
+                      ? 'Nobody else asking for a lunch that day shares a language with you. Your languages are on your details page, and adding one you are comfortable in is usually enough.'
+                      : day.unseated === 'pool-too-small'
+                        ? 'Too few people asked that day to make a table. Your tick still counts if matching runs again.'
+                        : day.matched
+                          ? 'Tables for this day were already set before you asked, so there is no seat for you today. Your tick still counts if matching runs again.'
+                          : `Your table appears here after ${MATCHING_HOUR} on ${formatDay(previousWeekday(day.date))}, and the invite reaches you by email at the same time.`}
                   </p>
                 ) : null}
               </div>

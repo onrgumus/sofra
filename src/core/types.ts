@@ -129,8 +129,11 @@ export interface MatchedGroup {
 }
 
 /**
- * Why someone could not be seated. Both cases are rare and both get an honest,
- * non-rejecting email rather than silence.
+ * Why someone could not be seated. Both are rare, and both now produce an
+ * honest, non-rejecting message rather than silence: see `notify/unseated`.
+ * For a long time this reason was recorded and only the admin console read it,
+ * which left the person to conclude that three colleagues had been asked and
+ * none of them wanted to come.
  */
 export type UnmatchedReason = 'pool-too-small' | 'no-common-language';
 

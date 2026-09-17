@@ -193,7 +193,15 @@ tenure gap, at least one shared interest as an opener, and novelty.
 
 Nobody eats alone. If the pool is too homogeneous to honour every rule, the
 matcher walks a relaxation ladder (`none` → `allow-repeat` → `allow-same-team`)
-and takes a penalty rather than turning someone away. Everyone who ticked the box
+and takes a penalty rather than turning someone away.
+
+The two people it genuinely cannot seat get told why, because silence was the
+worst thing this product did: you tick the box, no table appears, nobody says
+anything, and the conclusion available to you is that three colleagues were
+asked and none of them wanted to come. Either too few people asked that day,
+which is about the day, or nobody asking shares a language with you, which is
+one setting away from fixed. The message says which, once, and the page says it
+too. Everyone who ticked the box
 is split evenly into tables of three or four, so a pool of 9 becomes `[3, 3, 3]`
 and a pool of 11 becomes `[4, 4, 3]`, never two tables and one person left
 standing in the lobby. "No match was found for you" is the one email that would
@@ -611,7 +619,7 @@ teams/          Teams app manifest, icons, and how to package them
 npm run typecheck   # tsc, strict, noUncheckedIndexedAccess
 npm run lint        # eslint, zero warnings tolerated
 npm run format      # prettier
-npm test            # 391 tests
+npm test            # 402 tests
 npm run build       # production build
 ```
 

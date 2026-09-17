@@ -2,7 +2,9 @@ import { buildInvite } from '../notify/invite';
 import type { InviteChannel } from '../notify/channels';
 import type { Store, StoredGroup } from '../store/types';
 import { toVenue } from './venue';
-import { confirmUrl } from './config';
+import { BASE_URL, confirmUrl } from './config';
+import { formatDay } from './dates';
+import { buildUnseated } from '../notify/unseated';
 
 export interface DeliveryOptions {
   store: Store;
@@ -17,9 +19,14 @@ export interface DeliveryOptions {
 export interface DeliveryResult {
   invitesSent: number;
   cancellationsSent: number;
+  /** People told that there was no table for them. */
+  unseatedTold: number;
   /** Tables whose send failed. Reported, never fatal. */
   failed: { groupId: string; reason: string }[];
 }
+
+/** The `kind` under which "we could not seat you" is recorded, so it goes once. */
+export const UNSEATED_KIND = 'unseated';
 
 /**
  * Brings everyone's inbox and calendar up to date with what the tables actually
@@ -36,7 +43,12 @@ export interface DeliveryResult {
  */
 export async function deliverPending(options: DeliveryOptions): Promise<DeliveryResult> {
   const { store, channel, from, date, officeId } = options;
-  const result: DeliveryResult = { invitesSent: 0, cancellationsSent: 0, failed: [] };
+  const result: DeliveryResult = {
+    invitesSent: 0,
+    cancellationsSent: 0,
+    unseatedTold: 0,
+    failed: [],
+  };
 
   const office = await store.getOffice(officeId);
   if (!office) return result;
@@ -94,7 +106,56 @@ export async function deliverPending(options: DeliveryOptions): Promise<Delivery
     }
   }
 
+  await tellUnseated(options, result);
   return result;
+}
+
+/**
+ * Tells the people who asked and got nothing.
+ *
+ * Silence was the worst thing this product did. The engine has recorded why
+ * somebody could not be seated since the first commit, and until now only the
+ * admin console ever read it, so the person was left to conclude that three
+ * colleagues had been asked and none of them wanted to come.
+ *
+ * Once per person per day, on the same record the reminder uses, and only once
+ * the day has actually been planned: before that there is no table because
+ * matching has not run, which is not the same thing at all.
+ */
+async function tellUnseated(options: DeliveryOptions, result: DeliveryResult): Promise<void> {
+  const { store, channel, date, officeId } = options;
+  if (!channel.sendReminder) return;
+
+  const unmatched = await store.listUnmatched(date, officeId);
+  if (unmatched.length === 0) return;
+
+  const office = await store.getOffice(officeId);
+  if (!office) return;
+
+  const told = new Set(await store.listNotified(UNSEATED_KIND, date, officeId));
+  const delivered: string[] = [];
+
+  for (const { employee, reason } of unmatched) {
+    if (told.has(employee.id)) continue;
+
+    try {
+      await channel.sendReminder(
+        buildUnseated({
+          employee,
+          venue: toVenue(office),
+          reason,
+          dayLabel: formatDay(date),
+          settingsUrl: `${BASE_URL}/you`,
+        }),
+      );
+      delivered.push(employee.id);
+      result.unseatedTold++;
+    } catch (error) {
+      result.failed.push({ groupId: `unseated:${employee.id}`, reason: describe(error) });
+    }
+  }
+
+  await store.recordNotified(UNSEATED_KIND, date, officeId, delivered);
 }
 
 function describe(error: unknown): string {

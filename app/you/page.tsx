@@ -40,11 +40,20 @@ export default async function ProfilePage() {
   const past = (await store.listPastMatches()).filter((match) => match.memberIds.includes(me.id));
   const profile = await store.getProfile(me.id);
 
-  // Offer the languages this company actually has, so the list is never a
-  // theoretical set of codes nobody here speaks.
-  const languagesInUse = [
-    ...new Set((await store.listEmployees()).flatMap((e) => e.languages)),
-  ].sort();
+  // Offer the languages this office actually has, with how many colleagues
+  // speak each. A table needs a language everyone shares, so somebody who picks
+  // only a rare one makes themselves unmatchable; seeing the number is what
+  // stops that happening rather than an apology afterwards.
+  const colleagues = (await store.listEmployees(office.id)).filter((e) => e.id !== me.id);
+  const spokenHere = new Map<string, number>();
+  for (const colleague of colleagues) {
+    for (const code of colleague.languages) {
+      spokenHere.set(code, (spokenHere.get(code) ?? 0) + 1);
+    }
+  }
+  const languagesInUse = [...new Set([...spokenHere.keys(), ...me.languages])].sort(
+    (a, b) => (spokenHere.get(b) ?? 0) - (spokenHere.get(a) ?? 0),
+  );
   const remindersOn = !(await store.listRemindersOff()).includes(me.id);
 
   return (
@@ -97,6 +106,9 @@ export default async function ProfilePage() {
                     defaultChecked={me.languages.includes(code)}
                   />
                   {LANGUAGE_NAMES[code] ?? code}
+                  <span className="muted">
+                    {spokenHere.get(code) ?? 0} at {office.displayName}
+                  </span>
                 </label>
               ))}
             </div>

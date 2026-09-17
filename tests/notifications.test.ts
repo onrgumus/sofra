@@ -137,7 +137,7 @@ describe('deliverPending', () => {
 
     const result = await deliverPending({ store, channel, from, date: empty, officeId: OFFICE });
 
-    expect(result).toEqual({ invitesSent: 0, cancellationsSent: 0, failed: [] });
+    expect(result).toEqual({ invitesSent: 0, cancellationsSent: 0, unseatedTold: 0, failed: [] });
     expect(sent).toHaveLength(0);
   });
 });

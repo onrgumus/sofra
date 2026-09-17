@@ -177,3 +177,44 @@ function chunk<T>(items: readonly T[], size: number): T[][] {
   for (let i = 0; i + size <= items.length; i += size) out.push(items.slice(i, i + size));
   return out;
 }
+
+describe('why somebody was not seated', () => {
+  // The reason is shown to the person now, so a wrong one is a wrong thing said
+  // to a colleague rather than a wrong row in a console.
+  function plan(people: ReturnType<typeof distinctPeople>) {
+    return matchLunches({
+      date: DATE,
+      officeId: 'HQ',
+      slot: '12:00',
+      employees: people,
+      optIns: people.map((e) => optIn(e.id)),
+    });
+  }
+
+  it('blames the day when only one person asked, not their languages', () => {
+    // partitionByLanguage calls a pool of one "isolated", because there is
+    // nobody to share a language with. Telling the only person who asked that
+    // nobody speaks their language, and sending them off to change it, is both
+    // wrong and the kind of wrong that makes somebody stop using a product.
+    const result = plan(distinctPeople(1));
+
+    expect(result.unmatched).toHaveLength(1);
+    expect(result.unmatched[0]!.reason).toBe('pool-too-small');
+  });
+
+  it('blames the day for any pool below the minimum table size', () => {
+    const result = plan(distinctPeople(2));
+
+    expect(result.unmatched.map((u) => u.reason)).toEqual(['pool-too-small', 'pool-too-small']);
+  });
+
+  it('still blames language when there were others to share one with', () => {
+    const people = distinctPeople(4);
+    people[3]!.languages = ['ja'];
+
+    const result = plan(people);
+
+    expect(result.unmatched.map((u) => u.employee.id)).toEqual([people[3]!.id]);
+    expect(result.unmatched[0]!.reason).toBe('no-common-language');
+  });
+});

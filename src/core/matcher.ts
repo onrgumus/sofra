@@ -65,6 +65,16 @@ export function matchLunches(request: MatchRequest): MatchResult {
 
   const unmatched: Unmatched[] = [];
 
+  // Too few people for a single table is about the day, not about anybody in
+  // it. Checking it first matters because the language partition calls a pool
+  // of one "isolated": telling the only person who asked that nobody shares a
+  // language with them, and pointing them at their language settings, is both
+  // wrong and the kind of wrong that makes somebody stop using a product.
+  if (pool.length < config.minGroupSize) {
+    for (const employee of pool) unmatched.push({ employee, reason: 'pool-too-small' });
+    return { date, officeId, slot, groups: [], unmatched, totalScore: 0 };
+  }
+
   // People who share no language with anyone else today cannot be seated, and we
   // know it before planning. Removing them first keeps the size plan honest;
   // otherwise they anchor a table nobody can join and strand its other seats.
