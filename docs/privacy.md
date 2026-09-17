@@ -57,6 +57,24 @@ not consent, it is a page nobody visits, so the asking is what makes the rest of
 this honest rather than a loophole in it. What presence never does is put you at
 a table: no message is the same as no.
 
+## Your table is yours
+
+The confirm page shows a table only to the people seated at it. That is not
+incidental: group ids are predictable, so without the check any signed-in
+employee could walk them and read every table in the building, which is exactly
+the list of who ticked the box that day. Somebody who follows an old link after
+being moved is told they were moved and pointed at their own table, and is told
+nothing about the one they landed on.
+
+The same rule holds for writes. Every action takes the person acting from the
+session, never from a field in the form, so a reply, an opt-in or an "I am not
+in" applies to the person making it and nobody else. The one exception is the
+demo account switcher, which exists to let a visitor become a colleague and is
+off in production unless explicitly enabled.
+
+The whole-office view belongs to the matching console, which is behind the
+administrator list.
+
 ## Data minimisation
 
 The matcher needs surprisingly little, and takes nothing beyond it:

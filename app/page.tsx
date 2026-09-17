@@ -102,7 +102,6 @@ export default async function EmployeePage({
               <div className="day-actions">
                 {day.source === null ? (
                   <form action={setAttendance}>
-                    <input type="hidden" name="employeeId" value={employeeId} />
                     <input type="hidden" name="date" value={day.date} />
                     <input type="hidden" name="officeId" value={office.id} />
                     <input type="hidden" name="attending" value="true" />
@@ -115,7 +114,6 @@ export default async function EmployeePage({
                 ) : (
                   <>
                     <form action={toggleLunch} className="inline">
-                      <input type="hidden" name="employeeId" value={employeeId} />
                       <input type="hidden" name="date" value={day.date} />
                       <input type="hidden" name="officeId" value={office.id} />
                       <AutoSubmitCheckbox
@@ -127,7 +125,6 @@ export default async function EmployeePage({
                       />
                     </form>
                     <form action={setAttendance}>
-                      <input type="hidden" name="employeeId" value={employeeId} />
                       <input type="hidden" name="date" value={day.date} />
                       <input type="hidden" name="officeId" value={office.id} />
                       <input type="hidden" name="attending" value="false" />

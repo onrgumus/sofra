@@ -65,6 +65,22 @@ export function pastWeekdays(count: number, beforeIso: string): string[] {
   return days;
 }
 
+/**
+ * The long form, for a message that has to say which day it means.
+ *
+ * The invite goes out the evening before, so "today" in it was a lie to every
+ * recipient. Naming the day is the only form that is true whenever it is sent,
+ * and it has to be true in the language the invite is written in.
+ */
+export function formatDayLong(isoDate: string, locale = 'en-GB'): string {
+  return new Date(`${isoDate}T00:00:00Z`).toLocaleDateString(locale, {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    timeZone: 'UTC',
+  });
+}
+
 export function formatDay(isoDate: string, locale = 'en-GB'): string {
   return new Date(`${isoDate}T00:00:00Z`).toLocaleDateString(locale, {
     weekday: 'short',

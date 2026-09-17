@@ -51,7 +51,9 @@ describe('buildInvite', () => {
       'c@example.com',
       'd@example.com',
     ]);
-    expect(invite.text).toContain('The 4 of you are having lunch together at 12:00');
+    expect(invite.text).toContain(
+      'The 4 of you are having lunch together on Wednesday 16 September at 12:00',
+    );
     expect(invite.text).toContain('This mail went to all 4 of you at once');
   });
 
@@ -73,7 +75,7 @@ describe('buildInvite', () => {
   });
 
   it('gives the table a topic', () => {
-    expect(invite.text).toContain("Today's topic");
+    expect(invite.text).toContain('Your topic');
     expect(invite.topic.length).toBeGreaterThan(10);
     expect(invite.text).toContain(invite.topic);
   });
@@ -91,7 +93,7 @@ describe('buildInvite', () => {
     });
     expect(turkish.subject).toContain('öğle yemeği');
     expect(turkish.subject).toContain('dördünüz');
-    expect(turkish.text).toContain('Bugünün konusu');
+    expect(turkish.text).toContain('Masanızın konusu');
     expect(turkish.text).toContain('Hobilerin neler');
     expect(turkish.text).toContain('Ne kadar zamandır buradasın');
     expect(turkish.text).toContain('spor, müzik ve filmler');
@@ -105,14 +107,52 @@ describe('buildInvite', () => {
   });
 
   it('says how many people are at the table in the subject', () => {
-    expect(invite.subject).toBe('Lunch today at 12:00, the four of you');
+    expect(invite.subject).toBe('Lunch Wednesday 16 September at 12:00, the four of you');
     const threeSome = buildInvite({
       group: group({ members: group().members.slice(0, 3) }),
       venue: VENUE,
       organizer,
     });
-    expect(threeSome.subject).toBe('Lunch today at 12:00, the three of you');
+    expect(threeSome.subject).toBe('Lunch Wednesday 16 September at 12:00, the three of you');
     expect(threeSome.text).toContain('The 3 of you are having lunch together');
+  });
+
+  it('names the day, because the invite arrives the evening before', () => {
+    // It said "today" and went out at 17:00 the previous weekday, so it was
+    // false for every person who read it. Nothing may say "today" again.
+    expect(invite.subject).toContain('Wednesday 16 September');
+    expect(invite.subject).not.toMatch(/today/i);
+    expect(invite.text).not.toMatch(/\btoday\b/i);
+
+    const turkish = buildInvite({
+      group: group({ commonLanguages: ['tr'] }),
+      venue: VENUE,
+      organizer,
+    });
+    expect(turkish.subject).toContain('16 Eylül Çarşamba');
+    expect(turkish.text).not.toMatch(/\bbugün\b/i);
+  });
+
+  it('puts the real slot in the subject rather than a hardcoded noon', () => {
+    const late = buildInvite({ group: group({ slot: '13:30' }), venue: VENUE, organizer });
+    expect(late.subject).toContain('13:30');
+    expect(late.subject).not.toContain('12:00');
+  });
+
+  it('says which day a cancelled lunch was, in both languages', () => {
+    const cancelled = buildInvite({ group: group(), venue: VENUE, organizer, method: 'CANCEL' });
+    expect(cancelled.subject).toContain('Wednesday 16 September');
+    expect(cancelled.text).not.toMatch(/\btoday\b/i);
+    expect(cancelled.text).toContain('Wednesday 16 September');
+
+    const turkish = buildInvite({
+      group: group({ commonLanguages: ['tr'] }),
+      venue: VENUE,
+      organizer,
+      method: 'CANCEL',
+    });
+    expect(turkish.subject).toContain('16 Eylül Çarşamba');
+    expect(turkish.text).not.toMatch(/\bbugün\b/i);
   });
 
   it('carries the same text into the calendar attachment', () => {

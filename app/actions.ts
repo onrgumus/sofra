@@ -33,6 +33,22 @@ async function requireAdmin(): Promise<Employee | null> {
   return employee && (await isAdmin(store, employee)) ? employee : null;
 }
 
+/**
+ * The person this request is acting as.
+ *
+ * From the session, never from the form. A hidden `employeeId` field is a
+ * request from the browser, and a browser is whoever is holding it: taking it
+ * at its word let any signed-in employee decline a colleague's lunch, opt them
+ * into one, or mark them out of the office and collapse their table. Becoming
+ * somebody else has exactly one door, `switchEmployee`, and that one is gated.
+ */
+async function actingEmployee(): Promise<Employee | null> {
+  const store = getStore();
+  const employeeId = await currentEmployeeId(store);
+  if (!employeeId) return null;
+  return (await store.getEmployee(employeeId)) ?? null;
+}
+
 function required(formData: FormData, field: string): string {
   const value = formData.get(field);
   if (typeof value !== 'string' || value === '') throw new Error(`Missing field: ${field}`);
@@ -93,17 +109,15 @@ export async function switchEmployee(formData: FormData): Promise<void> {
 }
 
 export async function setAttendance(formData: FormData): Promise<void> {
+  const me = await actingEmployee();
+  if (!me) return;
+
   const store = getStore();
   const date = required(formData, 'date');
   const officeId = required(formData, 'officeId');
   const attending = formData.get('attending') === 'true';
 
-  await store.setSelfDeclaredAttendance(
-    required(formData, 'employeeId'),
-    date,
-    officeId,
-    attending,
-  );
+  await store.setSelfDeclaredAttendance(me.id, date, officeId, attending);
 
   // Dropping out of the office can collapse a table and move people, exactly as
   // a decline does, so the same mail has to go out.
@@ -125,8 +139,11 @@ export async function setAttendance(formData: FormData): Promise<void> {
  * and Sofra only acts on the days you actively ask it to.
  */
 export async function toggleLunch(formData: FormData): Promise<void> {
+  const me = await actingEmployee();
+  if (!me) return;
+
   const store = getStore();
-  const employeeId = required(formData, 'employeeId');
+  const employeeId = me.id;
   const date = required(formData, 'date');
   const officeId = required(formData, 'officeId');
 
@@ -186,16 +203,19 @@ export async function sendInvites(formData: FormData): Promise<void> {
 }
 
 export async function respondToInvite(formData: FormData): Promise<void> {
+  const me = await actingEmployee();
+  if (!me) return;
+
   const store = getStore();
   const groupId = required(formData, 'groupId');
   const group = await store.getGroup(groupId);
   if (!group) return;
 
-  await store.setRsvp(
-    groupId,
-    required(formData, 'employeeId'),
-    required(formData, 'status') as RsvpStatus,
-  );
+  // Only for your own seat, at your own table. Replying for somebody else can
+  // collapse their table and mail three other people about it.
+  if (!group.members.some((m) => m.id === me.id)) return;
+
+  await store.setRsvp(groupId, me.id, required(formData, 'status') as RsvpStatus);
 
   // A reply can collapse a table and move people to other ones. Both the
   // cancellation and the reseated tables' new invites go out now, not whenever

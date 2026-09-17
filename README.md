@@ -556,13 +556,31 @@ teams/          Teams app manifest, icons, and how to package them
 npm run typecheck   # tsc, strict, noUncheckedIndexedAccess
 npm run lint        # eslint, zero warnings tolerated
 npm run format      # prettier
-npm test            # 151 tests
+npm test            # 322 tests
 npm run build       # production build
 ```
 
 CI runs all five on every push and pull request. The engine has no runtime
 dependencies, so the tests are fast enough to keep running as you work:
 `npm run test:watch`.
+
+The store suite runs against pg-mem by default. Point it at a real server to
+also exercise the day lock under genuine contention, which pg-mem parses and
+never contends on:
+
+```bash
+TEST_DATABASE_URL=postgresql://localhost/sofra_test npm test
+```
+
+And one scenario walks the whole product against a real PostgreSQL, from nobody
+having heard of Sofra to a cancelled table: the reminder, the opt-in, matching,
+the invite and its calendar attachment, replies, reseating, the cancellation,
+running every job twice, and four people replying at the same instant. The unit
+suite proves the pieces; this proves they are wired together.
+
+```bash
+TEST_DATABASE_URL=postgresql://localhost/sofra_e2e npm run e2e
+```
 
 One thing to verify before production: `MsGraphAttendanceProvider`'s default
 predicate. Outlook's work-location feature has shipped under more than one shape,

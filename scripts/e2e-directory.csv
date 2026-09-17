@@ -1,0 +1,26 @@
+employee_id,display_name,email,title,seniority,department,team,office_id,languages,tenure_months,interests
+e1001,Baris Visser,baris.visser@example.com,Lead,senior,People,People/Ops,IST-HQ,en;nl,81,chess
+e1002,Anouk Jansen,anouk.jansen@example.com,Lead,director,Risk,Risk/Credit,IST-HQ,en;nl,89,chess;cooking
+e1003,Ada Dogan,ada.dogan@example.com,Analyst,director,Finance,Finance/Treasury,IST-HQ,tr;en,68,gaming
+e1004,Mert Arslan,mert.arslan@example.com,Specialist,mid,Engineering,Engineering/Mobile,IST-HQ,en,57,
+e1005,Bram Visser,bram.visser@example.com,Analyst,senior,Risk,Risk/Ops,IST-HQ,en,84,reading;cycling
+e1006,Burak Sahin,burak.sahin@example.com,Manager,intern,People,People/Talent,IST-HQ,tr;en,9,running;music
+e1007,Bram Jansen,bram.jansen@example.com,Analyst,director,Engineering,Engineering/Infra,IST-HQ,tr;en,88,hiking;cooking
+e1008,Deniz Demir,deniz.demir@example.com,Analyst,lead,Risk,Risk/Credit,IST-HQ,en;nl,81,swimming;hiking;climbing
+e1009,Emre Jansen,emre.jansen@example.com,Manager,mid,Legal,Legal/Legal,IST-HQ,tr;en,2,
+e1010,Ece Jansen,ece.jansen@example.com,Analyst,intern,Engineering,Engineering/Mobile,IST-HQ,en,60,
+e1011,Sanne Kaya,sanne.kaya@example.com,Engineer,senior,Legal,Legal/Legal,IST-HQ,en;nl,83,swimming
+e1012,Onur Yilmaz,onur.yilmaz@example.com,Manager,director,Finance,Finance/Treasury,IST-HQ,en,76,
+e1013,Ayse Smit,ayse.smit@example.com,Analyst,intern,Engineering,Engineering/Mobile,IST-HQ,en,19,gaming;climbing;swimming
+e1014,Emre Koc,emre.koc@example.com,Analyst,intern,Marketing,Marketing/Brand,IST-HQ,tr;en,12,photography;hiking
+e1015,Emre Dogan,emre.dogan@example.com,Specialist,junior,Legal,Legal/Legal,IST-HQ,tr;en,76,football;gaming
+e1016,Sanne Visser,sanne.visser@example.com,Engineer,mid,People,People/Talent,IST-HQ,en;nl,30,climbing
+e1017,Anouk Demir,anouk.demir@example.com,Specialist,senior,Legal,Legal/Legal,IST-HQ,en,78,climbing
+e1018,Mert Sahin,mert.sahin@example.com,Lead,mid,Engineering,Engineering/Platform,IST-HQ,tr;en,31,
+e1019,Onur Ozturk,onur.ozturk@example.com,Analyst,junior,Finance,Finance/Treasury,AMS-1,tr;en,30,swimming
+e1020,Sanne Aydin,sanne.aydin@example.com,Analyst,intern,Legal,Legal/Legal,AMS-1,tr;en,35,running
+e1021,Ece Koc,ece.koc@example.com,Manager,lead,Risk,Risk/Credit,AMS-1,tr;en,74,photography
+e1022,Can Yilmaz,can.yilmaz@example.com,Lead,junior,Marketing,Marketing/Brand,AMS-1,en;nl,76,climbing;music
+e1023,Ada Smit,ada.smit@example.com,Lead,manager,Engineering,Engineering/Infra,AMS-1,tr;en,10,cycling;swimming
+e1024,Sanne Yilmaz,sanne.yilmaz@example.com,Analyst,senior,Legal,Legal/Legal,AMS-1,tr;en,70,cooking
+e9999,Broken Person,,,,,,,,,

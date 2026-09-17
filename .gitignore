@@ -1,7 +1,9 @@
 node_modules/
 dist/
 .env
-.env.local
+# Every local override Next reads, not just .env.local: a .env.production.local
+# holding a real key would otherwise be committed.
+.env*.local
 *.log
 .DS_Store
 out/

@@ -1,4 +1,5 @@
 import type { MatchedGroup } from '../core/types';
+import { formatDayLong } from '../lib/dates';
 import { buildIcs, type IcsAttendee } from './ics';
 
 export interface OfficeVenue {
@@ -59,7 +60,12 @@ export function buildInvite(options: InviteOptions): Invite {
   const t = STRINGS[lang];
   const topic = pickTopic(group.id, lang);
   const cancelling = options.method === 'CANCEL';
-  const subject = cancelling ? t.cancelledSubject : t.subject(group.members.length);
+  // The invite is sent the evening before, so it has to name the day rather
+  // than say "today", which was false for every recipient who read it.
+  const day = formatDayLong(group.date, lang === 'tr' ? 'tr-TR' : 'en-GB');
+  const subject = cancelling
+    ? t.cancelledSubject(day, group.slot)
+    : t.subject(group.members.length, day, group.slot);
 
   const attendees: IcsAttendee[] = group.members.map((m) => ({
     name: m.displayName,
@@ -71,11 +77,11 @@ export function buildInvite(options: InviteOptions): Invite {
     .join('\n');
 
   if (cancelling) {
-    return buildCancellation({ ...options, lang, subject, roster, attendees });
+    return buildCancellation({ ...options, lang, subject, roster, attendees, day });
   }
 
   const sections = [
-    t.intro(group.members.length, group.slot),
+    t.intro(group.members.length, group.slot, day),
     '',
     t.whereHeading,
     `${venue.displayName} — ${venue.meetingPoint}`,
@@ -141,12 +147,15 @@ function buildCancellation(
     subject: string;
     roster: string;
     attendees: IcsAttendee[];
+    day: string;
   },
 ): Invite {
-  const { group, venue, organizer, lang, subject, roster, attendees } = options;
+  const { group, venue, organizer, lang, subject, roster, attendees, day } = options;
   const t = STRINGS[lang];
 
-  const text = [t.cancelledBody(group.slot), '', t.whoHeading, roster, '', t.footer].join('\n');
+  const text = [t.cancelledBody(group.slot, day), '', t.whoHeading, roster, '', t.footer].join(
+    '\n',
+  );
 
   const ics = buildIcs({
     uid: `${group.id}@sofra`,
@@ -239,12 +248,13 @@ const TR_TOGETHER: Record<number, string> = { 3: 'üçünüz', 4: 'dördünüz',
 
 const STRINGS = {
   en: {
-    subject: (count: number) => `Lunch today at 12:00, the ${EN_NUMBERS[count] ?? count} of you`,
-    cancelledSubject: 'Lunch cancelled: today at 12:00',
-    cancelledBody: (slot: string) =>
-      `Too many people dropped out, so the ${slot} lunch is off and it has been taken off your calendar. Anyone who still wanted to go was offered a seat at another table first; if you did not get one, there was genuinely nowhere to put you today. Tick the box again tomorrow.`,
-    intro: (count: number, slot: string) =>
-      `The ${count} of you are having lunch together at ${slot} today. You work at the same company, you are all in the building, and none of you have had lunch together before. This mail went to all ${count} of you at once, so just reply here to sort out where you are going.`,
+    subject: (count: number, day: string, slot: string) =>
+      `Lunch ${day} at ${slot}, the ${EN_NUMBERS[count] ?? count} of you`,
+    cancelledSubject: (day: string, slot: string) => `Lunch cancelled: ${day} at ${slot}`,
+    cancelledBody: (slot: string, day: string) =>
+      `Too many people dropped out, so the ${slot} lunch on ${day} is off and it has been taken off your calendar. Anyone who still wanted to go was offered a seat at another table first; if you did not get one, there was genuinely nowhere to put you that day. Tick the box again for another one.`,
+    intro: (count: number, slot: string, day: string) =>
+      `The ${count} of you are having lunch together on ${day} at ${slot}. You work at the same company, you are all in the building that day, and none of you have had lunch together before. This mail went to all ${count} of you at once, so just reply here to sort out where you are going.`,
     whereHeading: 'Where',
     whoHeading: 'Who',
     startHeading: 'How to start',
@@ -257,7 +267,7 @@ const STRINGS = {
       'What would make you happier about coming into the office',
       'One thing you genuinely think we could be doing better',
     ],
-    topicHeading: "Today's topic",
+    topicHeading: 'Your topic',
     icebreakerHeading: 'If the conversation stalls',
     socialHeading: 'And do not let it turn into a work meeting',
     socialBody:
@@ -291,12 +301,13 @@ const STRINGS = {
     ],
   },
   tr: {
-    subject: (count: number) => `Bugün 12:00 öğle yemeği, ${TR_TOGETHER[count] ?? `${count} kişi`}`,
-    cancelledSubject: 'Öğle yemeği iptal: bugün 12:00',
-    cancelledBody: (slot: string) =>
-      `Çok fazla kişi çıktığı için ${slot} yemeği iptal oldu ve takviminizden kaldırıldı. Hâlâ gelmek isteyenlere önce başka bir masada yer arandı; size bir yer çıkmadıysa bugün gerçekten yerleştirecek yer kalmamıştı. Yarın kutucuğu tekrar işaretleyebilirsiniz.`,
-    intro: (count: number, slot: string) =>
-      `Bugün saat ${slot}'de ${count} kişi birlikte yemek yiyeceksiniz. Aynı şirkette çalışıyorsunuz, hepiniz bugün ofistesiniz ve daha önce hiç birlikte yemek yemediniz. Bu mail ${count}'inize aynı anda gitti; nereye gideceğinizi buradan yanıtlayarak kararlaştırabilirsiniz.`,
+    subject: (count: number, day: string, slot: string) =>
+      `${day} ${slot} öğle yemeği, ${TR_TOGETHER[count] ?? `${count} kişi`}`,
+    cancelledSubject: (day: string, slot: string) => `Öğle yemeği iptal: ${day} ${slot}`,
+    cancelledBody: (slot: string, day: string) =>
+      `Çok fazla kişi çıktığı için ${day} günü ${slot} yemeği iptal oldu ve takviminizden kaldırıldı. Hâlâ gelmek isteyenlere önce başka bir masada yer arandı; size bir yer çıkmadıysa o gün gerçekten yerleştirecek yer kalmamıştı. Başka bir gün için kutucuğu tekrar işaretleyebilirsin.`,
+    intro: (count: number, slot: string, day: string) =>
+      `${day} günü saat ${slot}'de ${count} kişi birlikte yemek yiyeceksiniz. Aynı şirkette çalışıyorsunuz, o gün hepiniz ofistesiniz ve daha önce hiç birlikte yemek yemediniz. Bu mail ${count}'inize aynı anda gitti; nereye gideceğinizi buradan yanıtlayarak kararlaştırabilirsiniz.`,
     whereHeading: 'Nerede',
     whoHeading: 'Kimler',
     startHeading: 'Nasıl başlanır',
@@ -309,7 +320,7 @@ const STRINGS = {
       'Ofise gelmeyi senin için daha keyifli hale getirecek şey ne olurdu',
       'Sence gerçekten daha iyi yapabileceğimiz bir şey ne',
     ],
-    topicHeading: 'Bugünün konusu',
+    topicHeading: 'Masanızın konusu',
     icebreakerHeading: 'Sohbet tıkanırsa',
     socialHeading: 'Ve bunu bir iş toplantısına çevirmeyin',
     socialBody:

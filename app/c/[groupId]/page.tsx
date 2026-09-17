@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation';
 import { formatDay } from '../../../src/lib/dates';
 import { toVenue } from '../../../src/lib/venue';
 import { buildInvite } from '../../../src/notify/invite';
+import type { StoredGroup } from '../../../src/store/types';
 import { respondToInvite } from '../../actions';
 import { PersonRow, Pill } from '../../ui';
 
@@ -35,6 +36,12 @@ export default async function ConfirmPage({ params }: { params: Promise<{ groupI
 
   // Someone who was moved off this table still has the old link in their inbox.
   const movedTo = me ? null : await store.groupForEmployee(meId, group.date, group.officeId);
+
+  // Group ids are guessable, so without this any signed-in employee could walk
+  // -1 to -8 and read every table in the building. That is precisely the list
+  // of who ticked the box, which the employee page promises nobody can see.
+  // Belonging to the table is the only thing that makes its roster yours.
+  if (!me) return <NotYourTable movedTo={movedTo} date={group.date} />;
 
   const invite = buildInvite({
     group,
@@ -69,13 +76,6 @@ export default async function ConfirmPage({ params }: { params: Promise<{ groupI
         </div>
       ) : null}
 
-      {movedTo ? (
-        <div className="note" style={{ marginBottom: 16 }}>
-          This table changed and you were moved.{' '}
-          <Link href={`/c/${encodeURIComponent(movedTo.id)}`}>Open your table</Link>.
-        </div>
-      ) : null}
-
       <section>
         <article className="card">
           <div className="spread">
@@ -92,7 +92,7 @@ export default async function ConfirmPage({ params }: { params: Promise<{ groupI
                 key={person.id}
                 person={person}
                 rsvp={group.rsvps[person.id]}
-                highlight={person.id === meId}
+                highlight={person.id === me.id}
               />
             ))}
           </div>
@@ -104,7 +104,7 @@ export default async function ConfirmPage({ params }: { params: Promise<{ groupI
         </article>
       </section>
 
-      {me && !group.cancelled ? (
+      {!group.cancelled ? (
         <section>
           <div className="section-head">
             <h2>Can you make it?</h2>
@@ -113,7 +113,6 @@ export default async function ConfirmPage({ params }: { params: Promise<{ groupI
           <div className="row">
             <form action={respondToInvite}>
               <input type="hidden" name="groupId" value={group.id} />
-              <input type="hidden" name="employeeId" value={me.id} />
               <input type="hidden" name="status" value="accepted" />
               <button type="submit" data-variant={myStatus === 'accepted' ? undefined : 'primary'}>
                 {myStatus === 'accepted' ? "You're coming" : "I'll be there"}
@@ -121,7 +120,6 @@ export default async function ConfirmPage({ params }: { params: Promise<{ groupI
             </form>
             <form action={respondToInvite}>
               <input type="hidden" name="groupId" value={group.id} />
-              <input type="hidden" name="employeeId" value={me.id} />
               <input type="hidden" name="status" value="declined" />
               <button type="submit" data-variant="danger">
                 {myStatus === 'declined' ? "You're out" : "Can't make it"}
@@ -145,6 +143,31 @@ export default async function ConfirmPage({ params }: { params: Promise<{ groupI
           <div className="invite">{invite.text}</div>
         </details>
       </section>
+    </main>
+  );
+}
+
+/**
+ * What someone sees when the link is not theirs.
+ *
+ * Says nothing about who is at that table, including whether it exists as
+ * anything more than a guessed id: an employee who walks the ids learns only
+ * that they are not at any of them, which they already knew.
+ */
+function NotYourTable({ movedTo, date }: { movedTo: StoredGroup | null; date: string }) {
+  return (
+    <main>
+      <div className="page-head">
+        <h1>Not your table</h1>
+        <p>
+          {movedTo
+            ? 'This table changed and you were moved to another one.'
+            : `You are not seated at this table on ${formatDay(date)}.`}
+        </p>
+      </div>
+      <Link className="button" href={movedTo ? `/c/${encodeURIComponent(movedTo.id)}` : '/'}>
+        {movedTo ? 'Open your table' : 'Back to your lunches'}
+      </Link>
     </main>
   );
 }
