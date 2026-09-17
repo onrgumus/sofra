@@ -6,6 +6,9 @@ import { formatDay } from '../../../src/lib/dates';
 import { grantAdmin, revokeAdmin } from '../../actions';
 import { Initials, Pill } from '../../ui';
 
+/** Enough to pick somebody from, few enough that picking the wrong one is hard. */
+const MAX_RESULTS = 8;
+
 // Reads who currently holds the console, which changes while the app runs.
 export const dynamic = 'force-dynamic';
 
@@ -19,7 +22,12 @@ export const metadata = { title: 'Who has the console · Sofra' };
  * back in if the granted list ends up empty, and a list that can delete itself
  * is not a way back.
  */
-export default async function AdminPeoplePage() {
+export default async function AdminPeoplePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
+  const { q } = await searchParams;
   const store = getStore();
   const viewerId = await currentEmployeeId(store);
   const viewer = viewerId ? await store.getEmployee(viewerId) : undefined;
@@ -44,9 +52,20 @@ export default async function AdminPeoplePage() {
 
   const grantedIds = new Set(grants.map((g) => g.employeeId));
   const fromEnvironment = employees.filter((e) => isBootstrapAdmin(e));
-  const candidates = employees
-    .filter((e) => !grantedIds.has(e.id) && !isBootstrapAdmin(e))
-    .sort((a, b) => a.displayName.localeCompare(b.displayName));
+  // Searched rather than listed. A company of any size makes a dropdown of
+  // everybody unusable, and this page exists to be used rarely and carefully.
+  const query = (q ?? '').trim().toLowerCase();
+  const eligible = employees.filter((e) => !grantedIds.has(e.id) && !isBootstrapAdmin(e));
+  const matches =
+    query.length < 2
+      ? []
+      : eligible
+          .filter((e) =>
+            [e.displayName, e.email, e.department, e.title].some((field) =>
+              field.toLowerCase().includes(query),
+            ),
+          )
+          .sort((a, b) => a.displayName.localeCompare(b.displayName));
 
   return (
     <main>
@@ -117,24 +136,58 @@ export default async function AdminPeoplePage() {
           <p>They will be able to grant it to others as well.</p>
         </div>
 
-        {candidates.length === 0 ? (
+        <form method="get" action="/admin/people" className="inline">
+          <label className="sr-only" htmlFor="q">
+            Search your colleagues by name, address, role or department
+          </label>
+          <input
+            id="q"
+            name="q"
+            type="search"
+            defaultValue={q ?? ''}
+            placeholder="Name, address, role or department"
+            autoComplete="off"
+          />
+          <button type="submit">Search</button>
+        </form>
+
+        {eligible.length === 0 ? (
           <div className="empty">Everyone in the directory already has it.</div>
+        ) : query.length < 2 ? (
+          <p className="faint">
+            {employees.length} people in the directory. Type at least two characters.
+          </p>
+        ) : matches.length === 0 ? (
+          <div className="empty">Nobody matches “{q}”.</div>
         ) : (
-          <form action={grantAdmin} className="inline">
-            <label className="sr-only" htmlFor="grant-employee">
-              Colleague to grant the console to
-            </label>
-            <select id="grant-employee" name="employeeId" defaultValue={candidates[0]!.id}>
-              {candidates.map((e) => (
-                <option key={e.id} value={e.id}>
-                  {e.displayName} ({e.title}, {e.department})
-                </option>
-              ))}
-            </select>
-            <button type="submit" data-variant="primary">
-              Grant
-            </button>
-          </form>
+          <div className="stack">
+            {matches.slice(0, MAX_RESULTS).map((person) => (
+              <div className="card" key={person.id}>
+                <div className="spread">
+                  <div className="person">
+                    <Initials name={person.displayName} />
+                    <div className="person-body">
+                      <div className="person-name">{person.displayName}</div>
+                      <div className="person-meta">
+                        {person.title}, {person.department} · {person.email}
+                      </div>
+                    </div>
+                  </div>
+                  <form action={grantAdmin}>
+                    <input type="hidden" name="employeeId" value={person.id} />
+                    <button type="submit" data-variant="primary">
+                      Grant
+                    </button>
+                  </form>
+                </div>
+              </div>
+            ))}
+            {matches.length > MAX_RESULTS ? (
+              <p className="faint">
+                {matches.length - MAX_RESULTS} more match. Narrow the search rather than scrolling.
+              </p>
+            ) : null}
+          </div>
         )}
       </section>
 

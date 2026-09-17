@@ -1,4 +1,5 @@
 import type { EmployeeLink, EmployeeProfile } from '../core/profile';
+import type { IdentityQuery } from '../directory/identity';
 import type {
   Employee,
   MatchResult,
@@ -94,6 +95,16 @@ export interface Store {
    */
   linkExternalId(employeeId: string, system: string, value: string): Promise<void>;
   listLinks(): Promise<EmployeeLink[]>;
+
+  /**
+   * Who this is, for a sign-in.
+   *
+   * Separate from `listEmployees` because sign-in was loading the whole company
+   * and overlaying everybody's languages and interests to answer a question
+   * that needs neither. A learned id is looked up directly, which is one
+   * indexed row rather than a scan of the table.
+   */
+  findByIdentity(query: IdentityQuery): Promise<Employee | undefined>;
 
   /** Runs the composite attendance provider for that day. */
   getAttendance(date: string, officeId: string): Promise<string[]>;

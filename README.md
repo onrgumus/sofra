@@ -650,8 +650,9 @@ teams/          Teams app manifest, icons, and how to package them
 npm run typecheck   # tsc, strict, noUncheckedIndexedAccess
 npm run lint        # eslint, zero warnings tolerated
 npm run format      # prettier
-npm test            # 433 tests
+npm test            # 451 tests
 npm run build       # production build
+npm run coverage    # what is not tested, which is where the next bug is
 ```
 
 CI runs all five on every push and pull request. The engine has no runtime

@@ -510,6 +510,52 @@ describe.each(subjects)('$name', (subject) => {
     });
   });
 
+  it('finds somebody by a learned id without reading the company', async () => {
+    const person = (await store.listEmployees())[0]!;
+    await store.linkExternalId(person.id, 'entra', 'oid-learned');
+
+    const found = await store.findByIdentity({
+      externalId: { system: 'entra', value: 'oid-learned' },
+    });
+    expect(found?.id).toBe(person.id);
+  });
+
+  it('finds somebody by address when no id has been learned', async () => {
+    const person = (await store.listEmployees())[0]!;
+
+    const found = await store.findByIdentity({
+      externalId: { system: 'entra', value: 'never-seen' },
+      addresses: [person.email.toUpperCase()],
+    });
+    expect(found?.id).toBe(person.id);
+  });
+
+  it('returns the full record, languages and interests included', async () => {
+    // Sign-in skips the profile overlay to find somebody; the record it hands
+    // back must still be the same one every other caller sees.
+    const person = (await store.listEmployees())[0]!;
+    await store.setProfile({
+      employeeId: person.id,
+      languages: ['tr'],
+      interests: ['climbing'],
+      updatedAt: new Date().toISOString(),
+    });
+    await store.linkExternalId(person.id, 'entra', 'oid-full');
+
+    const found = await store.findByIdentity({
+      externalId: { system: 'entra', value: 'oid-full' },
+    });
+    expect(found?.interests).toEqual(['climbing']);
+    expect(found?.externalIds?.entra).toBe('oid-full');
+  });
+
+  it('returns nobody rather than a guess', async () => {
+    expect(await store.findByIdentity({ addresses: ['stranger@elsewhere.com'] })).toBeUndefined();
+    expect(
+      await store.findByIdentity({ externalId: { system: 'entra', value: 'nope' } }),
+    ).toBeUndefined();
+  });
+
   it('forgets a day when it is cleared', async () => {
     await planDay(store, OFFICE, date);
     await store.clearGroups(date, OFFICE);

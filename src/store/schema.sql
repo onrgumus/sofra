@@ -124,3 +124,6 @@ CREATE TABLE IF NOT EXISTS employee_links (
   value       TEXT NOT NULL,
   PRIMARY KEY (employee_id, system)
 );
+-- Sign-in asks "whose id is this", which without the index is a table scan on
+-- every visit once a company has a row per employee.
+CREATE INDEX IF NOT EXISTS employee_links_by_value ON employee_links (system, value);

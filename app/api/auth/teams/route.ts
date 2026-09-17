@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { verifyTeamsToken } from '../../../../src/lib/teams-auth';
 import { getStore } from '../../../../src/store/instance';
-import { ENTRA, findEmployee } from '../../../../src/directory/identity';
+import { ENTRA } from '../../../../src/directory/identity';
 import { startSession } from '../../../../src/lib/session';
 import { envOptional, envText } from '../../../../src/lib/env';
 
@@ -46,7 +46,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   // UPN is not its mail attribute is the common case, and the company's export
   // carries whichever one HR uses.
   const store = getStore();
-  const employee = findEmployee(await store.listEmployees(), {
+  const employee = await store.findByIdentity({
     externalId: identity.objectId ? { system: ENTRA, value: identity.objectId } : undefined,
     addresses: identity.addresses,
   });

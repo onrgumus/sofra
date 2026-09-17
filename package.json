@@ -19,7 +19,8 @@
     "format": "prettier --write \"src/**/*.ts\" \"app/**/*.{ts,tsx}\" \"tests/**/*.ts\" \"scripts/*.ts\" \"middleware.ts\" \"*.{json,md}\" \"docs/*.md\"",
     "format:check": "prettier --check \"src/**/*.ts\" \"app/**/*.{ts,tsx}\" \"tests/**/*.ts\" \"scripts/*.ts\" \"middleware.ts\" \"*.{json,md}\" \"docs/*.md\"",
     "teams:package": "tsx scripts/package-teams-app.ts",
-    "e2e": "tsx scripts/e2e.ts"
+    "e2e": "tsx scripts/e2e.ts",
+    "coverage": "vitest run --coverage --coverage.reporter=text --coverage.include=src/**"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
@@ -28,6 +29,7 @@
     "@types/react-dom": "^19.3.0",
     "@typescript-eslint/eslint-plugin": "^7.18.0",
     "@typescript-eslint/parser": "^7.18.0",
+    "@vitest/coverage-v8": "^2.1.9",
     "eslint": "^8.57.1",
     "eslint-config-next": "^15.5.25",
     "pg-mem": "^3.0.14",

@@ -12,6 +12,7 @@ import type { AttendanceProvider, AttendanceRecord } from '../providers/types';
 import { pastWeekdays, todayInZone, upcomingWeekdays } from '../lib/dates';
 import type { EmployeeLink, EmployeeProfile } from '../core/profile';
 import { withLinks, withProfile } from '../core/profile';
+import { findEmployee, type IdentityQuery } from '../directory/identity';
 import type { AdminGrant, AttendanceSource, Office, RsvpStatus, Store, StoredGroup } from './types';
 
 export const SLOT = '12:00';
@@ -134,6 +135,10 @@ export class DemoStore implements Store {
   async getEmployee(employeeId: string): Promise<Employee | undefined> {
     const employee = this.employeeById.get(employeeId);
     return employee ? this.overlay(employee) : undefined;
+  }
+
+  async findByIdentity(query: IdentityQuery): Promise<Employee | undefined> {
+    return findEmployee(await this.listEmployees(), query) ?? undefined;
   }
 
   async getProfile(employeeId: string): Promise<EmployeeProfile | null> {

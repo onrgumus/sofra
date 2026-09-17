@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { readSignedPayload } from '../../../../../src/lib/auth';
-import { ENTRA, findEmployee } from '../../../../../src/directory/identity';
+import { ENTRA } from '../../../../../src/directory/identity';
 import {
   discover,
   exchangeCode,
@@ -97,7 +97,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const addresses = identity.emailVerified ? identity.addresses : [];
 
   const store = getStore();
-  const employee = findEmployee(await store.listEmployees(), {
+  const employee = await store.findByIdentity({
     externalId: { system: ENTRA, value: identity.objectId ?? identity.subject },
     addresses,
   });

@@ -8,6 +8,7 @@ import type { Employee, MatchResult, OptIn, PastMatch, Relaxation, Unmatched } f
 import type { AttendanceProvider } from '../providers/types';
 import type { EmployeeLink, EmployeeProfile } from '../core/profile';
 import { withLinks, withProfile } from '../core/profile';
+import { findEmployee, type IdentityQuery } from '../directory/identity';
 import type { Directory } from '../directory/types';
 import { DirectoryCache } from '../directory/cache';
 import type { AdminGrant, AttendanceSource, Office, RsvpStatus, Store, StoredGroup } from './types';
@@ -102,8 +103,26 @@ export class SqliteStore implements Store {
 
     return withLinks(
       withProfile(employee, await this.getProfile(employeeId)),
-      this.linksByEmployee().get(employeeId) ?? {},
+      this.linksOf(employeeId),
     );
+  }
+
+  /**
+   * A learned id is one indexed row; everything else is matched against the
+   * directory already in memory. Neither needs anybody's languages.
+   */
+  async findByIdentity(query: IdentityQuery): Promise<Employee | undefined> {
+    if (query.externalId) {
+      const learned = this.get<{ employee_id: string }>(
+        'SELECT employee_id FROM employee_links WHERE system = ? AND value = ?',
+        query.externalId.system,
+        query.externalId.value,
+      )?.employee_id;
+      if (learned) return this.getEmployee(learned);
+    }
+
+    const match = findEmployee([...(await this.people()).values()], query);
+    return match ? this.getEmployee(match.id) : undefined;
   }
 
   async getProfile(employeeId: string): Promise<EmployeeProfile | null> {
@@ -144,6 +163,22 @@ export class SqliteStore implements Store {
     ).map((r) => ({ employeeId: r.employee_id, system: r.system, value: r.value }));
   }
 
+  /**
+   * One person's ids, not the whole company's.
+   *
+   * `getEmployee` runs on every page load, so reading the table and building a
+   * map of everybody to answer for one of them meant a full scan per page view
+   * once a company had a row per employee.
+   */
+  private linksOf(employeeId: string): Record<string, string> {
+    const rows = this.all<{ system: string; value: string }>(
+      'SELECT system, value FROM employee_links WHERE employee_id = ?',
+      employeeId,
+    );
+    return Object.fromEntries(rows.map((r) => [r.system, r.value]));
+  }
+
+  /** Everybody's, for the one caller that genuinely needs everybody's. */
   private linksByEmployee(): Map<string, Record<string, string>> {
     const grouped = new Map<string, Record<string, string>>();
     for (const link of this.allLinks()) {
