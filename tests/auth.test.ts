@@ -1,9 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  DEMO_PASSWORD,
   checkPassword,
   createSessionValue,
+  createSignedPayload,
   readSessionValue,
-  DEMO_PASSWORD,
+  readSignedPayload,
 } from '../src/lib/auth';
 import { DemoStore } from '../src/store/demo';
 import { DEMO_USERNAME, FEATURED_EMPLOYEE, pickRandomColleague } from '../src/store/featured';
@@ -139,5 +141,53 @@ describe('pickRandomColleague', () => {
   it('falls back to the demo account when there is nobody else', async () => {
     const lonely = { listEmployees: async () => [FEATURED_EMPLOYEE] } as unknown as DemoStore;
     expect((await pickRandomColleague(lonely)).id).toBe(FEATURED_EMPLOYEE.id);
+  });
+});
+
+describe('the signed handshake payload', () => {
+  // The OIDC sign-in hands `state`, `nonce` and the PKCE verifier to the
+  // browser and has to trust all three when they come back. Signed rather than
+  // stored, because on a serverless platform the callback may reach a different
+  // instance than the redirect did.
+  const TEN_MINUTES = 10 * 60 * 1000;
+
+  it('comes back exactly as it went out', () => {
+    const value = JSON.stringify({ state: 'abc', next: '/you' });
+    expect(readSignedPayload(createSignedPayload(value), TEN_MINUTES)).toBe(value);
+  });
+
+  it('refuses a payload somebody edited', () => {
+    // Being able to choose your own state defeats the point of having one.
+    // The body is base64url, so tamper with it there rather than with the
+    // plain text, which is not what actually travels.
+    const [issuedAt, encoded, signature] = createSignedPayload('{"state":"mine"}').split('.');
+    const forged = Buffer.from('{"state":"yours"}', 'utf8').toString('base64url');
+
+    expect(readSignedPayload(`${issuedAt}.${forged}.${signature}`, TEN_MINUTES)).toBeNull();
+    expect(encoded).not.toBe(forged);
+  });
+
+  it("refuses a payload with somebody else's signature", () => {
+    const [body] = createSignedPayload('{"state":"a"}').split('.').slice(0, 1);
+    expect(readSignedPayload(`${body}.forged`, TEN_MINUTES)).toBeNull();
+  });
+
+  it('expires, because a valid signature on last week is still last week', () => {
+    const issued = Date.now() - 11 * 60 * 1000;
+    const signed = createSignedPayload('{"state":"a"}', issued);
+
+    expect(readSignedPayload(signed, TEN_MINUTES)).toBeNull();
+    expect(readSignedPayload(signed, 20 * 60 * 1000)).toBe('{"state":"a"}');
+  });
+
+  it('refuses one issued in the future, rather than trusting a rewound clock', () => {
+    const signed = createSignedPayload('{"state":"a"}', Date.now() + 60_000);
+    expect(readSignedPayload(signed, TEN_MINUTES)).toBeNull();
+  });
+
+  it('refuses nonsense without throwing', () => {
+    for (const junk of [undefined, '', 'no-dots', 'a.b', '...']) {
+      expect(readSignedPayload(junk, TEN_MINUTES)).toBeNull();
+    }
   });
 });

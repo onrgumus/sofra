@@ -83,7 +83,7 @@ export async function signIn(formData: FormData): Promise<void> {
     await recordSignInFailure(store, username);
     // Same message either way: which half was wrong is not the visitor's
     // business, and saying so only helps someone guessing usernames.
-    redirect(`/login?error=1&next=${encodeURIComponent(next)}`);
+    redirect(`/login?error=bad-credentials&next=${encodeURIComponent(next)}`);
   }
 
   // A password that worked clears the count, so an honest typo costs nothing.

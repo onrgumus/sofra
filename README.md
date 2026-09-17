@@ -460,13 +460,40 @@ actions callable directly. `SOFRA_DEMO_MODE` controls the account switcher,
 which is the point of a public demo and impersonation in a company: off in
 production unless asked for.
 
-Still missing before this is a product: real authentication, and a directory
-sync in place of the synthetic company. Sign-in is one shared password so
-anyone with the link can try it, a demo gate rather than authentication, though
-the session cookie is HMAC-signed so an employee id cannot be forged in
-devtools. Replacing `src/lib/auth.ts` and `src/lib/session.ts` is the whole of
-the first; reference data is already injected into the store rather than stored
-by it, which is most of the second.
+## Signing in
+
+Set `SOFRA_OIDC_ISSUER` and `SOFRA_OIDC_CLIENT_ID` and people sign in with the
+account they already have. Sofra never sees a password, an account being
+disabled takes Sofra with it, and MFA and conditional access come from the
+company's own settings without this code knowing they exist. Register
+`https://your-instance/api/auth/oidc/callback` as the redirect URI.
+
+Entra, Okta, Google Workspace and Auth0 differ by that issuer URL and nothing
+else: the endpoints come from the provider's own discovery document rather than
+from four adapters.
+
+Authorization code flow with PKCE. Each piece is load-bearing and worth naming.
+`state` ties the callback to the browser that started it, so somebody else's
+authorization code cannot be fed to whoever follows a link. The PKCE verifier
+never leaves the server, so intercepting the code is not enough to redeem it.
+The `nonce` ties the id_token to this attempt, so an old one cannot be replayed.
+The signature, issuer, audience and lifetime are all checked before anybody is
+looked up. And an address the provider has not marked verified is not matched on
+at all: it is a claim by whoever registered the account, and taking it would let
+somebody sign up elsewhere with a colleague's address and be seated as them.
+
+The three one-time values travel in a short-lived signed cookie rather than
+server memory, because on a serverless platform the callback may reach a
+different instance than the redirect did.
+
+Without an issuer configured, sign-in falls back to the shared demo password,
+which is a gate and not authentication: anyone with the link can be anyone, and
+somebody who leaves keeps getting in as long as they remember it. It stays
+alongside OIDC only where `SOFRA_DEMO_MODE` is deliberately on.
+
+Still missing before this is a product: a directory sync in place of a CSV.
+Reference data is already read through the `Directory` interface rather than
+stored, which is most of the work.
 
 ## How anybody hears about it
 
@@ -589,15 +616,19 @@ a synthetic company.
 
 Copy `.env.example` to `.env.local`.
 
-| Variable                | What it does                                                                                       |
-| ----------------------- | -------------------------------------------------------------------------------------------------- |
-| `SOFRA_BASE_URL`        | Public URL of this instance. The confirm link goes into an email, so it cannot be relative.        |
-| `CRON_SECRET`           | Shared secret for both scheduled endpoints. No secret, no nightly run.                             |
-| `SOFRA_ADMINS`          | Who can open the console on a fresh deployment. Everyone after that is granted at `/admin/people`. |
-| `SOFRA_DIRECTORY_CSV`   | URL or path to your people. Unset means the synthetic company.                                     |
-| `SOFRA_DIRECTORY_TOKEN` | Bearer token, when the export is behind one.                                                       |
-| `SOFRA_FROM_EMAIL`      | Envelope sender for invites.                                                                       |
-| `RESEND_API_KEY`        | Only once you swap `ConsoleTransport` for `ResendTransport`.                                       |
+| Variable                      | What it does                                                                                       |
+| ----------------------------- | -------------------------------------------------------------------------------------------------- |
+| `SOFRA_BASE_URL`              | Public URL of this instance. The confirm link goes into an email, so it cannot be relative.        |
+| `CRON_SECRET`                 | Shared secret for both scheduled endpoints. No secret, no nightly run.                             |
+| `SOFRA_ADMINS`                | Who can open the console on a fresh deployment. Everyone after that is granted at `/admin/people`. |
+| `SOFRA_DIRECTORY_CSV`         | URL or path to your people. Unset means the synthetic company.                                     |
+| `SOFRA_DIRECTORY_TOKEN`       | Bearer token, when the export is behind one.                                                       |
+| `SOFRA_DIRECTORY_TTL_MINUTES` | How often to re-read the directory. Default 15.                                                    |
+| `SOFRA_OIDC_ISSUER`           | Your identity provider. Turns on company sign-in.                                                  |
+| `SOFRA_OIDC_CLIENT_ID`        | The application registered with it.                                                                |
+| `SOFRA_OIDC_CLIENT_SECRET`    | For a confidential client.                                                                         |
+| `SOFRA_FROM_EMAIL`            | Envelope sender for invites.                                                                       |
+| `RESEND_API_KEY`              | Only once you swap `ConsoleTransport` for `ResendTransport`.                                       |
 
 ## Project layout
 
@@ -619,7 +650,7 @@ teams/          Teams app manifest, icons, and how to package them
 npm run typecheck   # tsc, strict, noUncheckedIndexedAccess
 npm run lint        # eslint, zero warnings tolerated
 npm run format      # prettier
-npm test            # 402 tests
+npm test            # 433 tests
 npm run build       # production build
 ```
 

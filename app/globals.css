@@ -412,12 +412,14 @@ button:hover,
 .button:hover {
   background: var(--surface-2);
 }
-button[data-variant='primary'] {
+button[data-variant='primary'],
+.button[data-variant='primary'] {
   background: var(--accent);
   border-color: var(--accent);
   color: #fff;
 }
-button[data-variant='primary']:hover {
+button[data-variant='primary']:hover,
+.button[data-variant='primary']:hover {
   filter: brightness(1.08);
   background: var(--accent);
 }

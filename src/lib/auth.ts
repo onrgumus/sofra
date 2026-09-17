@@ -66,3 +66,48 @@ export function readSessionValue(cookieValue: string | undefined): string | null
   if (signature.length !== expected.length) return null;
   return timingSafeEqual(Buffer.from(signature), Buffer.from(expected)) ? employeeId : null;
 }
+
+/**
+ * A short-lived signed payload, for state that has to survive a round trip
+ * through somebody else's website and come back trustworthy.
+ *
+ * The OIDC handshake is the case: `state`, `nonce` and the PKCE verifier are
+ * handed to the browser, the browser goes to the identity provider, and what
+ * comes back has to be the same three values this server issued. Signed rather
+ * than stored, so it works on a serverless platform where the callback may
+ * reach a different instance than the redirect did.
+ */
+export function createSignedPayload(value: string, issuedAt = Date.now()): string {
+  const body = `${issuedAt}.${Buffer.from(value, 'utf8').toString('base64url')}`;
+  return `${body}.${sign(body)}`;
+}
+
+/** Returns the payload, or null if it is forged, malformed or stale. */
+export function readSignedPayload(
+  cookieValue: string | undefined,
+  maxAgeMs: number,
+  now = Date.now(),
+): string | null {
+  if (!cookieValue) return null;
+
+  const separator = cookieValue.lastIndexOf('.');
+  if (separator <= 0) return null;
+
+  const body = cookieValue.slice(0, separator);
+  const signature = cookieValue.slice(separator + 1);
+  const expected = sign(body);
+
+  if (signature.length !== expected.length) return null;
+  if (!timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) return null;
+
+  const [issuedAt, encoded] = body.split('.') as [string, string | undefined];
+  if (!encoded) return null;
+
+  // An unexpired signature on a handshake from last week is still a handshake
+  // from last week, and a sign-in attempt has no business outliving the walk to
+  // the identity provider and back.
+  const age = now - Number(issuedAt);
+  if (!Number.isFinite(age) || age < 0 || age > maxAgeMs) return null;
+
+  return Buffer.from(encoded, 'base64url').toString('utf8');
+}
