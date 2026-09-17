@@ -73,9 +73,24 @@ export async function signIn(formData: FormData): Promise<void> {
     redirect(`/login?error=throttled&next=${encodeURIComponent(next)}`);
   }
 
-  const employee = asColleague
-    ? await pickRandomColleague(store)
-    : username === DEMO_USERNAME
+  // Becoming a random colleague is the same affordance as the account
+  // switcher: a way to try the product as somebody else. That one is behind
+  // demo mode and asks for no password, and this should not be a second,
+  // looser door. It also required a password the button could not collect,
+  // so the browser blocked it on a field the visitor was never asked to fill
+  // and the button simply appeared not to work.
+  if (asColleague) {
+    if (!demoModeEnabled()) redirect('/login');
+
+    const colleague = await pickRandomColleague(store);
+    if (colleague) {
+      await startSession(colleague.id);
+      redirect(next);
+    }
+  }
+
+  const employee =
+    username === DEMO_USERNAME
       ? await store.getEmployee(DEMO_USERNAME)
       : (await store.listEmployees()).find((e) => e.email.toLowerCase() === username);
 

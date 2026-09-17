@@ -86,13 +86,21 @@ export default async function LoginPage({
             Sign in
           </button>
 
-          <div className="or">
-            <span>or</span>
-          </div>
+          {/* Impersonation, so it lives and dies with demo mode, like the
+              account switcher. formNoValidate because it collects no password:
+              without it the browser refused to submit over an empty field the
+              visitor was never asked to fill, and the button did nothing. */}
+          {demoModeEnabled() ? (
+            <>
+              <div className="or">
+                <span>or</span>
+              </div>
 
-          <button type="submit" name="mode" value="random">
-            Sign in as a random colleague
-          </button>
+              <button type="submit" name="mode" value="random" formNoValidate>
+                Sign in as a random colleague
+              </button>
+            </>
+          ) : null}
 
           <p className="faint">
             Demo account: <strong>{DEMO_USERNAME}</strong> / <strong>{DEMO_PASSWORD}</strong>, which

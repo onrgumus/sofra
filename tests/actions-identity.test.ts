@@ -59,6 +59,14 @@ describe('who an action acts as', () => {
     expect(readers.sort()).toEqual(['grantAdmin', 'revokeAdmin', 'switchEmployee']);
   });
 
+  it('signing in as a random colleague is behind demo mode, like the switcher', () => {
+    // It is the same affordance: a way to try the product as somebody else.
+    // Leaving it outside demo mode made it a second, looser door into a
+    // deployment whose password is printed on the sign-in page.
+    const body = bodyOf('signIn');
+    expect(body).toContain('demoModeEnabled()');
+  });
+
   it('every action that is not self-service checks admin or demo mode first', () => {
     const guarded = ['runMatching', 'clearMatching', 'sendInvites', 'grantAdmin', 'revokeAdmin'];
     for (const name of guarded) {
