@@ -3,7 +3,13 @@ import { getStore } from '../src/store/instance';
 import { currentEmployeeId } from '../src/lib/session';
 import { redirect } from 'next/navigation';
 import { SLOT } from '../src/store/demo';
-import { formatDay, previousWeekday, todayInZone, upcomingWeekdays } from '../src/lib/dates';
+import {
+  cutOffPassed,
+  formatDay,
+  previousWeekday,
+  todayInZone,
+  upcomingWeekdays,
+} from '../src/lib/dates';
 import { MATCHING_HOUR } from '../src/lib/config';
 import type { StoredGroup } from '../src/store/types';
 import { setAttendance, toggleLunch } from './actions';
@@ -41,6 +47,12 @@ export default async function EmployeePage({
         group: await store.groupForEmployee(employeeId, date, office.id),
         /** Tables for this day already exist, so the cut-off has passed. */
         matched: (await store.listGroups(date, office.id)).length > 0,
+        /**
+         * Whether the evening the matching runs is already behind us. Without
+         * this the page told anybody ticking today's box to wait for 17:00 on
+         * the previous weekday, which is a moment that has been and gone.
+         */
+        tooLate: cutOffPassed(date, office.timeZone, MATCHING_HOUR),
         /**
          * Why the engine could not seat you. Being told nothing was the worst
          * outcome the product had: you tick the box, no table appears, and you
@@ -92,7 +104,17 @@ export default async function EmployeePage({
                     </>
                   )}
 
-                  {day.optIn ? <Pill tone="good">Lunch at {SLOT}</Pill> : null}
+                  {/* Your own reply, on the page you actually come back to.
+                      Having declined a lunch and then seeing an unchanged green
+                      pill and your table-mates is the app disagreeing with you
+                      about something you told it. */}
+                  {day.group && day.group.rsvps[employeeId] === 'declined' ? (
+                    <Pill tone="bad">You are not going</Pill>
+                  ) : day.group && day.group.rsvps[employeeId] === 'accepted' ? (
+                    <Pill tone="good">You are going, {SLOT}</Pill>
+                  ) : day.optIn ? (
+                    <Pill tone="good">Lunch at {SLOT}</Pill>
+                  ) : null}
                   {day.group?.cancelled ? <Pill tone="bad">Table cancelled</Pill> : null}
                 </div>
 
@@ -105,8 +127,10 @@ export default async function EmployeePage({
                       : day.unseated === 'pool-too-small'
                         ? 'Too few people asked that day to make a table. Your tick still counts if matching runs again.'
                         : day.matched
-                          ? 'Tables for this day were already set before you asked, so there is no seat for you today. Your tick still counts if matching runs again.'
-                          : `Your table appears here after ${MATCHING_HOUR} on ${formatDay(previousWeekday(day.date))}, and the invite reaches you by email at the same time.`}
+                          ? 'Tables for that day were set before you asked, so there is no seat for you. Your tick still counts if matching runs again.'
+                          : day.tooLate
+                            ? `Tables for that day are put together at ${MATCHING_HOUR} the evening before, which has passed. Your tick still counts if matching runs again.`
+                            : `Your table appears here after ${MATCHING_HOUR} on ${formatDay(previousWeekday(day.date))}, and the invite reaches you by email at the same time.`}
                   </p>
                 ) : null}
               </div>
@@ -132,7 +156,9 @@ export default async function EmployeePage({
                         name="wantsLunch"
                         focusKey={day.date}
                         defaultChecked={day.optIn !== null}
-                        label="Meet other teams today"
+                        // Not "today": the row it sits in already says which
+                        // day, and every row said today, including next week's.
+                        label="Meet other teams"
                         title="Sofra will seat you with three people from other teams at 12:00. Untick any time before the evening before."
                       />
                     </form>
@@ -172,6 +198,11 @@ function TablePreview({ group, meId }: { group: StoredGroup; meId: string }) {
         <div className="faint">
           Too many people dropped out and there was no free seat at another table, so this one is
           off.
+        </div>
+      ) : group.rsvps[meId] === 'declined' ? (
+        <div className="faint">
+          You told this table you cannot make it. They are still going; open the invite if you
+          change your mind.
         </div>
       ) : null}
       <div className="people">

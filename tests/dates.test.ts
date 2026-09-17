@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   addDays,
+  cutOffPassed,
+  formatTenure,
   isWeekend,
   nextWeekday,
   pastWeekdays,
@@ -87,5 +89,59 @@ describe('nextWeekday', () => {
     expect(nextWeekday('2026-09-18')).toBe('2026-09-21'); // Friday to Monday
     expect(nextWeekday('2026-09-19')).toBe('2026-09-21'); // Saturday to Monday
     expect(nextWeekday('2026-09-20')).toBe('2026-09-21'); // Sunday to Monday
+  });
+});
+
+describe('formatTenure', () => {
+  it('counts in months while months are how anybody would say it', () => {
+    expect(formatTenure(1)).toBe('1 month');
+    expect(formatTenure(5)).toBe('5 months');
+    expect(formatTenure(17)).toBe('17 months');
+  });
+
+  it('switches to years, because nobody says 101 months about their own job', () => {
+    // It was on the page where somebody checks what the company holds on them.
+    expect(formatTenure(101)).toBe('8 years, 5 months');
+    expect(formatTenure(24)).toBe('2 years');
+    expect(formatTenure(25)).toBe('2 years, 1 month');
+  });
+
+  it('has something to say about somebody who just started', () => {
+    expect(formatTenure(0)).toBe('less than a month');
+  });
+});
+
+describe('cutOffPassed', () => {
+  // The employee page promised "your table appears after 17:00 on the previous
+  // weekday". For today that is a moment already gone: it was telling people to
+  // wait for something that was never going to happen.
+  const zone = 'Europe/Istanbul';
+  const at = (iso: string) => new Date(iso);
+
+  it('is past for a day whose evening before has gone', () => {
+    expect(cutOffPassed('2026-09-17', zone, '17:00', at('2026-09-17T09:00:00Z'))).toBe(true);
+  });
+
+  it('is not past before the hour on the evening before', () => {
+    // 13:00 UTC is 16:00 in Istanbul, an hour before the job runs.
+    expect(cutOffPassed('2026-09-18', zone, '17:00', at('2026-09-17T13:00:00Z'))).toBe(false);
+  });
+
+  it('turns over exactly at the hour, in the office timezone', () => {
+    expect(cutOffPassed('2026-09-18', zone, '17:00', at('2026-09-17T14:00:00Z'))).toBe(true);
+  });
+
+  it('counts back over a weekend rather than to yesterday', () => {
+    // Monday's cut-off is Friday evening, not Sunday.
+    expect(cutOffPassed('2026-09-21', zone, '17:00', at('2026-09-18T13:00:00Z'))).toBe(false);
+    expect(cutOffPassed('2026-09-21', zone, '17:00', at('2026-09-18T15:00:00Z'))).toBe(true);
+  });
+
+  it('reads the clock where the office is, not where the server is', () => {
+    const amsterdam = 'Europe/Amsterdam';
+    // 15:30 UTC: 18:30 in Istanbul (past), 17:30 in Amsterdam (past),
+    // but at 14:30 UTC it is 17:30 and 16:30 respectively.
+    expect(cutOffPassed('2026-09-18', zone, '17:00', at('2026-09-17T14:30:00Z'))).toBe(true);
+    expect(cutOffPassed('2026-09-18', amsterdam, '17:00', at('2026-09-17T14:30:00Z'))).toBe(false);
   });
 });

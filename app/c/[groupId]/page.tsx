@@ -98,8 +98,12 @@ export default async function ConfirmPage({ params }: { params: Promise<{ groupI
           </div>
 
           <p className="faint" style={{ marginTop: 10 }}>
-            Sort out where to go between yourselves by replying to the invite mail, which went to
-            all of you.
+            {/* Whether the mail exists yet, rather than assuming. Matching and
+                sending are separate steps, and between them this told people to
+                reply to something nobody had received. */}
+            {group.invitesSentAt
+              ? 'Sort out where to go between yourselves by replying to the invite mail, which went to all of you.'
+              : 'The invite has not gone out yet. When it does it reaches all of you at once, and you can sort out where to go by replying to it.'}
           </p>
         </article>
       </section>
@@ -139,7 +143,9 @@ export default async function ConfirmPage({ params }: { params: Promise<{ groupI
 
       <section>
         <details open>
-          <summary>The invite everyone received</summary>
+          <summary>
+            {group.invitesSentAt ? 'The invite everyone received' : 'The invite that will go out'}
+          </summary>
           <div className="invite">{invite.text}</div>
         </details>
       </section>
@@ -160,8 +166,11 @@ function NotYourTable({ movedTo, date }: { movedTo: StoredGroup | null; date: st
       <div className="page-head">
         <h1>Not your table</h1>
         <p>
+          {/* Not "you were moved": being on another table is not evidence of
+              having been on this one. Somebody who simply opened a link that
+              was not theirs was told a story about themselves. */}
           {movedTo
-            ? 'This table changed and you were moved to another one.'
+            ? `This is not your table. Yours for ${formatDay(date)} is a different one, which may be because this one changed after the invite went out.`
             : `You are not seated at this table on ${formatDay(date)}.`}
         </p>
       </div>

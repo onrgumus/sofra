@@ -81,6 +81,47 @@ export function formatDayLong(isoDate: string, locale = 'en-GB'): string {
   });
 }
 
+/**
+ * Wall-clock time where an office is, as 'YYYY-MM-DD HH:mm'.
+ *
+ * Sortable as a string because every part is zero-padded, which is all that is
+ * needed to answer "has that moment passed there yet".
+ */
+export function localStamp(timeZone: string, now: Date = new Date()): string {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(now);
+
+  const get = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((p) => p.type === type)?.value ?? '00';
+
+  // Midnight comes back as 24 in some environments; 00 is what sorts correctly.
+  const hour = get('hour') === '24' ? '00' : get('hour');
+  return `${get('year')}-${get('month')}-${get('day')} ${hour}:${get('minute')}`;
+}
+
+/**
+ * Whether matching for a day has already been and gone.
+ *
+ * The employee page promised "your table appears after 17:00 on <the previous
+ * weekday>", which for today is a moment that has already passed: it was
+ * telling people to wait for something that was never going to happen.
+ */
+export function cutOffPassed(
+  isoDate: string,
+  timeZone: string,
+  matchingHour: string,
+  now: Date = new Date(),
+): boolean {
+  return localStamp(timeZone, now) >= `${previousWeekday(isoDate)} ${matchingHour}`;
+}
+
 export function formatDay(isoDate: string, locale = 'en-GB'): string {
   return new Date(`${isoDate}T00:00:00Z`).toLocaleDateString(locale, {
     weekday: 'short',
@@ -95,4 +136,23 @@ export function previousWeekday(isoDate: string): string {
   let cursor = addDays(isoDate, -1);
   while (isWeekend(cursor)) cursor = addDays(cursor, -1);
   return cursor;
+}
+
+/**
+ * A length of service the way somebody would say it out loud.
+ *
+ * The directory counts months because that is what arithmetic wants. "101
+ * months" is not something a person has ever said about their own job, and it
+ * was on the page where somebody checks what the company holds about them.
+ */
+export function formatTenure(months: number): string {
+  if (months < 1) return 'less than a month';
+  if (months < 18) return months === 1 ? '1 month' : `${months} months`;
+
+  const years = Math.floor(months / 12);
+  const rest = months % 12;
+  const yearPart = years === 1 ? '1 year' : `${years} years`;
+  if (rest === 0) return yearPart;
+
+  return `${yearPart}, ${rest === 1 ? '1 month' : `${rest} months`}`;
 }

@@ -152,6 +152,15 @@ p {
   gap: 4px;
   margin-left: auto;
   align-items: center;
+  /* Wrap as a row rather than squeezing one item until its label breaks. */
+  flex-wrap: wrap;
+  row-gap: 2px;
+}
+/* The button too, not only the links: "Sign out" was breaking across two lines
+   on a narrow screen because nowrap was only ever applied to anchors. */
+.nav a,
+.nav button {
+  white-space: nowrap;
 }
 .nav a {
   padding: 6px 11px;
@@ -159,7 +168,6 @@ p {
   text-decoration: none;
   color: var(--text-soft);
   font-size: 0.875rem;
-  white-space: nowrap;
 }
 .nav a:hover {
   background: var(--surface-2);

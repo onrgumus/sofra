@@ -1,6 +1,7 @@
 import type { Employee } from '../src/core/types';
 import type { ScoreBreakdown } from '../src/core/scoring';
 import type { RsvpStatus } from '../src/store/types';
+import { formatTenure } from '../src/lib/dates';
 
 export type Tone = 'neutral' | 'accent' | 'good' | 'warn' | 'bad';
 
@@ -48,7 +49,7 @@ export function PersonRow({
         </div>
         <div className="person-meta">
           {detail === 'full'
-            ? `${person.title} · ${person.department} (${teamName(person.team)}) · ${person.tenureMonths} months here`
+            ? `${person.title} · ${person.department} (${teamName(person.team)}) · ${formatTenure(person.tenureMonths)} here`
             : `${person.title}, ${person.department}`}
         </div>
       </div>

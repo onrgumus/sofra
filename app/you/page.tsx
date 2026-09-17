@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getStore } from '../../src/store/instance';
 import { currentEmployeeId } from '../../src/lib/session';
-import { formatDay, todayInZone, upcomingWeekdays } from '../../src/lib/dates';
+import { formatDay, formatTenure, todayInZone, upcomingWeekdays } from '../../src/lib/dates';
 import { setReminders, updateProfile } from '../actions';
 import { MAX_INTERESTS } from '../../src/core/profile';
 import { teamName } from '../ui';
@@ -75,7 +75,7 @@ export default async function ProfilePage() {
           <Fact label="Role" value={`${me.title}, ${me.department}`} />
           <Fact label="Team" value={teamName(me.team)} />
           <Fact label="Office" value={office.displayName} />
-          <Fact label="Time here" value={`${me.tenureMonths} months`} />
+          <Fact label="Time here" value={formatTenure(me.tenureMonths)} />
         </dl>
         <p className="faint" style={{ marginTop: 8 }}>
           From your company directory. Sofra cannot change any of it, deliberately: being able to
