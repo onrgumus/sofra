@@ -25,7 +25,13 @@ function bodyOf(name: string): string {
 }
 
 /** Everything a person can do to their own lunch. */
-const SELF_SERVICE = ['setAttendance', 'toggleLunch', 'respondToInvite', 'setReminders'];
+const SELF_SERVICE = [
+  'setAttendance',
+  'toggleLunch',
+  'respondToInvite',
+  'setReminders',
+  'updateProfile',
+];
 
 describe('who an action acts as', () => {
   it.each(SELF_SERVICE)('%s takes the person from the session, not the form', (name) => {

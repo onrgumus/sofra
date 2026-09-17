@@ -1,3 +1,4 @@
+import type { EmployeeProfile } from '../core/profile';
 import type {
   Employee,
   MatchResult,
@@ -69,8 +70,19 @@ export interface Store {
   listOffices(): Promise<Office[]>;
   getOffice(officeId: string): Promise<Office | undefined>;
 
+  /** Directory records with each person's own languages and interests applied. */
   listEmployees(officeId?: string): Promise<Employee[]>;
   getEmployee(employeeId: string): Promise<Employee | undefined>;
+
+  /**
+   * What somebody has said about themselves, as they said it.
+   *
+   * Separate from `getEmployee` because the edit form has to show what is
+   * actually stored rather than the directory's fallback, or saving the page
+   * unchanged would silently turn a fallback into a choice.
+   */
+  getProfile(employeeId: string): Promise<EmployeeProfile | null>;
+  setProfile(profile: EmployeeProfile): Promise<void>;
 
   /** Runs the composite attendance provider for that day. */
   getAttendance(date: string, officeId: string): Promise<string[]>;

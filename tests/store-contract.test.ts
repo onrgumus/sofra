@@ -59,7 +59,7 @@ async function freshSchema(pool: PgPool): Promise<void> {
   // pass on the first, which is the worst way for a test to be wrong.
   await pool.query(`DROP TABLE IF EXISTS group_members, groups, opt_ins, unmatched,
     past_matches, self_declared_attendance, suppressed_attendance, day_locks,
-    sign_in_failures, admins, notified, reminders_off CASCADE`);
+    sign_in_failures, admins, notified, reminders_off, profiles CASCADE`);
 }
 
 const subjects: Subject[] = [
@@ -384,6 +384,82 @@ describe.each(subjects)('$name', (subject) => {
 
     await store.revokeAdmin('e0001');
     expect(await store.listAdmins()).toEqual([]);
+  });
+
+  it('keeps the directory when somebody has said nothing about themselves', async () => {
+    // An absent profile is not an empty one. A company whose export does carry
+    // languages must get sensible matching before anybody opens the page.
+    const before = (await store.listEmployees())[0]!;
+    expect(await store.getProfile(before.id)).toBeNull();
+    expect(before.languages.length).toBeGreaterThan(0);
+  });
+
+  it('lets somebody replace their languages and interests', async () => {
+    const person = (await store.listEmployees())[0]!;
+    const at = new Date().toISOString();
+
+    await store.setProfile({
+      employeeId: person.id,
+      languages: ['tr'],
+      interests: ['climbing', 'jazz'],
+      updatedAt: at,
+    });
+
+    expect(await store.getProfile(person.id)).toEqual({
+      employeeId: person.id,
+      languages: ['tr'],
+      interests: ['climbing', 'jazz'],
+      updatedAt: at,
+    });
+
+    // And the rest of the app sees it without asking for a profile.
+    expect((await store.getEmployee(person.id))?.interests).toEqual(['climbing', 'jazz']);
+    expect((await store.getEmployee(person.id))?.languages).toEqual(['tr']);
+    expect((await store.listEmployees()).find((e) => e.id === person.id)?.languages).toEqual([
+      'tr',
+    ]);
+  });
+
+  it('changes nobody else when one person edits theirs', async () => {
+    const [person, other] = await store.listEmployees();
+    const otherBefore = other!.interests;
+
+    await store.setProfile({
+      employeeId: person!.id,
+      languages: ['en'],
+      interests: ['bouldering'],
+      updatedAt: new Date().toISOString(),
+    });
+
+    expect((await store.getEmployee(other!.id))?.interests).toEqual(otherBefore);
+  });
+
+  it('saving twice replaces rather than accumulates', async () => {
+    const person = (await store.listEmployees())[0]!;
+    for (const interests of [['chess'], ['running']]) {
+      await store.setProfile({
+        employeeId: person.id,
+        languages: ['en'],
+        interests,
+        updatedAt: new Date().toISOString(),
+      });
+    }
+
+    expect((await store.getProfile(person.id))?.interests).toEqual(['running']);
+  });
+
+  it('an empty interest list is a real answer, not a missing one', async () => {
+    // Somebody clearing the box means "I have nothing to declare", and the
+    // directory's invented interests must not come back.
+    const person = (await store.listEmployees())[0]!;
+    await store.setProfile({
+      employeeId: person.id,
+      languages: ['en'],
+      interests: [],
+      updatedAt: new Date().toISOString(),
+    });
+
+    expect((await store.getEmployee(person.id))?.interests).toEqual([]);
   });
 
   it('forgets a day when it is cleared', async () => {

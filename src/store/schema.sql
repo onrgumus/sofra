@@ -106,3 +106,12 @@ CREATE TABLE IF NOT EXISTS notified (
 CREATE TABLE IF NOT EXISTS reminders_off (
   employee_id TEXT PRIMARY KEY
 );
+
+-- Languages and interests, as the person themselves gave them. No HR export
+-- holds either, and both decide who someone is seated with.
+CREATE TABLE IF NOT EXISTS profiles (
+  employee_id TEXT PRIMARY KEY,
+  languages   TEXT NOT NULL,
+  interests   TEXT NOT NULL,
+  updated_at  TEXT NOT NULL
+);

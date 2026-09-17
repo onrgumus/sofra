@@ -10,6 +10,8 @@ import { ManualAttendanceProvider } from '../providers/manual';
 import { WebhookAttendanceProvider } from '../providers/webhook';
 import type { AttendanceProvider, AttendanceRecord } from '../providers/types';
 import { pastWeekdays, todayInZone, upcomingWeekdays } from '../lib/dates';
+import type { EmployeeProfile } from '../core/profile';
+import { withProfile } from '../core/profile';
 import type { AdminGrant, AttendanceSource, Office, RsvpStatus, Store, StoredGroup } from './types';
 
 export const SLOT = '12:00';
@@ -64,6 +66,7 @@ export class DemoStore implements Store {
   /** `${kind}|${date}|${officeId}` → who has already been told. */
   private readonly notified = new Map<string, Set<string>>();
   private readonly remindersOff = new Set<string>();
+  private readonly profiles = new Map<string, EmployeeProfile>();
 
   private readonly config = DEFAULT_CONFIG;
 
@@ -119,7 +122,7 @@ export class DemoStore implements Store {
   }
 
   async listEmployees(officeId?: string): Promise<Employee[]> {
-    return this.staffAt(officeId);
+    return this.staffAt(officeId).map((e) => withProfile(e, this.profiles.get(e.id) ?? null));
   }
 
   /** Synchronous read for seeding, which happens before anything can await. */
@@ -128,7 +131,16 @@ export class DemoStore implements Store {
   }
 
   async getEmployee(employeeId: string): Promise<Employee | undefined> {
-    return this.employeeById.get(employeeId);
+    const employee = this.employeeById.get(employeeId);
+    return employee ? withProfile(employee, this.profiles.get(employeeId) ?? null) : undefined;
+  }
+
+  async getProfile(employeeId: string): Promise<EmployeeProfile | null> {
+    return this.profiles.get(employeeId) ?? null;
+  }
+
+  async setProfile(profile: EmployeeProfile): Promise<void> {
+    this.profiles.set(profile.employeeId, profile);
   }
 
   // --- attendance -----------------------------------------------------------

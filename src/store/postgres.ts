@@ -5,6 +5,8 @@ import { applyRsvp } from '../core/reseating';
 import { DEFAULT_CONFIG } from '../core/types';
 import type { Employee, MatchResult, OptIn, PastMatch, Relaxation, Unmatched } from '../core/types';
 import type { AttendanceProvider } from '../providers/types';
+import type { EmployeeProfile } from '../core/profile';
+import { withProfile } from '../core/profile';
 import type { Directory } from '../directory/types';
 import type { AdminGrant, AttendanceSource, Office, RsvpStatus, Store, StoredGroup } from './types';
 
@@ -82,11 +84,40 @@ export class PostgresStore implements Store {
 
   async listEmployees(officeId?: string): Promise<Employee[]> {
     const all = [...(await this.people()).values()];
-    return officeId ? all.filter((e) => e.officeId === officeId) : all;
+    const wanted = officeId ? all.filter((e) => e.officeId === officeId) : all;
+
+    // One query for everybody rather than one per person: the matcher calls
+    // this with a whole building, and a round trip each would be thousands.
+    const rows = await this.query<ProfileRow>('SELECT * FROM profiles');
+    const profiles = new Map(rows.map((r) => [r.employee_id, toProfile(r)]));
+    return wanted.map((e) => withProfile(e, profiles.get(e.id) ?? null));
   }
 
   async getEmployee(employeeId: string): Promise<Employee | undefined> {
-    return (await this.people()).get(employeeId);
+    const employee = (await this.people()).get(employeeId);
+    return employee ? withProfile(employee, await this.getProfile(employeeId)) : undefined;
+  }
+
+  async getProfile(employeeId: string): Promise<EmployeeProfile | null> {
+    const rows = await this.query<ProfileRow>('SELECT * FROM profiles WHERE employee_id = $1', [
+      employeeId,
+    ]);
+    return rows[0] ? toProfile(rows[0]) : null;
+  }
+
+  async setProfile(profile: EmployeeProfile): Promise<void> {
+    await this.query(
+      `INSERT INTO profiles (employee_id, languages, interests, updated_at)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (employee_id) DO UPDATE SET languages = EXCLUDED.languages,
+         interests = EXCLUDED.interests, updated_at = EXCLUDED.updated_at`,
+      [
+        profile.employeeId,
+        JSON.stringify(profile.languages),
+        JSON.stringify(profile.interests),
+        profile.updatedAt,
+      ],
+    );
   }
 
   private async people(): Promise<Map<string, Employee>> {
@@ -600,4 +631,20 @@ interface GroupRow {
 function readSchema(): string {
   const here = dirname(fileURLToPath(import.meta.url));
   return readFileSync(join(here, 'schema.postgres.sql'), 'utf8');
+}
+
+interface ProfileRow {
+  employee_id: string;
+  languages: string;
+  interests: string;
+  updated_at: string;
+}
+
+function toProfile(row: ProfileRow): EmployeeProfile {
+  return {
+    employeeId: row.employee_id,
+    languages: JSON.parse(row.languages) as string[],
+    interests: JSON.parse(row.interests) as string[],
+    updatedAt: row.updated_at,
+  };
 }

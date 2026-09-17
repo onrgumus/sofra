@@ -646,6 +646,27 @@ form.inline {
   outline-offset: 1px;
 }
 
+/* A field whose control is a row of checkboxes: `.field input` above assumes a
+   text box, which would give each tick a border and full width. */
+.field label.check input {
+  width: 15px;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+/* `.field span` is the label style. The name and the hint under it are both
+   spans, so the hint has to opt out rather than inherit a label's weight. */
+.field .faint {
+  font-weight: 400;
+  color: var(--text-faint);
+  font-size: 0.78rem;
+}
+.field-label {
+  font-size: 0.82rem;
+  color: var(--text-soft);
+  font-weight: 550;
+}
+
 .or {
   display: flex;
   align-items: center;

@@ -11,6 +11,7 @@ import { safeRedirectPath } from '../src/lib/redirect';
 import { checkSignInAllowed, clearSignInFailures, recordSignInFailure } from '../src/lib/throttle';
 import { demoModeEnabled, isAdmin } from '../src/lib/authz';
 import type { Employee } from '../src/core/types';
+import { parseInterests } from '../src/core/profile';
 import { currentEmployeeId } from '../src/lib/session';
 import { DEMO_USERNAME, pickRandomColleague } from '../src/store/featured';
 import { redirect } from 'next/navigation';
@@ -168,6 +169,32 @@ export async function setReminders(formData: FormData): Promise<void> {
   if (!employeeId) return;
 
   await store.setReminders(employeeId, formData.get('enabled') === 'true');
+  refresh();
+}
+
+/**
+ * Your own languages and interests.
+ *
+ * The only employee data anybody edits here, because it is the only employee
+ * data the company directory does not have. Name, role and department stay
+ * read-only: letting somebody change their department in Sofra would be a way
+ * to pick who they get seated with, which is the one thing the matcher is for.
+ */
+export async function updateProfile(formData: FormData): Promise<void> {
+  const me = await actingEmployee();
+  if (!me) return;
+
+  const store = getStore();
+  const languages = formData.getAll('languages').filter((v): v is string => typeof v === 'string');
+
+  await store.setProfile({
+    employeeId: me.id,
+    // A table needs a language everyone shares, so somebody with none cannot be
+    // seated at all. Keeping what they had beats silently removing them.
+    languages: languages.length > 0 ? languages : me.languages,
+    interests: parseInterests(String(formData.get('interests') ?? '')),
+    updatedAt: new Date().toISOString(),
+  });
   refresh();
 }
 
