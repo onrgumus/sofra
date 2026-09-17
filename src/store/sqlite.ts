@@ -6,8 +6,8 @@ import { applyRsvp, type SeatedTable } from '../core/reseating';
 import { DEFAULT_CONFIG } from '../core/types';
 import type { Employee, MatchResult, OptIn, PastMatch, Relaxation, Unmatched } from '../core/types';
 import type { AttendanceProvider } from '../providers/types';
-import type { EmployeeProfile } from '../core/profile';
-import { withProfile } from '../core/profile';
+import type { EmployeeLink, EmployeeProfile } from '../core/profile';
+import { withLinks, withProfile } from '../core/profile';
 import type { Directory } from '../directory/types';
 import type { AdminGrant, AttendanceSource, Office, RsvpStatus, Store, StoredGroup } from './types';
 
@@ -85,12 +85,20 @@ export class SqliteStore implements Store {
     // One read for everybody rather than one per person: the matcher calls this
     // with a whole building.
     const profiles = new Map(this.allProfiles().map((p) => [p.employeeId, p]));
-    return wanted.map((e) => withProfile(e, profiles.get(e.id) ?? null));
+    const links = this.linksByEmployee();
+    return wanted.map((e) =>
+      withLinks(withProfile(e, profiles.get(e.id) ?? null), links.get(e.id) ?? {}),
+    );
   }
 
   async getEmployee(employeeId: string): Promise<Employee | undefined> {
     const employee = (await this.people()).get(employeeId);
-    return employee ? withProfile(employee, await this.getProfile(employeeId)) : undefined;
+    if (!employee) return undefined;
+
+    return withLinks(
+      withProfile(employee, await this.getProfile(employeeId)),
+      this.linksByEmployee().get(employeeId) ?? {},
+    );
   }
 
   async getProfile(employeeId: string): Promise<EmployeeProfile | null> {
@@ -109,6 +117,36 @@ export class SqliteStore implements Store {
       JSON.stringify(profile.interests),
       profile.updatedAt,
     );
+  }
+
+  async linkExternalId(employeeId: string, system: string, value: string): Promise<void> {
+    this.run(
+      `INSERT INTO employee_links (employee_id, system, value) VALUES (?, ?, ?)
+       ON CONFLICT (employee_id, system) DO UPDATE SET value = excluded.value`,
+      employeeId,
+      system,
+      value,
+    );
+  }
+
+  async listLinks(): Promise<EmployeeLink[]> {
+    return this.allLinks();
+  }
+
+  private allLinks(): EmployeeLink[] {
+    return this.all<{ employee_id: string; system: string; value: string }>(
+      'SELECT * FROM employee_links',
+    ).map((r) => ({ employeeId: r.employee_id, system: r.system, value: r.value }));
+  }
+
+  private linksByEmployee(): Map<string, Record<string, string>> {
+    const grouped = new Map<string, Record<string, string>>();
+    for (const link of this.allLinks()) {
+      const existing = grouped.get(link.employeeId) ?? {};
+      existing[link.system] = link.value;
+      grouped.set(link.employeeId, existing);
+    }
+    return grouped;
   }
 
   private allProfiles(): EmployeeProfile[] {

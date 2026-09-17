@@ -38,6 +38,29 @@ export function withProfile(employee: Employee, profile: EmployeeProfile | null)
   };
 }
 
+/** An id in another system, learned at runtime rather than exported. */
+export interface EmployeeLink {
+  employeeId: string;
+  system: string;
+  value: string;
+}
+
+/**
+ * The directory record with the ids Sofra has learned since it was written.
+ *
+ * Somebody signs in through Teams and the token carries their Entra object id.
+ * Recording it means the next sign-in is an exact match rather than a guess,
+ * and that it keeps working after HR changes their address, which is the whole
+ * reason to prefer an id over an address in the first place.
+ */
+export function withLinks(employee: Employee, links: Record<string, string>): Employee {
+  if (Object.keys(links).length === 0) return employee;
+
+  // The export wins where it says anything: a company that publishes the
+  // mapping is more authoritative than what we picked up at a sign-in.
+  return { ...employee, externalIds: { ...links, ...employee.externalIds } };
+}
+
 /** How many interests are worth keeping, and how long one may be. */
 export const MAX_INTERESTS = 12;
 export const MAX_INTEREST_LENGTH = 40;

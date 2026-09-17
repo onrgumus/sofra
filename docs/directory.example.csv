@@ -1,6 +1,6 @@
-employee_id,display_name,email,title,seniority,department,team,office_id,languages,tenure_months,interests
-e1001,Deniz Arslan,deniz.arslan@example.com,Credit Risk Analyst,senior,Risk,Risk/Credit,IST-HQ,tr;en,42,cycling;cooking
-e1002,Ada Lovelace,ada.lovelace@example.com,Staff Engineer,lead,Engineering,Engineering/Platform,IST-HQ,en,71,chess;running
-e1003,Mert Yilmaz,mert.yilmaz@example.com,Brand Manager,manager,Marketing,Marketing/Brand,IST-HQ,tr,18,photography;football
-e1004,Sanne de Vries,sanne.devries@example.com,Controller,mid,Finance,Finance/Reporting,AMS-1,nl;en,7,
-e1005,Joris Bakker,joris.bakker@example.com,,,People,,AMS-1,,,
+employee_id,display_name,email,title,seniority,department,team,office_id,languages,tenure_months,interests,aliases,entra_object_id,slack_user_id
+e1001,Deniz Arslan,deniz.arslan@example.com,Credit Risk Analyst,senior,Risk,Risk/Credit,IST-HQ,tr;en,42,cycling;cooking,darslan@example.onmicrosoft.com,,
+e1002,Ada Lovelace,ada.lovelace@example.com,Staff Engineer,lead,Engineering,Engineering/Platform,IST-HQ,en,71,chess;running,,11111111-2222-3333-4444-555555555555,U01ADA
+e1003,Mert Yilmaz,mert.yilmaz@example.com,Brand Manager,manager,Marketing,Marketing/Brand,IST-HQ,tr,18,photography;football,,,
+e1004,Sanne de Vries,sanne.devries@example.com,Controller,mid,Finance,Finance/Reporting,AMS-1,nl;en,7,,s.devries@example.com;sanne@example.com,,
+e1005,Joris Bakker,joris.bakker@example.com,,,People,,AMS-1,,,,,,

@@ -59,7 +59,7 @@ async function freshSchema(pool: PgPool): Promise<void> {
   // pass on the first, which is the worst way for a test to be wrong.
   await pool.query(`DROP TABLE IF EXISTS group_members, groups, opt_ins, unmatched,
     past_matches, self_declared_attendance, suppressed_attendance, day_locks,
-    sign_in_failures, admins, notified, reminders_off, profiles CASCADE`);
+    sign_in_failures, admins, notified, reminders_off, profiles, employee_links CASCADE`);
 }
 
 const subjects: Subject[] = [
@@ -460,6 +460,44 @@ describe.each(subjects)('$name', (subject) => {
     });
 
     expect((await store.getEmployee(person.id))?.interests).toEqual([]);
+  });
+
+  it('learns an external id at sign-in and keeps it', async () => {
+    // A Teams token carries an Entra object id that no HR export could. Storing
+    // it makes the next sign-in exact rather than a guess, and keeps working
+    // after the person's address changes, which is the point of an id.
+    const person = (await store.listEmployees())[0]!;
+    expect(await store.listLinks()).toEqual([]);
+
+    await store.linkExternalId(person.id, 'entra', 'oid-123');
+    expect(await store.listLinks()).toEqual([
+      { employeeId: person.id, system: 'entra', value: 'oid-123' },
+    ]);
+    expect((await store.getEmployee(person.id))?.externalIds?.entra).toBe('oid-123');
+    expect((await store.listEmployees()).find((e) => e.id === person.id)?.externalIds?.entra).toBe(
+      'oid-123',
+    );
+  });
+
+  it('replaces a link rather than keeping two for one system', async () => {
+    const person = (await store.listEmployees())[0]!;
+    await store.linkExternalId(person.id, 'entra', 'oid-old');
+    await store.linkExternalId(person.id, 'entra', 'oid-new');
+
+    expect(await store.listLinks()).toEqual([
+      { employeeId: person.id, system: 'entra', value: 'oid-new' },
+    ]);
+  });
+
+  it('keeps ids from different systems side by side', async () => {
+    const person = (await store.listEmployees())[0]!;
+    await store.linkExternalId(person.id, 'entra', 'oid-1');
+    await store.linkExternalId(person.id, 'slack', 'U01');
+
+    expect((await store.getEmployee(person.id))?.externalIds).toEqual({
+      entra: 'oid-1',
+      slack: 'U01',
+    });
   });
 
   it('forgets a day when it is cleared', async () => {

@@ -43,4 +43,21 @@ export interface InviteChannel {
  */
 export type AccountResolver = (employee: Employee) => Promise<string | null>;
 
-export const resolveByEmail: AccountResolver = async (employee) => employee.email;
+/**
+ * A recorded platform id first, then the address.
+ *
+ * `users.lookupByEmail` only finds people whose Slack account uses the address
+ * the company's HR export happens to carry. Where the two differ, and they
+ * often do, a stored Slack user id is the difference between a table hearing
+ * about its lunch and one person silently never doing so.
+ */
+export function resolveByAccount(system: string): AccountResolver {
+  return async (employee) => employee.externalIds?.[system] ?? employee.email;
+}
+
+/** Slack's own user id where we have it, the address otherwise. */
+export const resolveSlackAccount = resolveByAccount('slack');
+
+/** The Entra object id where we have it, the address otherwise. Graph accepts
+ * either in the user path, so a learned object id needs no extra lookup. */
+export const resolveEntraAccount = resolveByAccount('entra');

@@ -21,6 +21,9 @@ export interface TeamsAuthOptions {
 }
 
 export interface TeamsIdentity {
+  /** Every address the token offered, most authoritative first. */
+  addresses: string[];
+  /** The first of them, kept for logs and messages. */
   email: string;
   name: string | null;
   tenantId: string;
@@ -84,11 +87,20 @@ export async function verifyTeamsToken(
 
   assertClaims(claims, options);
 
-  const email = claims.preferred_username ?? claims.upn ?? claims.email;
-  if (!email) throw new Error('Token carries no email address');
+  // Every address the token offers, not just the first. In a great many Entra
+  // tenants the UPN is not the mail attribute, and a company's HR export
+  // carries the mail one, so taking only `preferred_username` finds nobody.
+  const addresses = [claims.preferred_username, claims.upn, claims.email]
+    .filter((value): value is string => typeof value === 'string' && value !== '')
+    .map((value) => value.toLowerCase());
+
+  if (addresses.length === 0 && !claims.oid) {
+    throw new Error('Token identifies nobody: no object id and no address');
+  }
 
   return {
-    email: email.toLowerCase(),
+    addresses: [...new Set(addresses)],
+    email: addresses[0] ?? '',
     name: claims.name ?? null,
     tenantId: claims.tid ?? '',
     objectId: claims.oid ?? '',

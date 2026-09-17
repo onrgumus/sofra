@@ -34,6 +34,19 @@ export interface Employee {
   languages: string[];
   tenureMonths: number;
   interests: string[];
+  /**
+   * Other addresses that mean this person: a user principal name that is not
+   * the mail address, a proxy address, the one they use in Slack. Entra tenants
+   * where UPN and mail differ are the common case, not the exception, so
+   * without these a large share of a company cannot sign in through Teams.
+   */
+  aliases?: string[];
+  /**
+   * Ids in other systems, e.g. `{ entra: '<object id>', slack: 'U01ABC' }`.
+   * Preferred over any address when resolving who somebody is, because an id
+   * survives a name change and an address does not.
+   */
+  externalIds?: Record<string, string>;
 }
 
 /**

@@ -115,3 +115,12 @@ CREATE TABLE IF NOT EXISTS profiles (
   interests   TEXT NOT NULL,
   updated_at  TEXT NOT NULL
 );
+
+-- Ids Sofra learned at sign-in: an Entra object id from a Teams token, a Slack
+-- user id. Persisted so the mapping survives the address change it exists for.
+CREATE TABLE IF NOT EXISTS employee_links (
+  employee_id TEXT NOT NULL,
+  system      TEXT NOT NULL,
+  value       TEXT NOT NULL,
+  PRIMARY KEY (employee_id, system)
+);

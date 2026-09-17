@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { verifyTeamsToken } from '../../../../src/lib/teams-auth';
 import { getStore } from '../../../../src/store/instance';
+import { ENTRA, findEmployee } from '../../../../src/directory/identity';
 import { startSession } from '../../../../src/lib/session';
 import { envOptional, envText } from '../../../../src/lib/env';
 
@@ -40,13 +41,27 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const employee = (await getStore().listEmployees()).find(
-    (e) => e.email.toLowerCase() === identity.email,
-  );
+  // The object id first, because it is the only identifier here that survives
+  // somebody changing their name. Addresses second, all of them: a tenant whose
+  // UPN is not its mail attribute is the common case, and the company's export
+  // carries whichever one HR uses.
+  const store = getStore();
+  const employee = findEmployee(await store.listEmployees(), {
+    externalId: identity.objectId ? { system: ENTRA, value: identity.objectId } : undefined,
+    addresses: identity.addresses,
+  });
 
   if (!employee) {
-    // Signed in to Teams, but not in this company's directory.
+    console.warn(
+      `[sofra] Teams sign-in matched nobody. oid=${identity.objectId || 'none'} addresses=${identity.addresses.join(', ') || 'none'}`,
+    );
     return NextResponse.json({ error: 'No colleague with that address' }, { status: 403 });
+  }
+
+  // Learn the mapping, so the next sign-in is exact rather than a guess, and so
+  // it keeps working after HR changes their address.
+  if (identity.objectId && employee.externalIds?.[ENTRA] !== identity.objectId) {
+    await store.linkExternalId(employee.id, ENTRA, identity.objectId);
   }
 
   await startSession(employee.id);

@@ -1,6 +1,6 @@
 import type { Employee } from '../../core/types';
 import type { AccountResolver, Delivery, InviteChannel } from './types';
-import { resolveByEmail } from './types';
+import { resolveEntraAccount } from './types';
 
 export interface TeamsChannelOptions {
   /**
@@ -78,7 +78,7 @@ export class TeamsChannel implements InviteChannel {
     const existing = this.chats.get(delivery.groupId);
     if (existing) return existing;
 
-    const resolve = this.options.resolveAccount ?? resolveByEmail;
+    const resolve = this.options.resolveAccount ?? resolveEntraAccount;
     const members: Record<string, unknown>[] = [];
 
     for (const member of delivery.members) {

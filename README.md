@@ -90,6 +90,53 @@ interface Directory {
 
 `docs/directory.example.csv` is a file to copy.
 
+### The same person in four systems
+
+The part that actually decides whether this works at a real company. One person
+has a different identifier in every system they touch:
+
+| System       | What it calls somebody                                            |
+| ------------ | ----------------------------------------------------------------- |
+| Workday      | an employee number, and a work email (the mail attribute)         |
+| Entra ID     | an immutable object id, a user principal name, and a mail address |
+| Teams        | signs its tokens with the Entra object id and the UPN             |
+| Slack        | its own user id, plus whichever address the person signed up with |
+| Desk booking | a badge number, or its own user id                                |
+
+In a great many Entra tenants the UPN is not the mail attribute: Entra says
+`ogumus@acme.onmicrosoft.com` while Workday exports `onur.gumus@acme.com`.
+Matching on the primary address alone means everybody in that position opens
+the Teams tab and is told they do not exist.
+
+So a row may carry `aliases`, semicolon separated, and ids in other systems:
+
+```
+employee_id,display_name,email,department,office_id,aliases,entra_object_id,slack_user_id
+e1001,Onur Gumus,onur.gumus@acme.com,Digital,IST-HQ,ogumus@acme.onmicrosoft.com,,U01ONUR
+```
+
+Resolution goes through one place, most reliable evidence first: an external id
+beats any address, because addresses change and ids do not. Somebody who
+marries and takes a new surname gets a new UPN and a new mail, and only the
+object id still points at them.
+
+Nothing needs exporting for that to work. Every Teams token carries the object
+id, so the first sign-in that matches by address records it, and the next one
+is exact. Most companies cannot get Entra object ids into an HR report, and
+with this they do not have to.
+
+Two addresses can never mean two people: a row claiming an address another row
+already has is skipped and named, because otherwise sign-in would resolve to
+whichever row was read first, which is a way to read a colleague's lunches.
+
+The reverse direction is the same problem and has the same answer.
+`resolverFromDirectory(employees, 'entra')` builds the `resolveEmployeeId` that
+every attendance adapter already takes, so a desk feed answering with badge
+numbers, addresses or Entra ids all map back without a lookup table. Anything
+it does not recognise is dropped rather than seated, which is what you want for
+the contractors, meeting rooms and service accounts that fill a desk-booking
+export.
+
 ## Why not just use a Teams channel
 
 You can, and for a small office you should. A `#lunch` channel where people post
@@ -556,7 +603,7 @@ teams/          Teams app manifest, icons, and how to package them
 npm run typecheck   # tsc, strict, noUncheckedIndexedAccess
 npm run lint        # eslint, zero warnings tolerated
 npm run format      # prettier
-npm test            # 322 tests
+npm test            # 374 tests
 npm run build       # production build
 ```
 

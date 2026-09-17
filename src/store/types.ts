@@ -1,4 +1,4 @@
-import type { EmployeeProfile } from '../core/profile';
+import type { EmployeeLink, EmployeeProfile } from '../core/profile';
 import type {
   Employee,
   MatchResult,
@@ -83,6 +83,17 @@ export interface Store {
    */
   getProfile(employeeId: string): Promise<EmployeeProfile | null>;
   setProfile(profile: EmployeeProfile): Promise<void>;
+
+  /**
+   * Remembers that this person is that account in another system.
+   *
+   * Learned at sign-in rather than exported, because most companies cannot get
+   * their Entra object ids into an HR report but every Teams token carries one.
+   * Persisted, or it would be relearned on every cold start and never survive
+   * the address change it exists to survive.
+   */
+  linkExternalId(employeeId: string, system: string, value: string): Promise<void>;
+  listLinks(): Promise<EmployeeLink[]>;
 
   /** Runs the composite attendance provider for that day. */
   getAttendance(date: string, officeId: string): Promise<string[]>;

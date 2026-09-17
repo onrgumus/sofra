@@ -1,7 +1,7 @@
 import type { Employee } from '../../core/types';
 import type { Reminder } from '../reminder';
 import type { AccountResolver, Delivery, InviteChannel } from './types';
-import { resolveByEmail } from './types';
+import { resolveSlackAccount } from './types';
 
 export interface SlackChannelOptions {
   /** Bot token. Needs `mpim:write`, `chat:write` and `users:read.email`. */
@@ -59,7 +59,7 @@ export class SlackChannel implements InviteChannel {
    * whether they fancy lunch would be worse than saying nothing.
    */
   async sendReminder(reminder: Reminder): Promise<void> {
-    const resolve = this.options.resolveAccount ?? resolveByEmail;
+    const resolve = this.options.resolveAccount ?? resolveSlackAccount;
     const account = await resolve(reminder.employee);
     const id = account ? await this.lookupUser(account) : null;
     if (!id) {
@@ -91,7 +91,7 @@ export class SlackChannel implements InviteChannel {
    * invite does not spawn a second chat.
    */
   private async openGroupChat(delivery: Delivery): Promise<string | null> {
-    const resolve = this.options.resolveAccount ?? resolveByEmail;
+    const resolve = this.options.resolveAccount ?? resolveSlackAccount;
     const ids: string[] = [];
 
     for (const member of delivery.members) {

@@ -1,6 +1,6 @@
 import type { Employee } from '../../core/types';
 import type { AccountResolver, Delivery, InviteChannel } from './types';
-import { resolveByEmail } from './types';
+import { resolveEntraAccount } from './types';
 
 /**
  * Delivers the invite into Teams as an activity feed notification, deep-linked
@@ -60,7 +60,7 @@ export class TeamsActivityChannel implements InviteChannel {
     activityType: string,
     templateParameters: { name: string; value: string }[],
   ): Promise<void> {
-    const resolve = this.options.resolveAccount ?? resolveByEmail;
+    const resolve = this.options.resolveAccount ?? resolveEntraAccount;
 
     for (const member of delivery.members) {
       const account = await resolve(member);

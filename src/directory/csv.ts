@@ -1,6 +1,7 @@
 import type { Employee, Seniority } from '../core/types';
 import { SENIORITY_LADDER } from '../core/types';
 import { parseCsv } from '../providers/csv';
+import { ENTRA, SLACK } from './identity';
 import type { Directory, DirectoryReadResult, DirectoryRowProblem } from './types';
 
 export interface CsvDirectoryOptions {
@@ -23,7 +24,10 @@ type Column =
   | 'officeId'
   | 'languages'
   | 'tenureMonths'
-  | 'interests';
+  | 'interests'
+  | 'aliases'
+  | 'entraObjectId'
+  | 'slackUserId';
 
 const DEFAULT_COLUMNS: Record<Column, string> = {
   id: 'employee_id',
@@ -37,6 +41,9 @@ const DEFAULT_COLUMNS: Record<Column, string> = {
   languages: 'languages',
   tenureMonths: 'tenure_months',
   interests: 'interests',
+  aliases: 'aliases',
+  entraObjectId: 'entra_object_id',
+  slackUserId: 'slack_user_id',
 };
 
 /**
@@ -79,6 +86,9 @@ export function readDirectoryCsv(
   const employees: Employee[] = [];
   const skipped: DirectoryRowProblem[] = [];
   const seen = new Set<string>();
+  // Every address already claimed, primary or alias. Two people sharing one
+  // would make sign-in resolve to whichever row was read first.
+  const claimed = new Map<string, string>();
 
   parseCsv(input).forEach((row, index) => {
     // +2: one for the header, one because spreadsheets count from 1.
@@ -108,6 +118,23 @@ export function readDirectoryCsv(
       return;
     }
 
+    const aliases = readList(row[columns.aliases], []);
+    const addresses = [row[columns.email]!, ...aliases].map((a) => a.trim().toLowerCase());
+    const collision = addresses.find((a) => claimed.has(a) && claimed.get(a) !== id);
+    if (collision) {
+      skipped.push({
+        line,
+        reason: `address ${collision} already belongs to ${claimed.get(collision)!}`,
+      });
+      seen.delete(id);
+      return;
+    }
+    for (const address of addresses) claimed.set(address, id);
+
+    const externalIds: Record<string, string> = {};
+    if (row[columns.entraObjectId]) externalIds[ENTRA] = row[columns.entraObjectId]!;
+    if (row[columns.slackUserId]) externalIds[SLACK] = row[columns.slackUserId]!;
+
     employees.push({
       id,
       displayName: row[columns.displayName]!,
@@ -121,6 +148,8 @@ export function readDirectoryCsv(
       languages: readList(row[columns.languages], ['en']),
       tenureMonths: readMonths(row[columns.tenureMonths]),
       interests: readList(row[columns.interests], []),
+      ...(aliases.length > 0 ? { aliases } : {}),
+      ...(Object.keys(externalIds).length > 0 ? { externalIds } : {}),
     });
   });
 

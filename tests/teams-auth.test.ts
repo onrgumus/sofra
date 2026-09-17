@@ -113,10 +113,41 @@ describe('verifyTeamsToken', () => {
     ).rejects.toThrow(/not issued by Microsoft/);
   });
 
-  it('refuses a token carrying no address to match a colleague by', async () => {
+  it('refuses a token that identifies nobody at all', async () => {
     await expect(
-      verifyTeamsToken(token({ preferred_username: undefined, upn: undefined }), options),
-    ).rejects.toThrow(/no email address/);
+      verifyTeamsToken(
+        token({ preferred_username: undefined, upn: undefined, email: undefined, oid: undefined }),
+        options,
+      ),
+    ).rejects.toThrow(/identifies nobody/);
+  });
+
+  it('accepts a token with an object id but no address', async () => {
+    // The object id is the better key anyway: it survives the name change that
+    // gives somebody a new UPN and a new mail.
+    const identity = await verifyTeamsToken(
+      token({ preferred_username: undefined, upn: undefined, email: undefined, oid: 'oid-123' }),
+      options,
+    );
+
+    expect(identity.objectId).toBe('oid-123');
+    expect(identity.addresses).toEqual([]);
+  });
+
+  it('offers every address the token carries, not just the first', async () => {
+    // In a great many Entra tenants the UPN is not the mail attribute, and the
+    // company's HR export carries whichever one HR uses. Taking only
+    // preferred_username found nobody for those people.
+    const identity = await verifyTeamsToken(
+      token({
+        preferred_username: 'ogumus@acme.onmicrosoft.com',
+        upn: 'ogumus@acme.onmicrosoft.com',
+        email: 'onur.gumus@acme.com',
+      }),
+      options,
+    );
+
+    expect(identity.addresses).toEqual(['ogumus@acme.onmicrosoft.com', 'onur.gumus@acme.com']);
   });
 
   it('refuses rubbish that is not a token at all', async () => {

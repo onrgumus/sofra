@@ -10,8 +10,8 @@ import { ManualAttendanceProvider } from '../providers/manual';
 import { WebhookAttendanceProvider } from '../providers/webhook';
 import type { AttendanceProvider, AttendanceRecord } from '../providers/types';
 import { pastWeekdays, todayInZone, upcomingWeekdays } from '../lib/dates';
-import type { EmployeeProfile } from '../core/profile';
-import { withProfile } from '../core/profile';
+import type { EmployeeLink, EmployeeProfile } from '../core/profile';
+import { withLinks, withProfile } from '../core/profile';
 import type { AdminGrant, AttendanceSource, Office, RsvpStatus, Store, StoredGroup } from './types';
 
 export const SLOT = '12:00';
@@ -67,6 +67,7 @@ export class DemoStore implements Store {
   private readonly notified = new Map<string, Set<string>>();
   private readonly remindersOff = new Set<string>();
   private readonly profiles = new Map<string, EmployeeProfile>();
+  private readonly links: EmployeeLink[] = [];
 
   private readonly config = DEFAULT_CONFIG;
 
@@ -122,7 +123,7 @@ export class DemoStore implements Store {
   }
 
   async listEmployees(officeId?: string): Promise<Employee[]> {
-    return this.staffAt(officeId).map((e) => withProfile(e, this.profiles.get(e.id) ?? null));
+    return this.staffAt(officeId).map((e) => this.overlay(e));
   }
 
   /** Synchronous read for seeding, which happens before anything can await. */
@@ -132,7 +133,7 @@ export class DemoStore implements Store {
 
   async getEmployee(employeeId: string): Promise<Employee | undefined> {
     const employee = this.employeeById.get(employeeId);
-    return employee ? withProfile(employee, this.profiles.get(employeeId) ?? null) : undefined;
+    return employee ? this.overlay(employee) : undefined;
   }
 
   async getProfile(employeeId: string): Promise<EmployeeProfile | null> {
@@ -141,6 +142,23 @@ export class DemoStore implements Store {
 
   async setProfile(profile: EmployeeProfile): Promise<void> {
     this.profiles.set(profile.employeeId, profile);
+  }
+
+  async linkExternalId(employeeId: string, system: string, value: string): Promise<void> {
+    const existing = this.links.find((l) => l.employeeId === employeeId && l.system === system);
+    if (existing) existing.value = value;
+    else this.links.push({ employeeId, system, value });
+  }
+
+  async listLinks(): Promise<EmployeeLink[]> {
+    return this.links.map((l) => ({ ...l }));
+  }
+
+  private overlay(employee: Employee): Employee {
+    const links = Object.fromEntries(
+      this.links.filter((l) => l.employeeId === employee.id).map((l) => [l.system, l.value]),
+    );
+    return withLinks(withProfile(employee, this.profiles.get(employee.id) ?? null), links);
   }
 
   // --- attendance -----------------------------------------------------------

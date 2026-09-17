@@ -5,8 +5,8 @@ import { applyRsvp } from '../core/reseating';
 import { DEFAULT_CONFIG } from '../core/types';
 import type { Employee, MatchResult, OptIn, PastMatch, Relaxation, Unmatched } from '../core/types';
 import type { AttendanceProvider } from '../providers/types';
-import type { EmployeeProfile } from '../core/profile';
-import { withProfile } from '../core/profile';
+import type { EmployeeLink, EmployeeProfile } from '../core/profile';
+import { withLinks, withProfile } from '../core/profile';
 import type { Directory } from '../directory/types';
 import type { AdminGrant, AttendanceSource, Office, RsvpStatus, Store, StoredGroup } from './types';
 
@@ -90,12 +90,20 @@ export class PostgresStore implements Store {
     // this with a whole building, and a round trip each would be thousands.
     const rows = await this.query<ProfileRow>('SELECT * FROM profiles');
     const profiles = new Map(rows.map((r) => [r.employee_id, toProfile(r)]));
-    return wanted.map((e) => withProfile(e, profiles.get(e.id) ?? null));
+    const links = await this.linksByEmployee();
+    return wanted.map((e) =>
+      withLinks(withProfile(e, profiles.get(e.id) ?? null), links.get(e.id) ?? {}),
+    );
   }
 
   async getEmployee(employeeId: string): Promise<Employee | undefined> {
     const employee = (await this.people()).get(employeeId);
-    return employee ? withProfile(employee, await this.getProfile(employeeId)) : undefined;
+    if (!employee) return undefined;
+
+    return withLinks(
+      withProfile(employee, await this.getProfile(employeeId)),
+      (await this.linksByEmployee()).get(employeeId) ?? {},
+    );
   }
 
   async getProfile(employeeId: string): Promise<EmployeeProfile | null> {
@@ -103,6 +111,31 @@ export class PostgresStore implements Store {
       employeeId,
     ]);
     return rows[0] ? toProfile(rows[0]) : null;
+  }
+
+  async linkExternalId(employeeId: string, system: string, value: string): Promise<void> {
+    await this.query(
+      `INSERT INTO employee_links (employee_id, system, value) VALUES ($1, $2, $3)
+       ON CONFLICT (employee_id, system) DO UPDATE SET value = EXCLUDED.value`,
+      [employeeId, system, value],
+    );
+  }
+
+  async listLinks(): Promise<EmployeeLink[]> {
+    const rows = await this.query<{ employee_id: string; system: string; value: string }>(
+      'SELECT * FROM employee_links',
+    );
+    return rows.map((r) => ({ employeeId: r.employee_id, system: r.system, value: r.value }));
+  }
+
+  private async linksByEmployee(): Promise<Map<string, Record<string, string>>> {
+    const grouped = new Map<string, Record<string, string>>();
+    for (const link of await this.listLinks()) {
+      const existing = grouped.get(link.employeeId) ?? {};
+      existing[link.system] = link.value;
+      grouped.set(link.employeeId, existing);
+    }
+    return grouped;
   }
 
   async setProfile(profile: EmployeeProfile): Promise<void> {
