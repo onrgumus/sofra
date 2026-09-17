@@ -5,6 +5,7 @@ import pg from 'pg';
 import type { Store } from './types';
 import { parseOffices } from '../lib/offices';
 import { configuredDirectory } from '../lib/directory';
+import { DEFAULT_TTL_MINUTES } from '../directory/cache';
 import { envNumber, envOptional } from '../lib/env';
 
 const { Pool } = pg;
@@ -45,6 +46,7 @@ function create(): Store {
         idleTimeoutMillis: 10_000,
       }),
       directory: configuredDirectory(world.employees),
+      directoryTtlMinutes: envNumber('SOFRA_DIRECTORY_TTL_MINUTES', DEFAULT_TTL_MINUTES),
       offices,
       attendance: world.attendance,
     });
@@ -60,6 +62,7 @@ function create(): Store {
   const store = new SqliteStore({
     path,
     directory: configuredDirectory(world.employees),
+    directoryTtlMinutes: envNumber('SOFRA_DIRECTORY_TTL_MINUTES', DEFAULT_TTL_MINUTES),
     offices,
     attendance: world.attendance,
   });

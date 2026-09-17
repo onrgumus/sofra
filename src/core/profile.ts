@@ -56,9 +56,13 @@ export interface EmployeeLink {
 export function withLinks(employee: Employee, links: Record<string, string>): Employee {
   if (Object.keys(links).length === 0) return employee;
 
-  // The export wins where it says anything: a company that publishes the
-  // mapping is more authoritative than what we picked up at a sign-in.
-  return { ...employee, externalIds: { ...links, ...employee.externalIds } };
+  // What we learned wins. A token is signed by the identity provider and was
+  // verified at an actual sign-in; an export is a periodic dump that can be
+  // stale or simply wrong. Getting this backwards meant the learned id was
+  // stored and then never used, so the mechanism silently did nothing for
+  // exactly the companies whose exports are wrong, and the sign-in rewrote the
+  // same row on every visit because the overlay never reflected it.
+  return { ...employee, externalIds: { ...employee.externalIds, ...links } };
 }
 
 /** How many interests are worth keeping, and how long one may be. */

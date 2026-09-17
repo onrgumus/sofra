@@ -479,6 +479,16 @@ describe.each(subjects)('$name', (subject) => {
     );
   });
 
+  it('a learned id settles, rather than being rewritten on every sign-in', async () => {
+    // The sign-in only writes when the stored value differs from the token's.
+    // If the overlay never reflected what was written, that check never became
+    // false and every visit wrote the same row again.
+    const person = (await store.listEmployees())[0]!;
+    await store.linkExternalId(person.id, 'entra', 'oid-123');
+
+    expect((await store.getEmployee(person.id))?.externalIds?.entra).toBe('oid-123');
+  });
+
   it('replaces a link rather than keeping two for one system', async () => {
     const person = (await store.listEmployees())[0]!;
     await store.linkExternalId(person.id, 'entra', 'oid-old');

@@ -77,6 +77,14 @@ thousand must not leave a company with no directory at all. Set
 the list of everyone who works somewhere along with their addresses is not a
 thing to leave on an open URL.
 
+The directory is re-read every fifteen minutes, or whatever
+`SOFRA_DIRECTORY_TTL_MINUTES` says. Reading it per lookup would make one lunch
+page hundreds of calls to an HR system; reading it once per process means a new
+joiner is invisible until something restarts, which on a long-running server is
+never and on a serverless one is whenever a cold start happens to land. A
+refresh that fails keeps the copy it has, because an export being briefly
+unreachable should not empty a building and cancel lunch for everyone.
+
 A CSV is not what anybody should run forever, and that is the point. An export
 beats an integration that has to clear procurement before a single lunch
 happens. Entra ID, Workday, BambooHR or SCIM land later as another `Directory`,
@@ -603,7 +611,7 @@ teams/          Teams app manifest, icons, and how to package them
 npm run typecheck   # tsc, strict, noUncheckedIndexedAccess
 npm run lint        # eslint, zero warnings tolerated
 npm run format      # prettier
-npm test            # 374 tests
+npm test            # 391 tests
 npm run build       # production build
 ```
 

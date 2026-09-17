@@ -3,6 +3,7 @@ import {
   MAX_INTERESTS,
   MAX_INTEREST_LENGTH,
   parseInterests,
+  withLinks,
   withProfile,
 } from '../src/core/profile';
 import { employee } from './helpers';
@@ -98,5 +99,39 @@ describe('withProfile', () => {
     expect(merged.department).toBe(directory.department);
     expect(merged.email).toBe(directory.email);
     expect(merged.team).toBe(directory.team);
+  });
+});
+
+describe('withLinks', () => {
+  const directory = employee('e1', { externalIds: { entra: 'oid-from-export' } });
+
+  it('adds an id the export never carried', () => {
+    expect(withLinks(employee('e1'), { entra: 'oid-learned' }).externalIds).toEqual({
+      entra: 'oid-learned',
+    });
+  });
+
+  it('changes nothing when nothing has been learned', () => {
+    expect(withLinks(directory, {})).toEqual(directory);
+  });
+
+  it('prefers what was learned at a sign-in over what the export said', () => {
+    // A token is signed by the identity provider and was verified at an actual
+    // sign-in. An export is a periodic dump that can be stale or wrong.
+    //
+    // This was backwards. The learned id was stored and then never used, so the
+    // whole mechanism did nothing for exactly the companies whose exports are
+    // wrong, and the sign-in rewrote the same row on every visit because the
+    // overlay never came to reflect it.
+    expect(withLinks(directory, { entra: 'oid-learned' }).externalIds).toEqual({
+      entra: 'oid-learned',
+    });
+  });
+
+  it('keeps an exported id for a system nothing has been learned about', () => {
+    expect(withLinks(directory, { slack: 'U01' }).externalIds).toEqual({
+      entra: 'oid-from-export',
+      slack: 'U01',
+    });
   });
 });

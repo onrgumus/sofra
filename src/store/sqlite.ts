@@ -9,6 +9,7 @@ import type { AttendanceProvider } from '../providers/types';
 import type { EmployeeLink, EmployeeProfile } from '../core/profile';
 import { withLinks, withProfile } from '../core/profile';
 import type { Directory } from '../directory/types';
+import { DirectoryCache } from '../directory/cache';
 import type { AdminGrant, AttendanceSource, Office, RsvpStatus, Store, StoredGroup } from './types';
 
 /**
@@ -32,6 +33,8 @@ export interface SqliteStoreOptions {
   path: string;
   /** Where the company's people come from. See `src/directory`. */
   directory: Directory;
+  /** How long a directory read is good for. Defaults to fifteen minutes. */
+  directoryTtlMinutes?: number;
   offices: readonly Office[];
   /** The desk-booking feed. Its answers are not stored, only overridden. */
   attendance: AttendanceProvider;
@@ -50,15 +53,17 @@ export interface SqliteStoreOptions {
  */
 export class SqliteStore implements Store {
   private readonly db: Database;
-  /**
-   * Filled on first use and kept for the life of the process. A directory is a
-   * file or an HTTP call, and re-reading it on every page would turn one lunch
-   * page into a few hundred lookups.
-   */
-  private employeeById: Map<string, Employee> | null = null;
+  /** The company, re-read on a timer. See `DirectoryCache`. */
+  private readonly people: () => Promise<Map<string, Employee>>;
   private readonly config = DEFAULT_CONFIG;
 
   constructor(private readonly options: SqliteStoreOptions) {
+    const cache = new DirectoryCache({
+      directory: options.directory,
+      ttlMinutes: options.directoryTtlMinutes,
+    });
+    this.people = () => cache.people();
+
     this.db = new (loadSqlite().DatabaseSync)(options.path);
     this.db.exec('PRAGMA foreign_keys = ON');
     this.db.exec(readSchema());
@@ -151,13 +156,6 @@ export class SqliteStore implements Store {
 
   private allProfiles(): EmployeeProfile[] {
     return this.all<ProfileRow>('SELECT * FROM profiles').map(toProfile);
-  }
-
-  private async people(): Promise<Map<string, Employee>> {
-    this.employeeById ??= new Map(
-      (await this.options.directory.listEmployees()).map((e) => [e.id, e]),
-    );
-    return this.employeeById;
   }
 
   // --- attendance -----------------------------------------------------------
