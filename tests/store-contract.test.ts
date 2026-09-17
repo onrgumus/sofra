@@ -564,6 +564,18 @@ describe.each(subjects)('$name', (subject) => {
     expect(await store.listUnmatched(date, OFFICE)).toEqual([]);
   });
 
+  it('a planned day is history to the matcher and not to the person', async () => {
+    // The store folds live tables into the history because the matcher needs
+    // them to avoid repeat pairings. A page headed "lunches you have been
+    // seated at" was therefore listing next Monday, so callers showing this to
+    // a person have to cut it off at today.
+    await planDay(store, OFFICE, date);
+    const history = await store.listPastMatches();
+
+    expect(history.some((m) => m.date === date)).toBe(true);
+    expect(history.filter((m) => m.date < date).length).toBeGreaterThan(0);
+  });
+
   it('counts the current day as history, which callers must exclude', async () => {
     await planDay(store, OFFICE, date);
     const history = await store.listPastMatches();

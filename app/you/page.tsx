@@ -37,7 +37,13 @@ export default async function ProfilePage() {
     )
   ).filter((date): date is string => date !== null);
 
-  const past = (await store.listPastMatches()).filter((match) => match.memberIds.includes(me.id));
+  // Strictly before today. The store folds live tables into the match history,
+  // because the matcher needs them to avoid repeat pairings, so without this
+  // the section headed "lunches you have been seated at" listed next Monday.
+  const today = todayInZone(office.timeZone);
+  const past = (await store.listPastMatches()).filter(
+    (match) => match.memberIds.includes(me.id) && match.date < today,
+  );
   const profile = await store.getProfile(me.id);
 
   // Offer the languages this office actually has, with how many colleagues

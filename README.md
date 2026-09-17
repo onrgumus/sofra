@@ -650,7 +650,7 @@ teams/          Teams app manifest, icons, and how to package them
 npm run typecheck   # tsc, strict, noUncheckedIndexedAccess
 npm run lint        # eslint, zero warnings tolerated
 npm run format      # prettier
-npm test            # 459 tests
+npm test            # 463 tests
 npm run build       # production build
 npm run coverage    # what is not tested, which is where the next bug is
 ```
