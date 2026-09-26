@@ -1,6 +1,6 @@
 import type { Employee } from '../src/core/types';
 import type { ScoreBreakdown } from '../src/core/scoring';
-import type { RsvpStatus } from '../src/store/types';
+import type { RsvpStatus } from '../src/data/types';
 import { formatTenure } from '../src/lib/dates';
 
 export type Tone = 'neutral' | 'accent' | 'good' | 'warn' | 'bad';

@@ -20,8 +20,10 @@
   --radius-lg: 14px;
 }
 
+/* The OS decides, unless Teams has said otherwise: its theme is set on the
+   root by TeamsTheme and wins in both directions. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme='light']) {
     --bg: #16130f;
     --surface: #1e1a16;
     --surface-2: #262119;
@@ -40,6 +42,26 @@
     --bad: #e08585;
     --bad-soft: #2a1818;
   }
+}
+
+:root[data-theme='dark'] {
+  --bg: #16130f;
+  --surface: #1e1a16;
+  --surface-2: #262119;
+  --border: #332c24;
+  --border-strong: #453b30;
+  --text: #f2ece4;
+  --text-soft: #b0a597;
+  --text-faint: #9a8e7d;
+  --accent: #e58a4e;
+  --accent-soft: #2c1f14;
+  --accent-border: #4a3220;
+  --good: #6fbd8b;
+  --good-soft: #17261c;
+  --warn: #d6ac4e;
+  --warn-soft: #272013;
+  --bad: #e08585;
+  --bad-soft: #2a1818;
 }
 
 * {
@@ -69,6 +91,15 @@
 
 html {
   color-scheme: light dark;
+}
+
+/* Scrollbars and form controls follow Teams too, not only the palette. */
+html[data-theme='light'] {
+  color-scheme: light;
+}
+
+html[data-theme='dark'] {
+  color-scheme: dark;
 }
 
 body {
@@ -837,4 +868,160 @@ details > summary:hover {
   padding: 12px 14px;
   font-size: 0.85rem;
   color: var(--text);
+}
+
+/* --- The console's own navigation ------------------------------------------ */
+
+.subnav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0 0 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.subnav a {
+  padding: 6px 12px;
+  border-radius: 8px;
+  color: var(--text-soft);
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+.subnav a:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+/* --- Forms ----------------------------------------------------------------- */
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px 20px;
+  align-items: start;
+}
+.form-grid .span-2 {
+  grid-column: 1 / -1;
+}
+@media (max-width: 640px) {
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.field select,
+.field input[type='time'],
+.field input[type='month'],
+.field input[type='number'] {
+  font: inherit;
+  font-size: 0.95rem;
+  padding: 9px 12px;
+  border-radius: 9px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text);
+  width: 100%;
+  max-width: none;
+}
+.field [aria-invalid='true'] {
+  border-color: var(--bad);
+}
+.field-error {
+  color: var(--bad);
+  font-size: 0.82rem;
+}
+fieldset.field {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+fieldset.field legend {
+  font-size: 0.82rem;
+  color: var(--text-soft);
+  font-weight: 550;
+  padding: 0;
+  margin-bottom: 6px;
+}
+.checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+}
+.inline input:not([type='checkbox']):not([type='hidden']) {
+  font: inherit;
+  font-size: 0.875rem;
+  padding: 6px 10px;
+  border-radius: 9px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text);
+  min-width: 0;
+}
+.day-form {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+/* --- Tables of data ---------------------------------------------------------- */
+
+table.data {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+table.data th {
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-soft);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 6px 10px 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+table.data td {
+  padding: 8px 10px 8px 0;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+table.data tr:last-child td {
+  border-bottom: 0;
+}
+.card:has(> table.data) {
+  overflow-x: auto;
+}
+.truncate {
+  max-width: 28ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.small {
+  font-size: 0.8rem;
+}
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 14px;
+}
+.grid-2 > .card + .card {
+  margin-top: 0;
+}
+
+.highlight-card {
+  border-color: var(--accent-border);
+  background: linear-gradient(0deg, var(--surface), var(--accent-soft));
+}
+
+.note[data-tone='good'] {
+  border-color: var(--good);
+  background: var(--good-soft);
+  color: var(--good);
+}
+.note[data-tone='bad'] {
+  border-color: var(--bad);
+  background: var(--bad-soft);
+  color: var(--bad);
 }

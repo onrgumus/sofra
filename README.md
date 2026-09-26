@@ -3,178 +3,76 @@
 [![CI](https://github.com/onrgumus/sofra/actions/workflows/ci.yml/badge.svg)](https://github.com/onrgumus/sofra/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-You can spend years in a building with people whose work you never see. As more
-of the routine gets automated, what is left is the part that runs on knowing who
-to ask, and that is not on any org chart. Sofra spends an hour you were going
-to spend anyway on three people most likely to teach you something.
+You can spend years in a building with people whose work you never see. Hybrid
+work made it worse: you go in three days a week, sit with your own team, and
+leave. Sofra spends an hour you were going to spend anyway on two or three
+colleagues from other departments and levels, on a day you are all in the same
+building.
 
-Hybrid work made it worse: you go in three days a week, sit with your own team,
-and leave. Sofra puts three or four people who would never otherwise meet at the
-same lunch table on a day they are all already in the building.
+People say which days they will be in their office and want lunch. Before the
+office opens that morning, Sofra seats everybody who asked at tables of three or
+four, mixing departments and seniority and never repeating a pairing, and sends
+each table one invite with a calendar entry. Somebody who drops out has their
+table reseated; somebody late takes a free seat.
 
-Being in the office is not the signal. Most office days you are there to work
-with your own team, and that is fine. Sofra does nothing unless you tick a box
-for that specific day saying you would rather meet people from other teams.
+It is built to be installed by a company, on its own infrastructure: one
+PostgreSQL database, one Next.js server, a scheduler that calls it every fifteen
+minutes, and optionally a Teams app on top.
 
-It works at any company, because it never integrates with your desk-booking
-tool.
+## How it works for somebody who uses it
 
-## The idea that makes it portable
+1. They sign in. By an emailed link at a company address, with the company's
+   identity provider, or automatically inside Teams. No passwords.
+2. The first time, they say who they are for the purposes of a lunch: name,
+   department (from the admin's list), team, level, the office they usually
+   work in, the languages they are happy to eat in, a few interests.
+3. Their calendar shows the next four weeks of their office's working days. One
+   press per day: "I'm in, lunch please", with the office and lunch time for
+   that day if they are going somewhere else. Days they are always in can be
+   set once, weekly, and skipped for a single week.
+4. The evening before, people likely to want lunch who have not said so are
+   asked once: those who have eaten through Sofra recently, or whose Outlook
+   says they will be in.
+5. Before the office opens, the tables are made and the invites go out. Until
+   the reply cut-off they can reply, drop out (the table is reseated) or join
+   late (a free seat that keeps every rule). After it, nothing moves.
 
-Every company uses a different desk-booking app: Envoy, Robin, deskbird,
-Condeco, OfficeSpace, or a homegrown spreadsheet. Integrating with all of them is
-a losing game.
+Nobody sees who asked for lunch. The people at your table see your name, title
+and department, and nothing else.
 
-Sofra does not try. It asks one question, and every system on earth can answer it:
+## When the tables are made
 
-```ts
-interface AttendanceProvider {
-  getAttendance(query: { date: string; officeId: string }): Promise<AttendanceRecord[]>;
-}
-```
+Every office has its own time zone and timetable, set in the console:
 
-Who is in this building on this day? That is the entire integration surface.
+| Setting          | Example           | What it does                                                    |
+| ---------------- | ----------------- | --------------------------------------------------------------- |
+| Time zone        | `Europe/Istanbul` | Every time below is local to it. A place name, never an offset. |
+| Opens            | 09:00             | Tables are timed from this.                                     |
+| Make the tables  | 3 hours before    | So the invite is waiting before anybody arrives.                |
+| Replies close    | 10:00             | After this nobody is moved.                                     |
+| Evening question | 16:00             | On the previous working day: Friday for a Monday.               |
+| Lunch times      | 12:00, 12:30      | People pick one or say any; short times are filled first.       |
+| Working days     | Mon–Fri           | Plus a list of holidays, when nothing is planned.               |
+| Table size       | 3 to 4            |                                                                 |
 
-| Provider                      | Integration cost | Where it fits                                                                                                       |
-| ----------------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------- |
-| `ManualAttendanceProvider`    | none             | Every company, day one. People just tell the app.                                                                   |
-| `MsGraphAttendanceProvider`   | low              | Most desk tools write the booking back to Outlook, so reading Outlook covers them all without touching any of them. |
-| `CsvAttendanceProvider`       | low              | IT can always produce a CSV, even when procurement will not approve an API.                                         |
-| `WebhookAttendanceProvider`   | low              | For desk tools that can push.                                                                                       |
-| `CompositeAttendanceProvider` | none             | Real rollouts are mixed. Union the sources; one being down does not cancel lunch.                                   |
-
-Start with `Manual`, add a real feed once the habit exists.
-
-## Where the people come from
-
-The second seam, and the one that blocks everything: attendance answers who is
-in the building today, and the directory answers who works here at all. Set
-`SOFRA_DIRECTORY_CSV` to a URL or a file path and Sofra reads its people from
-there. Unset, it matches 240 invented people, and the console says so in a
-banner rather than letting a company discover it on the first lunch.
-
-```
-employee_id,display_name,email,title,seniority,department,team,office_id,languages,tenure_months,interests
-e1001,Deniz Arslan,deniz@example.com,Credit Risk Analyst,senior,Risk,Risk/Credit,IST-HQ,tr;en,42,cycling;cooking
-e1005,Joris Bakker,joris@example.com,,,People,,AMS-1,,,
-```
-
-Five columns are required, and they are the five without which somebody cannot
-be seated or told about it: `employee_id`, `display_name`, `email`,
-`department`, `office_id`. The rest improve the match and degrade honestly when
-missing, which is the second row above: no title falls back to the department,
-no languages means English, no interests means the icebreaker comes from the
-seniority gap instead. Lists use semicolons, because a comma inside a CSV field
-needs quoting and no export does it. `seniority` must be one of `intern`,
-`junior`, `mid`, `senior`, `lead`, `manager`, `director`, and an unrecognised
-value skips the row rather than defaulting, which would quietly put a director
-on the junior end of every spread. Column names that do not match yours are a
-constructor option, not a reason to transform the file.
-
-A bad row is skipped and counted, never thrown: one malformed line out of ten
-thousand must not leave a company with no directory at all. Set
-`SOFRA_DIRECTORY_TOKEN` if the export sits behind one, which it should, because
-the list of everyone who works somewhere along with their addresses is not a
-thing to leave on an open URL.
-
-The directory is re-read every fifteen minutes, or whatever
-`SOFRA_DIRECTORY_TTL_MINUTES` says. Reading it per lookup would make one lunch
-page hundreds of calls to an HR system; reading it once per process means a new
-joiner is invisible until something restarts, which on a long-running server is
-never and on a serverless one is whenever a cold start happens to land. A
-refresh that fails keeps the copy it has, because an export being briefly
-unreachable should not empty a building and cancel lunch for everyone.
-
-A CSV is not what anybody should run forever, and that is the point. An export
-beats an integration that has to clear procurement before a single lunch
-happens. Entra ID, Workday, BambooHR or SCIM land later as another `Directory`,
-which is one method:
-
-```ts
-interface Directory {
-  listEmployees(): Promise<Employee[]>;
-}
-```
-
-`docs/directory.example.csv` is a file to copy.
-
-### The same person in four systems
-
-The part that actually decides whether this works at a real company. One person
-has a different identifier in every system they touch:
-
-| System       | What it calls somebody                                            |
-| ------------ | ----------------------------------------------------------------- |
-| Workday      | an employee number, and a work email (the mail attribute)         |
-| Entra ID     | an immutable object id, a user principal name, and a mail address |
-| Teams        | signs its tokens with the Entra object id and the UPN             |
-| Slack        | its own user id, plus whichever address the person signed up with |
-| Desk booking | a badge number, or its own user id                                |
-
-In a great many Entra tenants the UPN is not the mail attribute: Entra says
-`ogumus@acme.onmicrosoft.com` while Workday exports `onur.gumus@acme.com`.
-Matching on the primary address alone means everybody in that position opens
-the Teams tab and is told they do not exist.
-
-So a row may carry `aliases`, semicolon separated, and ids in other systems:
+There is no fixed schedule anywhere. A scheduler calls `/api/cron/tick` every
+fifteen minutes, and on each call Sofra works out, for each office in its own
+zone, whether the moment for making a day's tables or asking about tomorrow has
+come, and does whatever is due and not yet done:
 
 ```
-employee_id,display_name,email,department,office_id,aliases,entra_object_id,slack_user_id
-e1001,Onur Gumus,onur.gumus@acme.com,Digital,IST-HQ,ogumus@acme.onmicrosoft.com,,U01ONUR
+                 Istanbul (UTC+3)      Amsterdam (UTC+2 / UTC+1)     New York (UTC-4 / UTC-5)
+opens 09:00      tables 06:00 local    opens 08:30, tables 05:30     opens 09:00, tables 06:00
+                 = 03:00 UTC           = 03:30 / 04:30 UTC           = 10:00 / 11:00 UTC
 ```
 
-Resolution goes through one place, most reliable evidence first: an external id
-beats any address, because addresses change and ids do not. Somebody who
-marries and takes a new surname gets a new UPN and a new mail, and only the
-object id still points at them.
-
-Nothing needs exporting for that to work. Every Teams token carries the object
-id, so the first sign-in that matches by address records it, and the next one
-is exact. Most companies cannot get Entra object ids into an HR report, and
-with this they do not have to.
-
-Two addresses can never mean two people: a row claiming an address another row
-already has is skipped and named, because otherwise sign-in would resolve to
-whichever row was read first, which is a way to read a colleague's lunches.
-
-The reverse direction is the same problem and has the same answer.
-`resolverFromDirectory(employees, 'entra')` builds the `resolveEmployeeId` that
-every attendance adapter already takes, so a desk feed answering with badge
-numbers, addresses or Entra ids all map back without a lookup table. Anything
-it does not recognise is dropped rather than seated, which is what you want for
-the contractors, meeting rooms and service accounts that fill a desk-booking
-export.
-
-## Why not just use a Teams channel
-
-You can, and for a small office you should. A `#lunch` channel where people post
-"I'm in today" costs nothing and works fine at twenty people.
-
-It breaks at two hundred, for two reasons. Somebody has to group everyone by
-hand, every day. And self-organising reproduces the cliques it was meant to
-break: people reply to the people they already know, which is the exact failure
-this is supposed to fix.
-
-There are also existing products in this category: Donut for Slack,
-Microsoft's own open-source Icebreaker for Teams, RandomCoffee, Mystery
-Minds. They pair people at random for a coffee, usually weekly, usually 1:1.
-
-Sofra differs in one constraint, and everything else follows from it: it only
-matches people who are already in the same building on the same day. A random
-pairing with someone working from home that day becomes a video call, which is
-the thing hybrid workers are already tired of. Because the constraint is
-physical presence, the product needs an attendance signal, which is why the
-provider abstraction is the first thing in this README rather than a footnote.
-
-Three smaller differences: tables of three or four rather than pairs, because a
-1:1 with a stranger is an interview and a table lets you listen; lunch, which is
-an hour that already exists in the day rather than a new calendar commitment;
-and a tick per day rather than standing enrolment that pairs you in a week when
-you have no appetite for it.
-
-When not to bother: fewer than about forty people in one office, a fully remote
-company (the attendance signal does not exist, and Donut fits better), or a
-culture where nobody will tick the box. No app fixes that last one.
+So a new office needs nothing added to any scheduler, and a clock change moves
+nothing that should stay put. Every scheduled job is claimed with an insert that
+only one caller can win, so a tick that runs twice, late, or on two instances at
+once does each job exactly once, and a building is never mailed twice. A job
+that fails is retried on later ticks, up to three times; one that was due while
+the scheduler was down is still run if lunch has not started, and recorded as
+skipped if it has. Every run, and why, is in the console.
 
 ## What the matcher optimises for
 
@@ -184,502 +82,231 @@ then 2-opt local search. On pools under ~500 it runs in milliseconds and lands
 close enough to optimal that the difference is not something a human at a lunch
 table could perceive.
 
-Hard rules: same building and day, no two people from the same immediate
-team, nobody re-matched inside the cooldown window, and every table must share a
-language.
-
-Soft score: spread of departments, spread across the seniority ladder,
-tenure gap, at least one shared interest as an opener, and novelty.
+Hard rules: same building, day and lunch time; no two people from the same
+immediate team; nobody re-matched inside the cooldown window; every table shares
+a language. Soft score: spread of departments, spread across the seniority
+ladder, tenure gap, a shared interest as an opener, and novelty.
 
 Nobody eats alone. If the pool is too homogeneous to honour every rule, the
 matcher walks a relaxation ladder (`none` → `allow-repeat` → `allow-same-team`)
-and takes a penalty rather than turning someone away.
+and takes a penalty rather than turning someone away. Everyone is split evenly
+into tables within the office's sizes, so a pool of 11 becomes `[4, 4, 3]`,
+never two tables and one person left standing in the lobby. The rare person who
+genuinely cannot be seated (too few asked, or nobody shares a language with
+them) is told which, once.
 
-The two people it genuinely cannot seat get told why, because silence was the
-worst thing this product did: you tick the box, no table appears, nobody says
-anything, and the conclusion available to you is that three colleagues were
-asked and none of them wanted to come. Either too few people asked that day,
-which is about the day, or nobody asking shares a language with you, which is
-one setting away from fixed. The message says which, once, and the page says it
-too. Everyone who ticked the box
-is split evenly into tables of three or four, so a pool of 9 becomes `[3, 3, 3]`
-and a pool of 11 becomes `[4, 4, 3]`, never two tables and one person left
-standing in the lobby. "No match was found for you" is the one email that would
-kill this product, so the engine is built so it cannot be sent.
+When declines drop a table below its minimum, whoever still wants lunch is moved
+to another table with room and no rule broken. A receiving table may go one over
+its maximum for that sitting, because a slightly crowded table beats sending
+somebody away, and its calendar invite goes out again with a higher `SEQUENCE`,
+which is how every calendar client updates the event people already accepted
+instead of adding a second one.
 
-And nobody is stranded by other people's plans. The invite says "let us know
-by 10:00 so we can reseat the table", so it reseats. When declines drop a table
-below three, whoever still wants lunch is moved to another table that day with
-room and no rule broken; only if there is genuinely nowhere to put someone do
-they hear the lunch is off. A receiving table may go to five for that one
-sitting, because a slightly crowded table beats sending somebody away, and its calendar
-invite goes out again with a bumped `SEQUENCE`, which is how every calendar
-client updates the event people already accepted instead of adding a second one.
-
-## Try it
-
-No database, no API keys, no infrastructure:
+Try the engine on its own, without a database:
 
 ```bash
-npm install
 npm run simulate
 ```
 
-This generates a synthetic 240-person company and runs eight weekly lunches:
-
-```
-seated               320/320 opt-ins (100.0%)
-table sizes          3p x12  4p x71
-cross-department     81.8% of pairs
-seniority levels     3.04 distinct per table
-repeat pairings      0/462 pairs met more than once
-rules bent           none x83
-```
-
-Every opt-in got a seat, 82% of the people sitting together came from different
-departments, and across eight weeks no pair was ever seated together twice. The
-average table score declines week over week. That is the novelty budget being
-spent, and it is the signal that tells you when to widen the pool.
-
-It then prints a real invite, generated from the actual match:
-
-```
-subject: Lunch today at 12:00, the four of you
-
-The 4 of you are having lunch together at 12:00 today. You work at the same
-company, you are all in the building, and none of you have had lunch together
-before. This mail went to all 4 of you at once, so just reply here to sort out
-where you are going.
-
-Where
-Istanbul HQ — Ground floor cafeteria, by the coffee bar
-
-Who
-• Selin Kaya — Intern, Sales (SMB)
-• Omar Demir — Manager, Product (Growth)
-• Elif Novak — Associate, Engineering (Mobile)
-• Quinn Schmidt — Specialist, Design (Research)
-
-How to start
-Go round the table before you order. Everyone answers:
-• How long you have been here, and what you actually do day to day
-• Which project you are on right now
-• What you were doing in your career before this job
-• Your hobbies, and what you spend time on when you are not here
-• What would make you happier about coming into the office
-• One thing you genuinely think we could be doing better
-
-Today's topic
-The part of your job that would surprise someone outside your department.
-
-If the conversation stalls
-• You all put "photography" on your profile. Start there.
-• Sales, Product, Engineering, Design are at this table. What does each of you
-  think the others actually do all day?
-
-And do not let it turn into a work meeting
-Leave room for the rest of it: sport, music and films, the city, where you grew
-up, what you actually care about. You can get a status update over Slack. The
-point of this table is the people sitting at it.
-```
-
-Flags: `--size`, `--weeks`, `--participation`, `--seed`, `--office`.
-
 ## Invites
 
-One mail to the whole table, not four separate notes. Everyone sees the same
-names at the same moment, can reply to each other beforehand, and nobody has to
-wonder whether the others got it.
+One mail to the whole table, not four separate notes: everyone sees the same
+names at the same moment and can reply to each other. It carries an RFC 5545
+`.ics` with the lunch as an instant in the office's zone, accepted by Outlook,
+Google and Apple calendars alike, and needing nobody's calendar write
+permission. It has an introduction round, a topic for the table, icebreakers
+from what the people at it share, and a closing request not to turn it into a
+work meeting. It is written in a language everyone at the table speaks (`en` and
+`tr` ship).
 
-It carries an introduction round: how long you have been here, what you
-actually do, the project you are on, what you did before this job, your hobbies,
-what would make the office better, and one thing we could genuinely be doing
-better. Then a topic for the table, picked stably per group so re-sending
-does not change what people turned up prepared for, and varied across tables so
-four departments are not all having the same conversation.
-
-It closes by telling the table not to spend the hour on work. Left alone,
-four colleagues will produce a status meeting with food; the mail explicitly asks
-for sport, music, the city, where people grew up, what they care about.
-
-### Slack and Teams
-
-Where a company has them, the invite is better delivered where people already
-are. What that looks like differs sharply between the two, and the difference is
-not a matter of effort.
-
-Slack gets a group chat. `conversations.open` with the four user ids returns a
-multi-person DM, and the docs confirm it is idempotent for the same set of
-people, so re-sending an updated invite posts into the chat that already exists
-rather than starting a second one. "Shall we try the new place instead" then
-happens where the plan was made. A plain bot token does it: `mpim:write`,
-`chat:write`, `users:read.email`.
-
-Teams does not, and cannot. Two facts from Microsoft's own reference close off
-the obvious routes:
-
-- `POST /chats/{id}/messages` has one application permission,
-  `Teamwork.Migrate.All`, which exists for importing history into a chat in
-  migration mode. The higher-privileged column reads "Not available", so a cron
-  holding client credentials cannot post a chat message.
-- A bot does not rescue it: "You can't create a new group chat or a new channel
-  in a team with proactive messaging."
-
-What does work app-only is the activity feed.
-`POST /users/{id}/teamwork/sendActivityNotification` has the application
-permission `TeamsActivity.Send`, so each person at the table gets a notification
-that opens the Sofra tab, where the names and the RSVP buttons already are. Four
-notifications instead of one shared conversation is a real loss next to Slack,
-and it is the best Teams allows on a schedule.
-
-| Channel                | What it does                                                          | What it costs                                    |
-| ---------------------- | --------------------------------------------------------------------- | ------------------------------------------------ |
-| `EmailChannel`         | One mail to the table, `.ics` attached                                | nothing, always on                               |
-| `SlackChannel`         | A group DM with the four, then a Block Kit post with a confirm button | a bot token                                      |
-| `TeamsActivityChannel` | An activity feed notification each, deep-linked to the tab            | `TeamsActivity.Send`, and the tab installed      |
-| `TeamsChannel`         | `POST /chats`, then an Adaptive Card                                  | a bot or delegated backend; app-only cannot post |
-| `CompositeChannel`     | All of the above; one being down does not stop the others             | none                                             |
-
-`TeamsChannel` is kept because the shape is right and a delegated backend slots
-in behind the same `graph` function, but it refuses app-only credentials up
-front rather than opening four chats it cannot post into.
-
-### The calendar invite
-
-An RFC 5545 `.ics` with `METHOD:REQUEST` rather than a call to the Teams or
-Google Calendar API. An `.ics` is accepted by Outlook,
-Teams, Google Calendar and Apple Calendar alike, and needs no tenant admin
-consent, no per-company app registration and no calendar write scope, which is
-the whole point of a tool that has to work everywhere.
-
-Icebreakers are derived from the table itself: a shared interest first, then the
-widest gap in the room. The invite is written in a language everyone at the table
-speaks (`en` and `tr` ship; the matcher guarantees at least one is shared).
-
-## No special-category data, anywhere
-
-Sofra holds no gender, no age, and no dietary information.
-
-The obvious version of this product balances each table by gender, and prints
-everyone's dietary needs in the invite. Sofra does neither.
-
-Automated grouping by gender or age in an employment context invites both
-GDPR/KVKK scrutiny and discrimination claims, and European works councils will
-block it outright. Dietary needs are worse: they reveal religion and health,
-explicitly special categories under GDPR Art. 9 and KVKK Art. 6. And this mail
-goes to three colleagues at once, so printing "halal" next to somebody's name
-publishes it to people who never needed to know. The table sorts the venue out by
-replying to each other instead.
-
-None of it turns out to be a loss. The diversity that makes the lunch worth
-having comes from department, team, seniority and tenure, all already in the org
-chart, all with an obvious business justification, none of them a protected
-characteristic. Tests assert that the score has no gender term and that the
-invite never mentions what anyone eats. See [docs/privacy.md](docs/privacy.md).
-
-## What is here, and what is not
-
-Built and tested: the matching engine, the provider abstraction with five
-implementations, ICS generation, bilingual invite content with topics, the email
-transport layer, the simulator, the nightly job, and a Next.js app: per-day
-opt-in, a matching console that shows the score behind every table, and the
-confirm-by-10:00 flow that reseats people when a table collapses, and a Teams tab. 151 tests.
-
-Run it with `npm run dev` and sign in as onur / 1234, or take a random
-colleague from the same screen. A shared link means several people clicking at
-once, and they should not all be ticking the same boxes. The app is seeded with
-a synthetic company through an in-memory store, so it needs no database and no
-API keys.
-
-Dates are resolved in each office's own timezone rather than the server's, since
-Istanbul and Amsterdam are on different dates for part of every day.
-
-Not built yet: real authentication and persistence.
-
-Sign-in is one shared password so anyone with the link can try the product: a
-demo gate, not authentication, though the session cookie is HMAC-signed so an
-employee id cannot be forged in devtools. Replacing `src/lib/auth.ts` and
-`src/lib/session.ts` is the whole of adding real sign-in.
-
-Persistence is a connection string away. Set `DATABASE_URL` and state lives in
-Postgres, which is what a serverless deployment needs: the filesystem on Vercel
-is ephemeral, so a file would be empty on every cold start. Set
-`SOFRA_DATABASE` instead and it is SQLite, which ships with Node and is the
-right answer on one machine.
-
-This was not a tidy-up. Measured against a production build before the store
-existed: restart the server and every tick, reply and table was gone, and
-because "this invite was already sent" was memory too, the next cron run mailed
-nine of sixteen tables the identical invite a second time. With the database,
-the same restart finds sixteen tables, sends zero invites and mails nobody.
-
-All three stores are held to one suite. `tests/store-contract.test.ts` runs the
-same cases against the in-memory, SQLite and Postgres implementations, so a
-disagreement between them fails the build instead of waiting for production to
-find it.
-
-By default Postgres runs against pg-mem, which parses the real dialect in
-process. That catches the SQL a port gets wrong, and it caught two here, but it
-is single-threaded: it accepts `FOR UPDATE` and never contends on it, so the
-concurrency case is skipped and says why rather than passing and meaning
-nothing. Point `TEST_DATABASE_URL` at a server and it runs for real:
-
-```bash
-TEST_DATABASE_URL=postgresql://localhost/sofra_test npm test
-```
-
-Verified that way against PostgreSQL 16, which is also how the last real bug
-turned up: inside a transaction every query shares one client, and a pg client
-cannot run two at once, so the `Promise.all` reads in the store were the
-deprecation warning pg prints and the undefined behaviour behind it.
-
-The locking matters because a reply is a read-modify-write across every table
-that day. SQLite gets its atomicity from doing that synchronously; Postgres
-cannot, so the day is locked for the duration of a reply. On a serverless
-platform an in-process mutex would be useless anyway, since the next reply may
-land on a different instance.
-
-The nightly job is idempotent for the same reason. A day that already has tables
-is not re-planned, because a platform retry or a second schedule would otherwise
-rebuild identical tables whose invites had not been sent and mail the whole
-building again. The console's re-run button asks for that explicitly.
-
-Two things guard the parts that are not about your own lunch. The matching
-console shows every table and every reply for a whole office, and its buttons
-re-plan the day and mail everyone in it, so who may open it is a real question.
-`SOFRA_ADMINS` answers it for a new deployment and nothing else: empty means
-nobody, because an unconfigured instance should refuse rather than hand that to
-whoever signs in first. Everyone after the first is granted in the app, at
-`/admin/people`, and stored as rows. Administration that needs a deployment is
-not administration, and an operations tool where giving a colleague access means
-opening a pull request is one nobody will run. The environment list stays
-un-revokable from the UI on purpose: it is the way back in if the granted list
-ends up empty, and a list that can delete itself is not a way back. The page and
-every action are checked separately, since guarding only the page leaves the
-actions callable directly. `SOFRA_DEMO_MODE` controls the account switcher,
-which is the point of a public demo and impersonation in a company: off in
-production unless asked for.
+Where a company has Teams, the same invite also arrives as a card from the Sofra
+bot with the reply buttons on it, and as an activity-feed notification. Slack
+gets a group message. Email always goes, because it needs nobody's permission.
 
 ## Signing in
 
-Set `SOFRA_OIDC_ISSUER` and `SOFRA_OIDC_CLIENT_ID` and people sign in with the
-account they already have. Sofra never sees a password, an account being
-disabled takes Sofra with it, and MFA and conditional access come from the
-company's own settings without this code knowing they exist. Register
-`https://your-instance/api/auth/oidc/callback` as the redirect URI.
+There are no passwords anywhere.
 
-Entra, Okta, Google Workspace and Auth0 differ by that issuer URL and nothing
-else: the endpoints come from the provider's own discovery document rather than
-from four adapters.
+- Emailed link. Somebody types their work address; if its domain is allowed (or
+  they are already here, or a bootstrap admin), a link goes to it. The link
+  works once, for fifteen minutes; asking again retires the old one. It opens a
+  page with a button rather than signing in on sight, because corporate mail
+  scanners open every link in incoming mail. The form answers the same whether
+  or not the address can sign in, so it cannot be used to find out who works
+  somewhere, and it is rate limited per address and per network address in the
+  database, so the limit holds across instances.
+- Company identity provider. Entra, Okta, Google Workspace or Auth0, by issuer
+  URL: authorization code with PKCE, state and nonce, and the id token's
+  signature, issuer, audience and lifetime checked before anybody is looked up.
+  An address the provider has not verified is not trusted.
+- Teams. The tab asks Teams for a token and the server verifies it against
+  Microsoft's published keys. Somebody new from the configured tenant gets a
+  profile to fill in; nobody has to be imported first.
 
-Authorization code flow with PKCE. Each piece is load-bearing and worth naming.
-`state` ties the callback to the browser that started it, so somebody else's
-authorization code cannot be fed to whoever follows a link. The PKCE verifier
-never leaves the server, so intercepting the code is not enough to redeem it.
-The `nonce` ties the id_token to this attempt, so an old one cannot be replayed.
-The signature, issuer, audience and lifetime are all checked before anybody is
-looked up. And an address the provider has not marked verified is not matched on
-at all: it is a claim by whoever registered the account, and taking it would let
-somebody sign up elsewhere with a colleague's address and be seated as them.
+Sessions are server-side: the cookie holds a random 256-bit token, the database
+holds only its hash, and it is HttpOnly, Secure and SameSite (partitioned inside
+a Teams iframe). Every sign-in makes a new one. A session lasts thirty days;
+signing out deletes it; "sign out everywhere" and deactivating a person delete
+all of theirs. Deactivated people cannot sign back in by any route.
 
-The three one-time values travel in a short-lived signed cookie rather than
-server memory, because on a serverless platform the callback may reach a
-different instance than the redirect did.
+### Admins
 
-Without an issuer configured, sign-in falls back to the shared demo password,
-which is a gate and not authentication: anyone with the link can be anyone, and
-somebody who leaves keeps getting in as long as they remember it. It stays
-alongside OIDC only where `SOFRA_DEMO_MODE` is deliberately on.
+`SOFRA_ADMINS` names the first admins by address. Everyone after them is granted
+in the console, either for every office or for particular offices. An office
+admin sees that office's console, timetable, holidays and runs, and nothing
+else; company settings, people and grants belong to every-office admins. The
+console asks for a sign-in within the last twelve hours, so a laptop left open
+for a month cannot re-plan a building's lunch. Its pages return 404 to anyone
+else, its actions check the same rights again on the server, and every change is
+written to an audit log nobody can edit.
 
-Still missing before this is a product: a directory sync in place of a CSV.
-Reference data is already read through the `Directory` interface rather than
-stored, which is most of the work.
+## The console
 
-## How anybody hears about it
+- Day: for an office and a date, who asked, the tables with their scores and
+  replies, who could not be seated, what the scheduler did, and buttons to make
+  the tables now (re-planning cancels the invites already sent and sends new
+  ones) or ask the evening question now.
+- Offices: create and edit offices, their timetable in their own zone with the
+  UTC beside it, and their holidays.
+- People: search, move somebody to another office, sign them out everywhere,
+  deactivate them, make them an admin.
+- Settings: company name, allowed mail domains, the department list.
+- Runs: every scheduled and manual job, its result and its reason.
+- Audit log.
 
-Everything else in Sofra waits for somebody to have ticked a box on a page they
-have no reason to visit. A company that installs this and sends nothing gets a
-handful of enthusiasts in week one and silence in week two, so the morning job
-is not a nicety.
+## Running it on a laptop
 
-`GET /api/cron/reminders` asks everyone whose desk booking says they will be in
-tomorrow, and who has not already answered, one short question with one link.
-`vercel.json` schedules it for 09:00 on weekdays, before the evening matching
-run needs the answer.
-
-Three things keep it from being the mail people write a rule for, and all three
-are load-bearing. It only goes to people who are already coming in, so it is
-never a question about a day that does not exist. It goes at most once per
-person per day: sends are recorded after they succeed, so a retried cron or a
-second schedule sends nothing, and a bounced address is tried again tomorrow
-rather than counted as somebody who was asked. And it carries its own off
-switch, at `/you`, honoured everywhere.
-
-```bash
-curl -H "Authorization: Bearer $CRON_SECRET" https://your-instance/api/cron/reminders
-```
-
-```json
-{
-  "ranAt": "2026-09-15T06:00:00.102Z",
-  "offices": [
-    {
-      "officeId": "IST-HQ",
-      "date": "2026-09-16",
-      "inTheBuilding": 69,
-      "sent": 43,
-      "alreadyIn": 26,
-      "alreadyAsked": 0,
-      "optedOut": 0,
-      "failed": []
-    }
-  ]
-}
-```
-
-By email always. Slack sends it as a direct message where a token is configured,
-and the composite channel uses the first one that can reach a given person
-rather than all of them: an invite arriving twice is a duplicate of something
-you wanted, a question arriving twice is the same company asking you twice.
-
-## The nightly job
-
-Matching is not something anyone should have to remember to press. `GET
-/api/cron` plans the next working day for every office and mails one invite per
-table; `vercel.json` schedules it for 17:00 on weekdays, and any scheduler that
-can send a header will do.
+You need Node 20+ and PostgreSQL.
 
 ```bash
-curl -H "Authorization: Bearer $CRON_SECRET" https://your-instance/api/cron
+npm install
+cp .env.example .env.local        # set DATABASE_URL, and SOFRA_ADMINS=onur@sofra.test
+npm run db:seed                   # two offices, 241 invented people at @sofra.test
+npm run dev
 ```
 
-```json
-{
-  "ranAt": "2026-09-12T18:10:00.415Z",
-  "offices": [
-    {
-      "officeId": "IST-HQ",
-      "date": "2026-09-14",
-      "optedIn": 27,
-      "tables": 7,
-      "seated": 27,
-      "unseated": 0,
-      "invitesSent": 7
-    },
-    {
-      "officeId": "AMS-1",
-      "date": "2026-09-14",
-      "optedIn": 35,
-      "tables": 9,
-      "seated": 35,
-      "unseated": 0,
-      "invitesSent": 9
-    }
-  ]
-}
+Open http://localhost:3000, sign in as `onur@sofra.test`, and follow the link
+from http://localhost:3000/dev/mailbox: in development, mail is kept in the
+database and shown there instead of being sent (`SOFRA_MAIL_TRANSPORT=outbox`).
+Any seeded person can sign in the same way. To run the morning job by hand:
+
+```bash
+curl -H "Authorization: Bearer $CRON_SECRET" http://localhost:3000/api/cron/tick
 ```
 
-Without `CRON_SECRET` set the endpoint refuses to run rather than running
-openly. Anyone who could reach it would be able to reshuffle tomorrow's tables
-and mail the whole company. The admin console's button calls exactly the same
-`planDay`, so what you see there is what the cron produces.
+or press "Make the tables now" in the console.
 
-## Who runs this
+## Installing it in a company
 
-Sofra is built to be installed by a company, not subscribed to. One instance
-serves one company: its database, its hosting, its Entra app registration, its
-mail. That is not an accident of how far it has got. The product's whole input
-is who is in which building today and who works for whom, which is exactly the
-data a bank will not hand to a third party, and the Outlook feed needs
-credentials inside their tenant anyway. Self-hosting removes a procurement
-conversation rather than starting one.
+Sofra is installed by a company, not subscribed to: the input is who works where
+and who is in which building when, which is exactly the data a company will not
+hand to a third party. One instance serves one company.
 
-So there is no notion of a tenant anywhere in the domain model, and adding one
-would not be a small change: every table would need a tenant column and row
-level security, offices and credentials would become per-tenant records rather
-than configuration, and sessions would have to be scoped. If you want a
-multi-tenant SaaS, that is the work, and it is worth deciding before rather than
-after.
+For a company on Microsoft, the natural home is Azure App Service (or Container
+Apps) with Azure Database for PostgreSQL:
 
-Nothing here is tied to Vercel. `vercel.json` only schedules the cron, and the
-job is an ordinary authenticated `GET /api/cron`: Azure Container Apps with a
-timer, a Kubernetes CronJob, or a line in crontab all do the same thing. For a
-company already on Microsoft, which a company using Teams is, Azure Database for
-PostgreSQL and App Service is the more likely pairing than anything in this
-repo's examples.
+1. Create the database and set `DATABASE_URL`. Migrations run on the first
+   query, under a lock; `npm run db:migrate` runs them as a release step
+   instead.
+2. Deploy the app (`npm run build`, `npm start`) with the variables below.
+   `/api/health` answers when the process and the database both do.
+3. Point a scheduler at `/api/cron/tick` every fifteen minutes with
+   `Authorization: Bearer $CRON_SECRET`: an Azure Logic App or Container Apps
+   job, a Kubernetes CronJob, or a line in crontab. On Vercel, `vercel.json`
+   already does it.
+4. Choose how mail goes out: the company's SMTP relay, Microsoft 365 through
+   Graph (`Mail.Send`, ideally restricted to one mailbox), or Resend.
+5. Sign in as a bootstrap admin, create the offices, the departments and the
+   allowed domain. People can start signing in.
+6. Optionally, the Teams app: [teams/README.md](teams/README.md).
 
-The public demo is the exception. It runs on somebody's personal Supabase and
-Vercel because its job is to be clickable from a link, and it holds nothing but
-a synthetic company.
+### Optional integrations
+
+| Integration        | Turned on by                   | Needs                                          |
+| ------------------ | ------------------------------ | ---------------------------------------------- |
+| Company sign-in    | `SOFRA_OIDC_ISSUER`            | An OIDC client                                 |
+| Teams tab          | `AAD_CLIENT_ID`                | An app registration, no admin consent          |
+| Teams bot          | `TEAMS_BOT_ID`                 | An Azure Bot on the same registration          |
+| Activity feed      | `TEAMS_APP_ID` + `MS_*`        | `TeamsActivity.Send`                           |
+| Directory sync     | `SOFRA_DIRECTORY=entra` or csv | `User.Read.All`, or an export                  |
+| Outlook hints      | `SOFRA_CALENDAR_HINTS=outlook` | `Calendars.Read`                               |
+| Microsoft 365 mail | `SOFRA_MAIL_TRANSPORT=graph`   | `Mail.Send`                                    |
+| Slack              | `SLACK_BOT_TOKEN`              | `mpim:write`, `chat:write`, `users:read.email` |
+
+None of them is needed. People fill in their own profile, pick their own days,
+and get their invites by mail.
+
+The directory sync, when on, runs every six hours: new people arrive with what
+the directory knows filled in and confirm the rest on first sign-in; people
+already here have their name, title, department and team updated but keep what
+they chose; people the directory no longer has are deactivated and signed out,
+unless the read suddenly lost half the company, in which case nothing is
+deactivated and the run says why.
+
+Outlook office days are a hint, never a request: being in the building is not
+wanting lunch. They show as a badge on the calendar and decide who gets the
+evening question.
 
 ## Configuration
 
-Copy `.env.example` to `.env.local`.
+See [.env.example](.env.example) for every variable with its explanation. The
+ones every deployment sets:
 
-| Variable                      | What it does                                                                                       |
-| ----------------------------- | -------------------------------------------------------------------------------------------------- |
-| `SOFRA_BASE_URL`              | Public URL of this instance. The confirm link goes into an email, so it cannot be relative.        |
-| `CRON_SECRET`                 | Shared secret for both scheduled endpoints. No secret, no nightly run.                             |
-| `SOFRA_ADMINS`                | Who can open the console on a fresh deployment. Everyone after that is granted at `/admin/people`. |
-| `SOFRA_DIRECTORY_CSV`         | URL or path to your people. Unset means the synthetic company.                                     |
-| `SOFRA_DIRECTORY_TOKEN`       | Bearer token, when the export is behind one.                                                       |
-| `SOFRA_DIRECTORY_TTL_MINUTES` | How often to re-read the directory. Default 15.                                                    |
-| `SOFRA_OIDC_ISSUER`           | Your identity provider. Turns on company sign-in.                                                  |
-| `SOFRA_OIDC_CLIENT_ID`        | The application registered with it.                                                                |
-| `SOFRA_OIDC_CLIENT_SECRET`    | For a confidential client.                                                                         |
-| `SOFRA_FROM_EMAIL`            | Envelope sender for invites.                                                                       |
-| `RESEND_API_KEY`              | Only once you swap `ConsoleTransport` for `ResendTransport`.                                       |
+| Variable               | What it does                                                               |
+| ---------------------- | -------------------------------------------------------------------------- |
+| `DATABASE_URL`         | PostgreSQL.                                                                |
+| `SOFRA_BASE_URL`       | The public address; links in mail carry it.                                |
+| `SOFRA_ADMINS`         | The first admins, by address.                                              |
+| `CRON_SECRET`          | The scheduler's secret for `/api/cron/tick`.                               |
+| `SOFRA_SESSION_SECRET` | Signs the company sign-in handshake. Production refuses to run without it. |
+| `SOFRA_MAIL_TRANSPORT` | `smtp`, `graph` or `resend` in production.                                 |
+| `SOFRA_FROM_EMAIL`     | The sender of invites and sign-in links.                                   |
+
+## No special-category data, anywhere
+
+Sofra holds no gender, no age, and no dietary information. Balancing tables by
+gender, or printing dietary needs in an invite that goes to three colleagues,
+would put special-category data under GDPR and KVKK into an automated
+employment process, and publish somebody's religion or health to people who
+never needed to know. The diversity that makes the lunch worth having comes from
+department, team, seniority and tenure instead. Tests assert that the score has
+no gender term and the invite never mentions food. See
+[docs/privacy.md](docs/privacy.md) for what is stored and why.
 
 ## Project layout
 
 ```
 src/core/       the matching engine, pure: no I/O, no framework
-src/providers/  the only place that knows a desk-booking system exists
-src/directory/  where a company's people come from; a CSV reader and the seam
-src/notify/     invite content, ICS generation, and the delivery channels
-src/store/      persistence behind one interface; an in-memory demo implementation
-src/lib/        sign-in, session, config, dates, and the nightly job
-src/sim/        synthetic company and the simulator
-app/            Next.js app router: sign-in, opt-in page, matching console, RSVP page
-teams/          Teams app manifest, icons, and how to package them
+src/db/         the pool and the migrations
+src/data/       every query, one module per table group
+src/services/   scheduling, planning, delivery, reminders, sign-in forms, integrations
+src/auth/       sessions, emailed links, roles
+src/teams/      the bot: verification, cards, handling, delivery
+src/notify/     invite content, the calendar file, mail transports and channels
+src/directory/  Entra and CSV readers for the optional sync
+app/            Next.js pages, server actions and API routes
+scripts/        seed, migrate, the end-to-end walk, the Teams package
+teams/          the Teams manifest, icons and setup guide
 ```
 
 ## Quality
 
 ```bash
-npm run typecheck   # tsc, strict, noUncheckedIndexedAccess
-npm run lint        # eslint, zero warnings tolerated
+npm run typecheck   # tsc, strict
+npm run lint        # eslint, zero warnings
 npm run format      # prettier
-npm test            # 463 tests
-npm run build       # production build
-npm run coverage    # what is not tested, which is where the next bug is
+npm test            # against a real PostgreSQL: TEST_DATABASE_URL, or .env.test.local
+npm run e2e         # the whole product on a fake clock, against PostgreSQL
+npm run build
 ```
 
-CI runs all five on every push and pull request. The engine has no runtime
-dependencies, so the tests are fast enough to keep running as you work:
-`npm run test:watch`.
-
-The store suite runs against pg-mem by default. Point it at a real server to
-also exercise the day lock under genuine contention, which pg-mem parses and
-never contends on:
-
-```bash
-TEST_DATABASE_URL=postgresql://localhost/sofra_test npm test
-```
-
-And one scenario walks the whole product against a real PostgreSQL, from nobody
-having heard of Sofra to a cancelled table: the reminder, the opt-in, matching,
-the invite and its calendar attachment, replies, reseating, the cancellation,
-running every job twice, and four people replying at the same instant. The unit
-suite proves the pieces; this proves they are wired together.
-
-```bash
-TEST_DATABASE_URL=postgresql://localhost/sofra_e2e npm run e2e
-```
-
-One thing to verify before production: `MsGraphAttendanceProvider`'s default
-predicate. Outlook's work-location feature has shipped under more than one shape,
-so check it against the Graph version you target, or pass your own `isInOffice`.
+The tests run against PostgreSQL, not a stand-in: each test file works in a
+fresh schema of its own, so they run in parallel and the SQL under test is the
+SQL that runs in production. `npm run e2e` walks the product from an empty
+company to a finished lunch: sign-in by link, profiles, requests and a weekly
+pattern, the evening question, the morning tables, the scheduler running twice
+at once, a drop-out reseated, a latecomer seated, four replies at the same
+instant, the cut-off, and a clock change. CI runs all of it on every push.
 
 ## Licence
 

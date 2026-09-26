@@ -1,333 +1,255 @@
 /**
- * One company, one day, from nobody having heard of Sofra to a cancelled table.
+ * Walks the whole product against a real PostgreSQL, on a fake clock, from an
+ * empty company to a finished lunch:
  *
- * Not a unit test: every step goes through the real store against a real
- * PostgreSQL, the real matcher, the real invite builder and the real delivery
- * path. The unit suite proves the pieces; this proves they are wired together.
+ *   an admin sets up an office · people sign in with a link and fill in their
+ *   profile · they ask for lunch, one by weekly pattern · the evening question
+ *   goes to the people it should · the morning tick makes the tables and mails
+ *   them, once however often it runs · somebody late takes a free seat · a
+ *   drop-out collapses a table and its people are reseated · four replies at the
+ *   same instant · the cut-off stops the moving · a clock change does not move
+ *   the next day's tables.
+ *
+ *   TEST_DATABASE_URL=postgresql://... npm run e2e
+ *
+ * Works in a schema of its own, dropped afterwards. The unit and integration
+ * tests prove the pieces; this proves they are wired together.
  */
+import { existsSync } from 'node:fs';
+import { randomUUID } from 'node:crypto';
 import pg from 'pg';
-import { readFileSync } from 'node:fs';
-import { PostgresStore, type PgPool } from '../src/store/postgres';
-import { CsvDirectory } from '../src/directory';
-import { ManualAttendanceProvider } from '../src/providers';
+import { createDb, setDb, type Db } from '../src/db';
+import { createOffice } from '../src/data/offices';
+import { addAllowedDomain, addDepartment } from '../src/data/settings';
+import { saveProfile } from '../src/data/people';
+import { setPattern } from '../src/data/lunch';
+import { listMail } from '../src/data/messages';
+import { listTables } from '../src/data/tables';
+import { redeemSignInLink, requestSignInLink } from '../src/auth/signin';
 import { EmailChannel } from '../src/notify/channels';
-import type { EmailMessage, EmailTransport } from '../src/notify/transport';
-import { sendReminders } from '../src/lib/reminders';
-import { planDay, runNightlyMatching } from '../src/lib/nightly';
-import { deliverPending } from '../src/lib/notifications';
-import { nextWeekday, todayInZone } from '../src/lib/dates';
+import { OutboxTransport } from '../src/services/mail';
+import { runTick } from '../src/services/tick';
+import { dropLunch, respond, wantLunch } from '../src/services/days';
+import type { Office, Person } from '../src/data/types';
+import type { Seniority } from '../src/core/types';
 
-const OFFICE = 'IST-HQ';
-const CONNECTION = process.env.TEST_DATABASE_URL!;
+const FROM = 'Sofra <sofra@e2e.test>';
+const DEPARTMENTS = ['Engineering', 'Sales', 'Finance', 'Design', 'People', 'Legal'];
+const LADDER: Seniority[] = ['junior', 'mid', 'senior', 'lead', 'manager'];
 
 let failures = 0;
-let checks = 0;
+function check(label: string, ok: boolean, detail = ''): void {
+  if (!ok) failures++;
+  console.log(`${ok ? '  ✓' : '  ✗'} ${label}${detail ? `  (${detail})` : ''}`);
+}
 
-function check(label: string, condition: boolean, detail = ''): void {
-  checks++;
-  if (condition) {
-    console.log(`  ok   ${label}`);
-  } else {
-    failures++;
-    console.log(`  FAIL ${label}${detail ? ` — ${detail}` : ''}`);
+async function main(): Promise<void> {
+  if (existsSync('.env.test.local')) process.loadEnvFile('.env.test.local');
+  const url = process.env.TEST_DATABASE_URL ?? process.env.E2E_DATABASE_URL;
+  if (!url) throw new Error('Set TEST_DATABASE_URL to a PostgreSQL database the run may use.');
+
+  const schema = `e2e_${randomUUID().replace(/-/g, '').slice(0, 12)}`;
+  const admin = new pg.Client({ connectionString: url });
+  await admin.connect();
+  await admin.query(`CREATE SCHEMA ${schema}`);
+
+  const db = createDb({ connectionString: url, schema, max: 8 });
+  setDb(db);
+  try {
+    await walk(db);
+  } finally {
+    setDb(undefined);
+    await db.end();
+    await admin.query(`DROP SCHEMA ${schema} CASCADE`);
+    await admin.end();
   }
+
+  console.log(failures === 0 ? '\nEverything held.' : `\n${failures} check(s) failed.`);
+  process.exit(failures === 0 ? 0 : 1);
 }
 
-function step(title: string): void {
-  console.log(`\n── ${title}`);
-}
+async function walk(db: Db): Promise<void> {
+  const channel = new EmailChannel({ transport: new OutboxTransport(() => db), from: FROM });
+  const mail = {
+    transport: new OutboxTransport(() => db),
+    from: FROM,
+    baseUrl: 'https://sofra.e2e.test',
+  };
+  const at = (iso: string) => ({ db, channel, from: FROM, now: new Date(iso) });
+  const tick = (iso: string) => runTick({ db, channel, from: FROM, now: new Date(iso) });
 
-/** Keeps every message so the content can be asserted, not just the count. */
-class Mailbox implements EmailTransport {
-  readonly name = 'mailbox';
-  readonly sent: EmailMessage[] = [];
-  async send(message: EmailMessage): Promise<void> {
-    this.sent.push(message);
-  }
-}
+  console.log('An admin sets up the company');
+  const office: Office = {
+    id: 'AMS',
+    name: 'Amsterdam',
+    address: 'Zuidas',
+    meetingPoint: 'Reception',
+    timeZone: 'Europe/Amsterdam',
+    opensAt: '08:30',
+    matchLeadMinutes: 180,
+    confirmBy: '10:00',
+    reminderAt: '16:00',
+    lunchSlots: ['12:30'],
+    workingDays: [1, 2, 3, 4, 5],
+    minTable: 3,
+    maxTable: 4,
+    locationKeywords: ['amsterdam'],
+    active: true,
+  };
+  await createOffice(db, office);
+  await addAllowedDomain(db, 'e2e.test');
+  for (const d of DEPARTMENTS) await addDepartment(db, d);
+  check('office, domain and departments exist', true);
 
-const pool = new pg.Pool({ connectionString: CONNECTION, max: 8 }) as PgPool;
-
-await pool.query(`DROP TABLE IF EXISTS group_members, groups, opt_ins, unmatched,
-  past_matches, self_declared_attendance, suppressed_attendance, day_locks,
-  sign_in_failures, admins, notified, reminders_off CASCADE`);
-
-const date = nextWeekday(todayInZone('Europe/Istanbul'));
-const csv = readFileSync(new URL('./e2e-directory.csv', import.meta.url), 'utf8');
-const directory = new CsvDirectory({ load: async () => csv, onSkipped: () => {} });
-const people = await directory.listEmployees();
-const inTheOffice = people.filter((p) => p.officeId === OFFICE).map((p) => p.id);
-
-const store = new PostgresStore({
-  pool,
-  directory,
-  offices: [
-    {
-      id: OFFICE,
-      displayName: 'Istanbul HQ',
-      timeZone: 'Europe/Istanbul',
-      meetingPoint: 'Ground floor cafeteria, by the coffee bar',
-    },
-  ],
-  attendance: new ManualAttendanceProvider(
-    inTheOffice.map((employeeId) => ({ employeeId, officeId: OFFICE, date })),
-  ),
-});
-
-const mailbox = new Mailbox();
-const channel = new EmailChannel({ transport: mailbox, from: 'sofra@example.com' });
-
-console.log(`Company: ${people.length} people, ${inTheOffice.length} in ${OFFICE} on ${date}`);
-
-// ── 1. Nobody has heard of Sofra ────────────────────────────────────────────
-step('1. Before anything happens');
-check('nobody has asked for a lunch', (await store.listOptIns(date, OFFICE)).length === 0);
-check('there are no tables', (await store.listGroups(date, OFFICE)).length === 0);
-
-// ── 2. The morning question ─────────────────────────────────────────────────
-step('2. The morning job asks everyone who will be in');
-const reminded = await sendReminders({ store, channel, date });
-const asked = mailbox.sent.length;
-
-check('everyone in the building was asked', asked === inTheOffice.length, `${asked} mails`);
-check(
-  'each mail went to exactly one person',
-  mailbox.sent.every((m) => m.to.length === 1),
-);
-check(
-  'the mail carries a link to that day',
-  mailbox.sent.every((m) => m.text.includes(`day=${date}`)),
-);
-check(
-  'the mail carries its own off switch',
-  mailbox.sent.every((m) => m.text.includes('/you')),
-);
-check(
-  'no calendar attachment before there is a lunch',
-  mailbox.sent.every((m) => !m.attachments || m.attachments.length === 0),
-);
-check('the run reports what it did', reminded[0]?.sent === inTheOffice.length);
-
-const beforeSecondRun = mailbox.sent.length;
-await sendReminders({ store, channel, date });
-check('running it twice asks nobody again', mailbox.sent.length === beforeSecondRun);
-
-// ── 3. People answer ────────────────────────────────────────────────────────
-step('3. Eleven people say yes, one turns reminders off');
-const keen = inTheOffice.slice(0, 11);
-for (const employeeId of keen) {
-  await store.setOptIn({ employeeId, date, officeId: OFFICE, slot: '12:00' });
-}
-const quiet = inTheOffice[11]!;
-await store.setReminders(quiet, false);
-
-check('eleven opt-ins recorded', (await store.listOptIns(date, OFFICE)).length === 11);
-check('the opt-out is remembered', (await store.listRemindersOff()).includes(quiet));
-
-// ── 4. The evening job ──────────────────────────────────────────────────────
-step('4. The evening job plans the day and mails each table');
-mailbox.sent.length = 0;
-const outcomes = await runNightlyMatching({ store, channel, from: 'sofra@example.com', date });
-const tables = await store.listGroups(date, OFFICE);
-const seated = tables.flatMap((t) => t.members.map((m) => m.id));
-
-check('tables were built', tables.length > 0, `${tables.length} tables`);
-check(
-  'every table has three or four people',
-  tables.every((t) => t.members.length >= 3 && t.members.length <= 4),
-);
-check('nobody sits at two tables', new Set(seated).size === seated.length);
-check(
-  'only people who asked are seated',
-  seated.every((id) => keen.includes(id)),
-);
-check(
-  'everyone who asked is seated or reported as unseated',
-  seated.length + (await store.listUnmatched(date, OFFICE)).length === keen.length,
-);
-check(
-  'no table seats two people from the same team',
-  tables.every((t) => new Set(t.members.map((m) => m.team)).size === t.members.length),
-);
-check(
-  'every table shares a language',
-  tables.every((t) => t.commonLanguages.length > 0),
-);
-check('one mail per table', mailbox.sent.length === tables.length);
-check(
-  'the invite is addressed to the whole table at once',
-  mailbox.sent.every((m) => m.to.length >= 3),
-);
-check(
-  'the invite carries a calendar request',
-  mailbox.sent.every((m) => m.attachments?.[0]?.content.includes('METHOD:REQUEST')),
-);
-check(
-  'the invite names the meeting point',
-  mailbox.sent.every((m) => m.text.includes('Ground floor cafeteria')),
-);
-check(
-  'the invite opens an introduction round',
-  mailbox.sent.every((m) => m.text.includes('How to start')),
-);
-check(
-  'the invite makes room for the human half',
-  mailbox.sent.every((m) => /sport|culture/i.test(m.text)),
-);
-check('the outcome reports the same numbers', outcomes[0]?.tables === tables.length);
-
-// ── 5. The job runs again ───────────────────────────────────────────────────
-step('5. The scheduler fires a second time');
-const mailsBefore = mailbox.sent.length;
-const idsBefore = tables.map((t) => t.id).sort();
-await runNightlyMatching({ store, channel, from: 'sofra@example.com', date });
-const after = await store.listGroups(date, OFFICE);
-
-check('nobody is mailed twice', mailbox.sent.length === mailsBefore);
-check(
-  'the tables are not rebuilt',
-  JSON.stringify(after.map((t) => t.id).sort()) === JSON.stringify(idsBefore),
-);
-
-// ── 6. Replies ──────────────────────────────────────────────────────────────
-step('6. People reply');
-const table = tables.find((t) => t.members.length === 4)!;
-const [first, second, third] = table.members;
-
-await store.setRsvp(table.id, first!.id, 'accepted');
-check(
-  'an acceptance is recorded',
-  (await store.getGroup(table.id))?.rsvps[first!.id] === 'accepted',
-);
-
-await store.setRsvp(table.id, second!.id, 'declined');
-const afterDecline = (await store.getGroup(table.id))!;
-check('a decline is recorded', afterDecline.rsvps[second!.id] === 'declined');
-check('the table still stands with three', !afterDecline.cancelled);
-// Nobody moved, so the lunch is unchanged: same time, same place, same three
-// people turning up. Mailing them a fresh calendar invite because a fourth
-// dropped out would be noise, and the page shows the reply to anyone who looks.
-check('the reply is visible on the table', afterDecline.rsvps[second!.id] === 'declined');
-check(
-  "a decline that changes nobody's seat does not re-invite the table",
-  afterDecline.invitesSentAt !== null && afterDecline.sequence === table.sequence,
-);
-
-mailbox.sent.length = 0;
-await deliverPending({ store, channel, from: 'sofra@example.com', date, officeId: OFFICE });
-check('so nothing is sent', mailbox.sent.length === 0);
-
-// ── 7. Enough declines to call it off ───────────────────────────────────────
-step('7. Two more drop out');
-mailbox.sent.length = 0;
-await store.setRsvp(table.id, third!.id, 'declined');
-const collapsed = (await store.getGroup(table.id))!;
-
-if (collapsed.cancelled) {
-  check('the table is cancelled once it is too small', true);
-  await deliverPending({ store, channel, from: 'sofra@example.com', date, officeId: OFFICE });
-  const cancellation = mailbox.sent.find((m) =>
-    m.attachments?.[0]?.content.includes('METHOD:CANCEL'),
-  );
-  check('a cancellation takes it off the calendar', cancellation !== undefined);
-  check(
-    'the people still coming were offered another seat first',
-    (await store.getGroup(table.id))!.members.length < table.members.length ||
-      collapsed.members.every((m) => collapsed.rsvps[m.id] !== 'accepted'),
-  );
-
-  mailbox.sent.length = 0;
-  await deliverPending({ store, channel, from: 'sofra@example.com', date, officeId: OFFICE });
-  check('the cancellation is not sent twice', mailbox.sent.length === 0);
-
-  // The people who were moved changed somebody else's table, and that table
-  // does need telling, as an update to the same event rather than a second one.
-  const hosts = (await store.listGroups(date, OFFICE)).filter(
-    (t) => !t.cancelled && t.sequence > 0,
-  );
-  if (hosts.length > 0) {
-    check(
-      'a table that gained somebody was re-invited with a bumped SEQUENCE',
-      hosts.every((h) => h.invitesSentAt !== null),
+  console.log('Eleven people sign in by link and fill in their profile');
+  const people: Person[] = [];
+  for (let i = 0; i < 11; i++) {
+    const email = `person${i}@e2e.test`;
+    await requestSignInLink(db, mail, { email, meta: { ip: `10.0.0.${i}`, userAgent: 'e2e' } });
+    const [link] = await listMail(db, { recipient: email });
+    const token = link?.text.match(/token=([\w-]+)/)?.[1] ?? '';
+    const session = await redeemSignInLink(db, token, { ip: `10.0.0.${i}`, userAgent: 'e2e' });
+    if (!session) throw new Error(`sign-in failed for ${email}`);
+    people.push(
+      await saveProfile(db, session.person.id, {
+        displayName: `Person ${i}`,
+        title: 'Specialist',
+        department: DEPARTMENTS[i % DEPARTMENTS.length]!,
+        team: `Team ${i}`,
+        seniority: LADDER[i % LADDER.length]!,
+        officeId: 'AMS',
+        languages: ['en'],
+        interests: i % 2 ? ['chess'] : ['cycling'],
+        startedOn: null,
+      }),
     );
   }
-} else {
-  check('the table survived with the people still coming', collapsed.members.length >= 3);
-}
-
-// ── 8. Plans change ─────────────────────────────────────────────────────────
-step('8. Someone stops coming in altogether');
-const other = (await store.listGroups(date, OFFICE)).find(
-  (t) => !t.cancelled && t.members.length >= 3,
-);
-if (other) {
-  const leaver = other.members[0]!;
-  await store.setSelfDeclaredAttendance(leaver.id, date, OFFICE, false);
-
   check(
-    'their request for a lunch is withdrawn',
-    (await store.getOptIn(leaver.id, date, OFFICE)) === null,
-  );
-  check(
-    'their seat does not sit there expecting them',
-    (await store.getGroup(other.id))?.rsvps[leaver.id] === 'declined',
-  );
-}
-
-// ── 9. Concurrency ──────────────────────────────────────────────────────────
-step('9. Four people reply at the same instant');
-const busy = (await store.listGroups(date, OFFICE)).find(
-  (t) => !t.cancelled && t.members.length === 4,
-);
-if (busy) {
-  const seatsBefore = (await store.listGroups(date, OFFICE))
-    .filter((t) => !t.cancelled)
-    .flatMap((t) => t.members.map((m) => m.id));
-
-  await Promise.all(busy.members.map((m) => store.setRsvp(busy.id, m.id, 'accepted')));
-  const replies = (await store.getGroup(busy.id))!.rsvps;
-
-  check(
-    'every reply landed, none overwrote another',
-    busy.members.every((m) => replies[m.id] === 'accepted'),
+    'everybody signed in and is set up',
+    people.every((p) => p.onboardedAt !== null),
   );
 
-  const seatsAfter = (await store.listGroups(date, OFFICE))
-    .filter((t) => !t.cancelled)
-    .flatMap((t) => t.members.map((m) => m.id));
-  check('nobody vanished from a table', seatsAfter.length === seatsBefore.length);
-} else {
-  console.log('  --   no intact table of four left to contend on');
+  // Monday 2026-10-19, Amsterdam on summer time (UTC+2).
+  const DAY = '2026-10-19';
+  console.log(`Ten ask for lunch on ${DAY}, one of them by weekly pattern`);
+  for (const p of people.slice(0, 9)) {
+    await wantLunch(at('2026-10-15T09:00:00Z'), p, { date: DAY, officeId: 'AMS', slot: null });
+  }
+  await setPattern(db, { employeeId: people[9]!.id, weekdays: [1], slot: null });
+
+  console.log('The evening before (Friday 16:00 local) the question goes out');
+  // Person 10 had lunch the week before, so is somebody worth asking.
+  await wantLunch(at('2026-10-09T09:00:00Z'), people[10]!, {
+    date: '2026-10-12',
+    officeId: 'AMS',
+    slot: null,
+  });
+  const reminder = (await tick('2026-10-16T14:00:00Z')).find((a) => a.kind === 'reminder');
+  check('reminder ran for Monday', reminder?.date === DAY && reminder.status === 'done');
+  check(
+    'asked only somebody who ate recently and has not answered',
+    (reminder?.summary as { asked?: number } | undefined)?.asked === 1,
+    JSON.stringify(reminder?.summary),
+  );
+
+  console.log('Monday 05:30 local (03:30 UTC): the tables are made');
+  check(
+    'nothing a minute early',
+    (await tick('2026-10-19T03:29:00Z')).filter((a) => a.kind === 'match').length === 0,
+  );
+  const matched = (await tick('2026-10-19T03:30:00Z')).find((a) => a.kind === 'match');
+  const summary = matched?.summary as { seated?: number; tables?: number; invitesSent?: number };
+  check(
+    'ten seated at three tables',
+    summary?.seated === 10 && summary?.tables === 3,
+    JSON.stringify(summary),
+  );
+  const invites = (await listMail(db, { limit: 200 })).filter((m) => m.attachments.length > 0);
+  check(
+    'one mail per table, each with a calendar invite',
+    invites.length === 3 &&
+      invites.every((m) => m.attachments[0]?.content.includes('BEGIN:VEVENT')),
+  );
+
+  console.log('The scheduler runs again, and again, and twice at once');
+  await Promise.all([
+    tick('2026-10-19T03:45:00Z'),
+    tick('2026-10-19T03:45:00Z'),
+    tick('2026-10-19T04:00:00Z'),
+  ]);
+  const again = (await listMail(db, { limit: 200 })).filter((m) => m.attachments.length > 0);
+  check('no second invite to anybody', again.length === 3);
+
+  console.log('06:15: a drop-out leaves a table of three with two');
+  const tables = await listTables(db, 'AMS', DAY);
+  const small = tables.find((x) => x.members.length === 3)!;
+  const leaver = people.find((p) => p.id === small.members[0]!.id)!;
+  await dropLunch(at('2026-10-19T04:15:00Z'), leaver, DAY);
+  const after = await listTables(db, 'AMS', DAY);
+  const collapsed = after.find((x) => x.id === small.id)!;
+  const seatedNow = after.filter((x) => !x.cancelled).flatMap((x) => x.members.map((m) => m.id));
+  check('the small table is cancelled', collapsed.cancelled);
+  check(
+    'the two left behind are seated elsewhere',
+    small.members.slice(1).every((m) => seatedNow.includes(m.id)),
+  );
+
+  console.log('07:15: somebody late takes a free seat');
+  const late = await wantLunch(at('2026-10-19T05:15:00Z'), people[10]!, {
+    date: DAY,
+    officeId: 'AMS',
+    slot: null,
+  });
+  check('the latecomer is seated', late.ok && late.seated != null);
+
+  console.log('07:30: four people reply at the same instant');
+  const open = after
+    .filter((x) => !x.cancelled)
+    .flatMap((x) => x.members.map((m) => ({ table: x.id, id: m.id })));
+  await Promise.all(
+    open.slice(0, 4).map((seat) =>
+      respond(
+        at('2026-10-19T05:30:00Z'),
+        people.find((p) => p.id === seat.id)!,
+        seat.table,
+        'accepted',
+      ),
+    ),
+  );
+  const replies = (await listTables(db, 'AMS', DAY)).flatMap((x) => Object.entries(x.rsvps));
+  check(
+    'all four replies recorded',
+    open.slice(0, 4).every((s) => replies.some(([id, r]) => id === s.id && r === 'accepted')),
+  );
+
+  console.log('10:30: past the cut-off, nothing moves');
+  const closed = await wantLunch(at('2026-10-19T08:30:00Z'), people[9]!, {
+    date: DAY,
+    officeId: 'AMS',
+    slot: null,
+  });
+  check('a late request is refused as closed', !closed.ok && closed.reason === 'closed');
+
+  console.log('Next Monday, after the clocks went back (UTC+1)');
+  for (const p of people.slice(0, 3)) {
+    await wantLunch(at('2026-10-20T09:00:00Z'), p, {
+      date: '2026-10-26',
+      officeId: 'AMS',
+      slot: null,
+    });
+  }
+  check(
+    'nothing at the old summer instant',
+    (await tick('2026-10-26T03:30:00Z')).filter((a) => a.kind === 'match').length === 0,
+  );
+  const winter = (await tick('2026-10-26T04:30:00Z')).find((a) => a.kind === 'match');
+  check(
+    'tables at 05:30 local, 04:30 UTC',
+    winter?.status === 'done' && winter.date === '2026-10-26',
+  );
 }
 
-// ── 10. Re-planning ─────────────────────────────────────────────────────────
-step('10. The admin re-runs matching by hand');
-const replanned = await planDay(store, OFFICE, date);
-const replannedSeats = replanned.groups.flatMap((g) => g.members.map((m) => m.id));
-
-check('a new plan is produced', replanned.groups.length > 0);
-check('still nobody at two tables', new Set(replannedSeats).size === replannedSeats.length);
-check(
-  'the day being replanned does not count as a past lunch',
-  replanned.groups.every((g) => g.members.length >= 3),
-);
-
-mailbox.sent.length = 0;
-await deliverPending({ store, channel, from: 'sofra@example.com', date, officeId: OFFICE });
-check('the new tables are told about it', mailbox.sent.length === replanned.groups.length);
-
-// ── 11. History ─────────────────────────────────────────────────────────────
-step('11. What is kept afterwards');
-const history = await store.listPastMatches();
-check(
-  'the lunches are remembered so they are not repeated',
-  history.some((m) => m.date === date),
-);
-check(
-  'history holds ids and a date, nothing else',
-  history.every((m) => Object.keys(m).sort().join() === 'date,memberIds'),
-);
-
-console.log(`\n${failures === 0 ? 'PASS' : 'FAIL'}: ${checks - failures}/${checks} checks`);
-await pool.end?.();
-process.exit(failures === 0 ? 0 : 1);
+main().catch((error: unknown) => {
+  console.error(error);
+  process.exit(1);
+});

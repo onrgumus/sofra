@@ -1,6 +1,8 @@
 import { NextResponse, type NextRequest } from 'next/server';
+import { signIn } from '../../../../../src/auth/session';
+import { personForIdentity } from '../../../../../src/auth/signin';
+import { getDb } from '../../../../../src/db';
 import { readSignedPayload } from '../../../../../src/lib/auth';
-import { ENTRA } from '../../../../../src/directory/identity';
 import {
   discover,
   exchangeCode,
@@ -14,8 +16,6 @@ import {
   HANDSHAKE_PATH,
 } from '../../../../../src/lib/oidc-cookie';
 import { safeRedirectPath } from '../../../../../src/lib/redirect';
-import { startSession } from '../../../../../src/lib/session';
-import { getStore } from '../../../../../src/store/instance';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,10 +37,7 @@ function refuse(request: NextRequest, reason: string, detail?: unknown): NextRes
  * form that survives.
  */
 function clearHandshake(response: NextResponse): void {
-  response.cookies.set(HANDSHAKE_COOKIE, '', {
-    path: HANDSHAKE_PATH,
-    expires: new Date(0),
-  });
+  response.cookies.set(HANDSHAKE_COOKIE, '', { path: HANDSHAKE_PATH, expires: new Date(0) });
 }
 
 /**
@@ -51,7 +48,7 @@ function clearHandshake(response: NextResponse): void {
  * code is being fed to whoever follows the link. The code is redeemed
  * server-side with the PKCE verifier, so intercepting it is not enough to use
  * it. The id_token's signature, issuer, audience, lifetime and nonce are all
- * checked. Only then is anybody looked up.
+ * checked. Only then is anybody looked up, or created.
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const config = oidcConfig();
@@ -92,34 +89,30 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 
   // An address the provider has not verified is a claim by whoever registered
-  // the account. Matching on it would let somebody sign up elsewhere with a
-  // colleague's address and be seated as them.
+  // the account. Matching or creating on it would let somebody sign up
+  // elsewhere with a colleague's address and be seated as them.
   const addresses = identity.emailVerified ? identity.addresses : [];
 
-  const store = getStore();
-  const employee = await store.findByIdentity({
-    externalId: { system: ENTRA, value: identity.objectId ?? identity.subject },
+  const person = await personForIdentity(getDb(), {
+    objectId: identity.objectId ?? null,
     addresses,
+    name: identity.name,
+    trustedTenant: false,
   });
-
-  if (!employee) {
+  if (!person) {
     console.warn(
-      `[sofra] OIDC sign-in matched nobody. subject=${identity.subject} addresses=${identity.addresses.join(', ') || 'none'} verified=${identity.emailVerified}`,
+      `[sofra] OIDC sign-in refused. subject=${identity.subject} addresses=${identity.addresses.join(', ') || 'none'} verified=${identity.emailVerified}`,
     );
     return refuse(request, 'unknown');
   }
 
-  // Learn the subject, so the next sign-in is exact rather than a lookup by
-  // address, and keeps working after the person's address changes.
-  const learned = identity.objectId ?? identity.subject;
-  if (employee.externalIds?.[ENTRA] !== learned) {
-    await store.linkExternalId(employee.id, ENTRA, learned);
-  }
-
-  await startSession(employee.id);
+  await signIn(person, 'oidc');
 
   const response = NextResponse.redirect(
-    new URL(safeRedirectPath(handshake.next), request.nextUrl.origin),
+    new URL(
+      person.onboardedAt ? safeRedirectPath(handshake.next) : '/welcome',
+      request.nextUrl.origin,
+    ),
   );
   clearHandshake(response);
   return response;

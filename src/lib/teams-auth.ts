@@ -89,6 +89,15 @@ function assertClaims(claims: JwtClaims, options: TeamsAuthOptions): void {
     throw new Error('Token was issued for a different application');
   }
 
+  if (claims.iss?.startsWith('https://sts.windows.net/')) {
+    // Genuinely Microsoft's, and still refused: a v1 token, which is what an app
+    // registration issues until its manifest asks for v2. Said plainly, because
+    // otherwise every sign-in fails with a message that sends people looking
+    // for a forgery.
+    throw new Error(
+      'Token is a v1 access token: set requestedAccessTokenVersion to 2 in the app registration manifest',
+    );
+  }
   if (!claims.iss?.startsWith('https://login.microsoftonline.com/')) {
     throw new Error('Token was not issued by Microsoft');
   }

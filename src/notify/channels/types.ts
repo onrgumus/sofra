@@ -18,6 +18,19 @@ export interface Delivery {
   groupId: string;
   members: readonly Employee[];
   invite: Invite;
+  /**
+   * The table as facts rather than prose, for channels that draw it (a Teams
+   * card) instead of sending the mail's text.
+   */
+  details?: {
+    date: string;
+    dayLabel: string;
+    slot: string;
+    place: string;
+    rsvps: Readonly<Record<string, 'pending' | 'accepted' | 'declined'>>;
+    /** Replies still change the table. */
+    canReply: boolean;
+  };
 }
 
 export interface InviteChannel {

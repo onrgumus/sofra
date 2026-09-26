@@ -12,6 +12,10 @@ export interface ReminderOptions {
   optInUrl: string;
   /** Where to turn these off, which has to be in the message itself. */
   settingsUrl: string;
+  /** When that morning the tables are made, local, e.g. '06:00'. */
+  closesAt: string;
+  /** Why this person, of everyone, was asked. */
+  because: 'recent' | 'calendar';
   language?: SupportedLanguage;
 }
 
@@ -23,6 +27,14 @@ export interface Reminder {
   html: string;
   actionUrl: string;
   actionLabel: string;
+  /** The day being offered, for channels that can take the answer in place. */
+  offer?: {
+    date: string;
+    officeId: string;
+    officeName: string;
+    dayLabel: string;
+    closesAt: string;
+  };
 }
 
 /**
@@ -35,20 +47,20 @@ export interface Reminder {
  * one action, and carries its own way out.
  */
 export function buildReminder(options: ReminderOptions): Reminder {
-  const { employee, venue, dayLabel, optInUrl, settingsUrl } = options;
+  const { employee, venue, dayLabel, optInUrl, settingsUrl, closesAt, because } = options;
   const lang = options.language ?? pickLanguage(employee.languages);
   const t = STRINGS[lang];
 
   const text = [
     t.greeting(firstName(employee.displayName)),
     '',
-    t.body(dayLabel, venue.displayName),
+    t.body(dayLabel, venue.displayName, closesAt),
     '',
     t.action(optInUrl),
     '',
     t.noThanks,
     '',
-    t.footer(settingsUrl),
+    t.footer(because, settingsUrl),
   ].join('\n');
 
   return {
@@ -91,23 +103,23 @@ const STRINGS = {
   en: {
     subject: (day: string) => `Lunch with people you have not met, ${day}`,
     greeting: (name: string) => `Hi ${name},`,
-    body: (day: string, office: string) =>
-      `You are down to be at ${office} on ${day}. If you want, we will put you at a table with two or three people from other teams for lunch, and send everyone the time and the place the evening before.`,
+    body: (day: string, office: string, closes: string) =>
+      `If you are coming in to ${office} on ${day}, we can put you at a table with two or three people from other teams for lunch. Tables are made at ${closes} that morning, and everybody gets the time and the place straight away.`,
     action: (url: string) => `Count me in: ${url}`,
     actionLabel: 'Count me in',
     noThanks: 'If you would rather not, ignore this. Nothing happens unless you say yes.',
-    footer: (url: string) =>
-      `You are getting this because your desk booking says you will be in. Turn these off at ${url}`,
+    footer: (because: 'recent' | 'calendar', url: string) =>
+      `${because === 'calendar' ? 'You are getting this because your calendar shows you in the office that day.' : 'You are getting this because you have had lunch through Sofra recently.'} Turn these off at ${url}`,
   },
   tr: {
     subject: (day: string) => `${day} tanımadığın kişilerle öğle yemeği`,
     greeting: (name: string) => `Merhaba ${name},`,
-    body: (day: string, office: string) =>
-      `${day} günü ${office} ofisinde görünüyorsun. İstersen seni başka ekiplerden iki üç kişiyle aynı masaya oturtalım, saat ve yeri bir akşam önce herkese gönderelim.`,
+    body: (day: string, office: string, closes: string) =>
+      `${day} günü ${office} ofisine geleceksen, seni öğle yemeğinde başka ekiplerden iki üç kişiyle aynı masaya oturtalım. Masalar o sabah ${closes}'de kurulur, saat ve yer hemen herkese gider.`,
     action: (url: string) => `Varım: ${url}`,
     actionLabel: 'Varım',
     noThanks: 'İstemiyorsan bu maili yok say. Sen evet demeden hiçbir şey olmaz.',
-    footer: (url: string) =>
-      `Bu mail, masa rezervasyonunda o gün ofiste göründüğün için geldi. Kapatmak için: ${url}`,
+    footer: (because: 'recent' | 'calendar', url: string) =>
+      `${because === 'calendar' ? 'Bu mail, takviminde o gün ofiste göründüğün için geldi.' : 'Bu mail, son zamanlarda Sofra ile öğle yemeğine katıldığın için geldi.'} Kapatmak için: ${url}`,
   },
 } as const;

@@ -1,6 +1,6 @@
 import type { Employee, Seniority } from '../core/types';
 import { SENIORITY_LADDER } from '../core/types';
-import { parseCsv } from '../providers/csv';
+import { parseCsv } from './parse-csv';
 import { ENTRA, SLACK } from './identity';
 import type { Directory, DirectoryReadResult, DirectoryRowProblem } from './types';
 
