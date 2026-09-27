@@ -1,7 +1,7 @@
 {
   "name": "sofra",
   "version": "0.1.0",
-  "description": "Diversity-aware lunch matching for hybrid offices. Works with any desk-booking system.",
+  "description": "Lunch with colleagues from other teams, matched per office before it opens. PostgreSQL, Next.js, and a Teams app.",
   "license": "MIT",
   "type": "module",
   "engines": {
@@ -16,14 +16,19 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "lint": "next lint --max-warnings=0",
-    "format": "prettier --write \"src/**/*.ts\" \"app/**/*.{ts,tsx}\" \"tests/**/*.ts\" \"scripts/*.ts\" \"middleware.ts\" \"*.{json,md}\" \"docs/*.md\"",
-    "format:check": "prettier --check \"src/**/*.ts\" \"app/**/*.{ts,tsx}\" \"tests/**/*.ts\" \"scripts/*.ts\" \"middleware.ts\" \"*.{json,md}\" \"docs/*.md\"",
+    "format": "prettier --write \"src/**/*.ts\" \"app/**/*.{ts,tsx}\" \"tests/**/*.ts\" \"scripts/*.ts\" \"middleware.ts\" \"vitest.config.ts\" \"*.{json,md}\" \"docs/*.md\" \"teams/*.{json,md}\"",
+    "format:check": "prettier --check \"src/**/*.ts\" \"app/**/*.{ts,tsx}\" \"tests/**/*.ts\" \"scripts/*.ts\" \"middleware.ts\" \"vitest.config.ts\" \"*.{json,md}\" \"docs/*.md\" \"teams/*.{json,md}\"",
+    "dev:teams": "node --env-file=.env.teams.local node_modules/next/dist/bin/next dev --experimental-https -p 3443",
     "teams:package": "tsx scripts/package-teams-app.ts",
+    "teams:package:local": "tsx scripts/package-teams-app.ts .env.teams.local",
     "e2e": "tsx scripts/e2e.ts",
-    "coverage": "vitest run --coverage --coverage.reporter=text --coverage.include=src/**"
+    "coverage": "vitest run --coverage --coverage.reporter=text --coverage.include=src/**",
+    "db:migrate": "tsx scripts/migrate.ts",
+    "db:seed": "tsx scripts/seed.ts"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
+    "@types/nodemailer": "^8.0.2",
     "@types/pg": "^8.23.1",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
@@ -32,7 +37,6 @@
     "@vitest/coverage-v8": "^2.1.9",
     "eslint": "^8.57.1",
     "eslint-config-next": "^15.5.25",
-    "pg-mem": "^3.0.14",
     "prettier": "^3.9.6",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
@@ -41,6 +45,7 @@
   "dependencies": {
     "@microsoft/teams-js": "^2.56.0",
     "next": "^15.5.25",
+    "nodemailer": "^7.0.13",
     "pg": "^8.23.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0"
@@ -48,8 +53,9 @@
   "keywords": [
     "hybrid-work",
     "matching",
-    "set-packing",
-    "ics",
+    "lunch",
+    "teams",
+    "postgresql",
     "nextjs",
     "employee-experience"
   ],

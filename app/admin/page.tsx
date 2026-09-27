@@ -1,338 +1,288 @@
-import { getStore } from '../../src/store/instance';
-import { currentEmployeeId } from '../../src/lib/session';
-import { isAdmin } from '../../src/lib/authz';
-import { usingDemoDirectory } from '../../src/lib/directory';
-import { SLOT } from '../../src/store/demo';
-import { formatDay, todayInZone, upcomingWeekdays } from '../../src/lib/dates';
-import { toVenue } from '../../src/lib/venue';
-import { confirmUrl } from '../../src/lib/config';
-import { MatchHistory } from '../../src/core/history';
+import Link from 'next/link';
+import { redirect } from 'next/navigation';
+import { requireAdmin } from '../../src/auth/session';
+import { visibleOffices } from '../../src/auth/roles';
 import { scoreGroup } from '../../src/core/scoring';
-import { DEFAULT_CONFIG } from '../../src/core/types';
-import { buildInvite } from '../../src/notify/invite';
-import type { Office, StoredGroup } from '../../src/store/types';
-import { clearMatching, runMatching, sendInvites } from '../actions';
+import { MatchHistory } from '../../src/core/history';
+import { getDb } from '../../src/db';
+import { lastRun } from '../../src/data/jobs';
+import { requestsForDay } from '../../src/data/lunch';
+import { listHolidays, listOffices } from '../../src/data/offices';
+import { countPeople, getPeople } from '../../src/data/people';
+import { listTables, listUnseated, pastMatches } from '../../src/data/tables';
+import { formatDay } from '../../src/lib/dates';
+import { addDays, formatLocalTime } from '../../src/lib/zoned';
+import { officeConfig } from '../../src/services/planning';
+import {
+  confirmInstant,
+  dayPhase,
+  isWorkingDay,
+  matchInstant,
+  officeToday,
+  previousWorkingDay,
+  workingDaysFrom,
+} from '../../src/services/schedule';
+import { planNowAction, remindNowAction } from '../actions/admin';
 import { AutoSubmitSelect } from '../AutoSubmit';
-import { Metric, PersonRow, Pill, ScoreBars, relaxationLabel, relaxationTone } from '../ui';
+import { Metric, PersonRow, Pill, relaxationLabel, relaxationTone, ScoreBars } from '../ui';
 
-export default async function AdminPage({
+export const dynamic = 'force-dynamic';
+export const metadata = { title: 'Console · Sofra' };
+
+const NOTES: Record<string, string> = {
+  planned: 'The tables are made and the invites have gone.',
+  reminded: 'The reminder has gone to the people likely to want it.',
+  failed: 'That did not work. The run is in Runs with the reason.',
+};
+
+function utc(instant: Date): string {
+  return instant.toISOString().slice(11, 16);
+}
+
+export default async function ConsolePage({
   searchParams,
 }: {
-  searchParams: Promise<{ date?: string; officeId?: string }>;
+  searchParams: Promise<{ office?: string; date?: string; note?: string }>;
 }) {
-  const store = getStore();
-
-  // Every table, every name and every reply for a whole office. Signed in is
-  // not a reason to see it.
-  const viewerId = await currentEmployeeId(store);
-  const viewer = viewerId ? await store.getEmployee(viewerId) : undefined;
-  if (!(await isAdmin(store, viewer))) return <NotYours />;
-
+  const { role } = await requireAdmin();
   const params = await searchParams;
+  const db = getDb();
+  const offices = visibleOffices(role, await listOffices(db));
 
-  const offices = await store.listOffices();
-  const officeId = offices.some((o) => o.id === params.officeId)
-    ? params.officeId!
-    : offices[0]!.id;
-  const office = (await store.getOffice(officeId))!;
+  if (offices.length === 0) {
+    return (
+      <main>
+        <div className="page-head">
+          <h1>Console</h1>
+          <p>There are no offices yet. Everything starts with one.</p>
+        </div>
+        {role.everyOffice ? (
+          <Link className="button" data-variant="primary" href="/admin/offices/new">
+            Add the first office
+          </Link>
+        ) : null}
+      </main>
+    );
+  }
 
-  // Offices in different zones are on different dates for part of every day.
-  const dates = upcomingWeekdays(10, todayInZone(office.timeZone));
-  const date = params.date && dates.includes(params.date) ? params.date : dates[0]!;
-
-  const attending = await store.getAttendance(date, officeId);
-  const attendingSet = new Set(attending);
-  const optIns = (await store.listOptIns(date, officeId)).filter((o) =>
-    attendingSet.has(o.employeeId),
+  const office = offices.find((o) => o.id === params.office) ?? offices[0]!;
+  const now = new Date();
+  const today = officeToday(office, now);
+  const holidays = new Set(
+    (await listHolidays(db, office.id, { from: addDays(today, -30), to: addDays(today, 60) })).map(
+      (h) => h.date,
+    ),
   );
-  const groups = await store.listGroups(date, officeId);
-  const unmatched = await store.listUnmatched(date, officeId);
+  const upcoming = workingDaysFrom(office, today, 10, holidays);
+  const recent = workingDaysFrom(office, addDays(today, -14), 20, holidays).filter(
+    (d) => d < today,
+  );
+  const dates = [...recent.slice(-5), ...upcoming];
+  const date = params.date && dates.includes(params.date) ? params.date : (upcoming[0] ?? today);
+  if (params.date && params.date !== date)
+    redirect(`/admin?office=${encodeURIComponent(office.id)}`);
 
-  // Same exclusion as the matcher used, so the novelty bars and the "first
-  // meeting" count describe this plan rather than being cancelled out by it.
-  const priorMatches = (await store.listPastMatches()).filter((m) => m.date !== date);
-  const context = {
-    history: new MatchHistory(priorMatches, date),
-    config: DEFAULT_CONFIG,
-  };
-
-  const stats = summarise(groups, context.history);
-  const invitesSent = groups.some((g) => g.invitesSentAt !== null);
-  const employees = await store.listEmployees();
+  const [requests, tables, unseated, matchRun, reminderRun, people] = await Promise.all([
+    requestsForDay(db, office.id, date),
+    listTables(db, office.id, date),
+    listUnseated(db, office.id, date),
+    lastRun(db, { kind: 'match', officeId: office.id, runKey: date }),
+    lastRun(db, { kind: 'reminder', officeId: office.id, runKey: date }),
+    countPeople(db),
+  ]);
+  const requesters = await getPeople(
+    db,
+    requests.map((r) => r.employeeId),
+  );
+  const history = new MatchHistory(await pastMatches(db, date), date);
+  const config = officeConfig(office);
+  const phase = dayPhase(office, date, holidays, now);
+  const seated = tables.filter((t) => !t.cancelled).reduce((n, t) => n + t.members.length, 0);
 
   return (
     <main>
       <div className="page-head">
-        <h1>Matching console</h1>
+        <h1>Console</h1>
         <p>
-          What the nightly job will do, with the button pressed by hand. Everything below is
-          computed by the same engine the cron entry point will call.
+          Tables for a day at {office.name} are made at{' '}
+          <strong>{formatLocalTime(matchInstant(office, date), office.timeZone)}</strong> local (
+          {utc(matchInstant(office, date))} UTC), {office.matchLeadMinutes / 60} hours before the
+          office opens at {office.opensAt}. Replies close at{' '}
+          {formatLocalTime(confirmInstant(office, date), office.timeZone)}; the evening question
+          goes at {office.reminderAt} on {formatDay(previousWorkingDay(office, date, holidays))}.
         </p>
       </div>
 
-      {usingDemoDirectory() ? (
-        <section>
-          <div className="note">
-            These are {employees.length} invented people, not your company. Sofra reads its
-            directory from <code>SOFRA_DIRECTORY_CSV</code>, a URL or a file path; until that is
-            set, every table below is a demonstration. See the README for the columns.
-          </div>
-        </section>
+      {params.note && NOTES[params.note] ? (
+        <div className="note" data-tone={params.note === 'failed' ? 'bad' : 'good'} role="status">
+          {NOTES[params.note]}
+        </div>
       ) : null}
 
       <section>
         <form method="get" action="/admin" className="inline">
+          {offices.length > 1 ? (
+            <AutoSubmitSelect
+              name="office"
+              defaultValue={office.id}
+              aria-label="Office"
+              options={offices.map((o) => ({ value: o.id, label: o.name }))}
+            />
+          ) : null}
           <AutoSubmitSelect
             name="date"
             defaultValue={date}
-            aria-label="Date"
-            options={dates.map((d) => ({ value: d, label: formatDay(d) }))}
-          />
-          <AutoSubmitSelect
-            name="officeId"
-            defaultValue={officeId}
-            aria-label="Office"
-            options={offices.map((o) => ({ value: o.id, label: o.displayName }))}
+            aria-label="Day"
+            options={dates.map((d) => ({
+              value: d,
+              label: `${formatDay(d)}${d === today ? ' (today)' : ''}`,
+            }))}
           />
         </form>
       </section>
 
-      <section>
-        <div className="metrics">
-          <Metric value={attending.length} label="in the office" />
-          <Metric value={optIns.length} label="asked for a lunch" />
-          <Metric value={groups.length} label="tables" />
-          <Metric value={stats.seated} label="people seated" />
-          <Metric value={unmatched.length} label="unseated" />
-        </div>
+      <section className="metrics">
+        <Metric value={requests.length} label="asked for lunch" />
+        <Metric value={tables.filter((t) => !t.cancelled).length} label="tables" />
+        <Metric value={seated} label="seated" />
+        <Metric value={unseated.length} label="could not be seated" />
+        <Metric value={`${people.onboarded}/${people.active}`} label="people set up" />
       </section>
 
       <section>
-        <div className="row">
-          <form action={runMatching}>
-            <input type="hidden" name="date" value={date} />
-            <input type="hidden" name="officeId" value={officeId} />
-            <button type="submit" data-variant="primary" disabled={optIns.length === 0}>
-              {groups.length > 0 ? 'Re-run matching' : 'Run matching'}
-            </button>
-          </form>
-
-          <form action={sendInvites}>
-            <input type="hidden" name="date" value={date} />
-            <input type="hidden" name="officeId" value={officeId} />
-            <button type="submit" disabled={groups.length === 0}>
-              {invitesSent ? 'Re-send invites' : 'Send invites'}
-            </button>
-          </form>
-
-          {groups.length > 0 ? (
-            <form action={clearMatching}>
-              <input type="hidden" name="date" value={date} />
-              <input type="hidden" name="officeId" value={officeId} />
-              <button type="submit" data-variant="quiet">
-                Clear
-              </button>
-            </form>
+        <div className="card stack">
+          <div className="row">
+            <Pill tone={phase === 'open' ? 'accent' : phase === 'matched' ? 'good' : 'neutral'}>
+              {phase === 'open'
+                ? 'collecting requests'
+                : phase === 'matched'
+                  ? 'tables made, replies open'
+                  : phase === 'closed'
+                    ? 'replies closed'
+                    : phase === 'past'
+                      ? 'over'
+                      : 'office closed'}
+            </Pill>
+            {matchRun ? (
+              <span className="faint">
+                Matching {matchRun.trigger === 'manual' ? 'run by hand' : 'ran'} at{' '}
+                {formatLocalTime(new Date(matchRun.startedAt), office.timeZone)}: {matchRun.status}
+                {matchRun.error ? ` (${matchRun.error})` : ''}
+              </span>
+            ) : (
+              <span className="faint">
+                Matching has not run for this day
+                {isWorkingDay(office, date, holidays) ? '' : ' (the office is closed)'}.
+              </span>
+            )}
+            {reminderRun ? (
+              <span className="faint">Reminder: {reminderRun.status}.</span>
+            ) : (
+              <span className="faint">
+                Reminder due {formatDay(previousWorkingDay(office, date, holidays))}{' '}
+                {office.reminderAt}.
+              </span>
+            )}
+          </div>
+          {phase !== 'past' && phase !== 'off' ? (
+            <div className="row">
+              <form action={planNowAction}>
+                <input type="hidden" name="officeId" value={office.id} />
+                <input type="hidden" name="date" value={date} />
+                <button type="submit" data-variant="primary">
+                  {tables.length > 0 ? 'Make the tables again' : 'Make the tables now'}
+                </button>
+              </form>
+              {phase === 'open' ? (
+                <form action={remindNowAction}>
+                  <input type="hidden" name="officeId" value={office.id} />
+                  <input type="hidden" name="date" value={date} />
+                  <button type="submit">Send the reminder now</button>
+                </form>
+              ) : null}
+              {tables.length > 0 ? (
+                <span className="faint">
+                  Making them again cancels the invites already sent and sends new ones.
+                </span>
+              ) : null}
+            </div>
           ) : null}
-
-          {invitesSent ? <Pill tone="good">invites sent</Pill> : null}
         </div>
-
-        {optIns.length === 0 ? (
-          <p className="faint" style={{ marginTop: 10 }}>
-            Nobody has asked for a lunch on this day yet. Opt in from the employee page first.
-          </p>
-        ) : null}
       </section>
 
-      {groups.length > 0 ? (
+      {tables.length > 0 ? (
         <section>
           <div className="section-head">
-            <h2>Quality of this plan</h2>
-            <p>What the diversity score actually bought.</p>
+            <h2>Tables</h2>
           </div>
-          <div className="metrics">
-            <Metric
-              value={`${Math.round(stats.crossDepartment * 100)}%`}
-              label="cross-department pairs"
-            />
-            <Metric value={stats.seniorityLevels.toFixed(2)} label="seniority levels per table" />
-            <Metric value={stats.strangerPairs} label="pairs meeting for the first time" />
-            <Metric value={stats.relaxed} label="tables needing a rule bent" />
+          <div className="grid-2">
+            {tables.map((table, i) => (
+              <article className="card" key={table.id}>
+                <div className="spread">
+                  <h3>
+                    Table {i + 1} · {table.slot}
+                  </h3>
+                  <div className="row">
+                    {table.cancelled ? <Pill tone="bad">cancelled</Pill> : null}
+                    <Pill tone={relaxationTone(table.relaxation)}>
+                      {relaxationLabel(table.relaxation)}
+                    </Pill>
+                  </div>
+                </div>
+                <div className="people">
+                  {table.members.map((m) => (
+                    <PersonRow key={m.id} person={m} rsvp={table.rsvps[m.id]} detail="full" />
+                  ))}
+                </div>
+                {table.members.length > 0 ? (
+                  <ScoreBars breakdown={scoreGroup(table.members, { history, config })} />
+                ) : null}
+                <p className="faint">
+                  {table.invitesSentAt ? 'Invite sent.' : 'Invite not sent yet.'} Version{' '}
+                  {table.sequence}.
+                </p>
+              </article>
+            ))}
           </div>
         </section>
       ) : null}
 
-      <section>
-        <div className="section-head">
-          <h2>Tables</h2>
-          {groups.length > 0 ? (
-            <p>
-              {SLOT} at {office.displayName}
-            </p>
-          ) : null}
-        </div>
-
-        {groups.length === 0 ? (
-          <div className="empty">
-            No tables yet for {formatDay(date)}. Run matching to build them.
+      {unseated.length > 0 ? (
+        <section>
+          <div className="section-head">
+            <h2>Could not be seated</h2>
+            <p>They have been told why, once.</p>
           </div>
-        ) : (
-          <div className="stack">
-            {groups.map((group, index) => (
-              <TableCard
-                key={group.id}
-                group={group}
-                index={index}
-                context={context}
-                office={office}
-              />
+          <div className="card people">
+            {unseated.map(({ employee, reason }) => (
+              <div key={employee.id} className="row">
+                <PersonRow person={employee} detail="full" />
+                <Pill tone="warn">
+                  {reason === 'no-common-language' ? 'no shared language' : 'too few people'}
+                </Pill>
+              </div>
             ))}
           </div>
-        )}
+        </section>
+      ) : null}
 
-        {unmatched.length > 0 ? (
-          <div className="card" style={{ marginTop: 12 }}>
-            <div className="row">
-              <Pill tone="bad">unseated</Pill>
-              <span className="muted">
-                These people opted in but could not be placed. They get an honest &ldquo;not
-                today&rdquo; message, never silence.
-              </span>
-            </div>
-            <div className="people">
-              {unmatched.map((entry) => (
-                <PersonRow key={entry.employee.id} person={entry.employee} detail="full" />
+      {requesters.length > 0 && tables.length === 0 ? (
+        <section>
+          <details className="card">
+            <summary>Who asked ({requesters.length})</summary>
+            <ul className="plain">
+              {requesters.map((p) => (
+                <li key={p.id}>
+                  {p.displayName} — {p.department}
+                  {requests.find((r) => r.employeeId === p.id)?.source === 'weekly' ? (
+                    <span className="faint"> · every week</span>
+                  ) : null}
+                </li>
               ))}
-            </div>
-            <p className="faint" style={{ marginTop: 8 }}>
-              Reason:{' '}
-              {unmatched[0]!.reason === 'pool-too-small'
-                ? 'fewer than three people opted in'
-                : 'no language shared with anyone else in the pool'}
-              .
-            </p>
-          </div>
-        ) : null}
-      </section>
-    </main>
-  );
-}
-
-function TableCard({
-  group,
-  index,
-  context,
-  office,
-}: {
-  group: StoredGroup;
-  index: number;
-  context: Parameters<typeof scoreGroup>[1];
-  office: Office;
-}) {
-  const breakdown = scoreGroup(group.members, context);
-  const departments = new Set(group.members.map((m) => m.department));
-  const invite = buildInvite({
-    group,
-    venue: toVenue(office),
-    organizer: { name: 'Sofra', email: 'sofra@example.com' },
-    confirmUrl: confirmUrl(group.id),
-    sequence: group.sequence,
-  });
-
-  return (
-    <article className="card">
-      <div className="spread">
-        <div className="row">
-          <h3>Table {index + 1}</h3>
-          <Pill tone="neutral">{group.members.length} people</Pill>
-          <Pill tone="neutral">{departments.size} departments</Pill>
-          <Pill tone={relaxationTone(group.relaxation)}>{relaxationLabel(group.relaxation)}</Pill>
-          {group.cancelled ? <Pill tone="bad">cancelled</Pill> : null}
-        </div>
-        <span className="faint mono">score {breakdown.total.toFixed(2)}</span>
-      </div>
-
-      <div className="people">
-        {group.members.map((person) => (
-          <PersonRow key={person.id} person={person} rsvp={group.rsvps[person.id]} detail="full" />
-        ))}
-      </div>
-
-      <ScoreBars breakdown={breakdown} />
-
-      <p className="faint" style={{ marginTop: 12 }}>
-        Topic for this table: {invite.topic}
-      </p>
-
-      <div className="row" style={{ marginTop: 8 }}>
-        <span className="faint">speaks {group.commonLanguages.join(', ')}</span>
-        {group.cancelled && group.cancellationSentAt ? (
-          <Pill tone="neutral">cancellation sent</Pill>
-        ) : group.cancelled && group.invitesSentAt ? (
-          <Pill tone="warn">cancellation pending</Pill>
-        ) : group.invitesSentAt ? (
-          <Pill tone="good">invite sent</Pill>
-        ) : group.sequence > 0 ? (
-          <Pill tone="warn">reseated, needs a fresh invite</Pill>
-        ) : null}
-      </div>
-
-      <details>
-        <summary>Preview the invite</summary>
-        <div className="invite">{invite.text}</div>
-        <details>
-          <summary>Calendar attachment (.ics)</summary>
-          <div className="invite">{invite.ics}</div>
-        </details>
-      </details>
-    </article>
-  );
-}
-
-function summarise(groups: readonly StoredGroup[], history: MatchHistory) {
-  let crossDepartment = 0;
-  let pairs = 0;
-  let seniorityLevels = 0;
-  let strangerPairs = 0;
-
-  for (const group of groups) {
-    seniorityLevels += new Set(group.members.map((m) => m.seniority)).size;
-    for (let i = 0; i < group.members.length; i++) {
-      for (let j = i + 1; j < group.members.length; j++) {
-        const a = group.members[i]!;
-        const b = group.members[j]!;
-        pairs++;
-        if (a.department !== b.department) crossDepartment++;
-        // The history was built before this plan was saved, so a null here means
-        // these two have genuinely never had lunch together.
-        if (history.daysSince(a.id, b.id) === null) strangerPairs++;
-      }
-    }
-  }
-
-  return {
-    seated: groups.reduce((sum, g) => sum + g.members.length, 0),
-    crossDepartment: pairs === 0 ? 0 : crossDepartment / pairs,
-    seniorityLevels: groups.length === 0 ? 0 : seniorityLevels / groups.length,
-    strangerPairs,
-    relaxed: groups.filter((g) => g.relaxation !== 'none').length,
-  };
-}
-
-function NotYours() {
-  return (
-    <main>
-      <div className="page-head">
-        <h1>Not your console</h1>
-        <p>
-          The matching console shows every table and every reply for a whole office, so it is
-          limited to named people. Your lunches are on the home page.
-        </p>
-      </div>
-      <a className="button" href="/">
-        Back to your lunches
-      </a>
+            </ul>
+          </details>
+        </section>
+      ) : null}
     </main>
   );
 }

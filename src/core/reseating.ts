@@ -77,6 +77,47 @@ export function applyRsvp(options: ApplyRsvpOptions): SeatedTable[] {
   return [...changed];
 }
 
+export interface SeatLatecomerOptions {
+  /** Every table that day at that office and lunch time. */
+  tables: SeatedTable[];
+  person: Employee;
+  pastMatches: readonly PastMatch[];
+  config: MatchConfig;
+}
+
+/**
+ * Somebody who asks after the tables were made, while replies are still open:
+ * a free seat at a table where every rule holds, trying the stricter rules and
+ * the smaller tables first, exactly as a person moved off a collapsed table
+ * would be seated. Returns the table they joined, which has changed and needs
+ * its invite sent again, or null when there is genuinely nowhere to put them.
+ */
+export function seatLatecomer(options: SeatLatecomerOptions): SeatedTable | null {
+  const { tables, person, config } = options;
+  if (tables.some((t) => !t.cancelled && t.members.some((m) => m.id === person.id))) return null;
+
+  const date = tables[0]?.date;
+  if (!date) return null;
+  const history = new MatchHistory(
+    options.pastMatches.filter((m) => m.date !== date),
+    date,
+  );
+  const host = findHost(
+    tables.filter((t) => !t.cancelled),
+    person,
+    history,
+    config,
+  );
+  if (!host) return null;
+
+  host.members.push(person);
+  host.rsvps[person.id] = 'accepted';
+  host.sequence += 1;
+  host.invitesSentAt = null;
+  host.cancellationSentAt = null;
+  return host;
+}
+
 function moveOut(
   table: SeatedTable,
   people: readonly Employee[],

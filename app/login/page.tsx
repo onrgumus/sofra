@@ -1,132 +1,126 @@
 import { redirect } from 'next/navigation';
-import { getStore } from '../../src/store/instance';
-import { currentEmployeeId } from '../../src/lib/session';
-import { safeRedirectPath } from '../../src/lib/redirect';
-import { DEMO_PASSWORD } from '../../src/lib/auth';
-import { demoModeEnabled } from '../../src/lib/authz';
+import { current } from '../../src/auth/session';
 import { oidcConfig } from '../../src/lib/oidc';
-import { WINDOW_MINUTES } from '../../src/lib/throttle';
-import { DEMO_USERNAME, FEATURED_EMPLOYEE } from '../../src/store/featured';
-import { signIn } from '../actions';
+import { safeRedirectPath } from '../../src/lib/redirect';
+import { openInTeamsUrl, TEAMS_RETRY_PARAM, teamsOnly } from '../../src/lib/teams-mode';
+import { mailboxEnabled } from '../../src/services/mail';
+import { requestLinkAction } from '../actions/auth';
 import { TeamsBootstrap } from '../TeamsBootstrap';
+import { TeamsTheme } from '../TeamsTheme';
 
 export const dynamic = 'force-dynamic';
-
 export const metadata = { title: 'Sign in · Sofra' };
+
+const ERRORS: Record<string, string> = {
+  invalid: 'That does not look like an email address.',
+  throttled: 'Too many links asked for. Wait a few minutes and try again.',
+  link: 'That sign-in link has expired or has already been used. Ask for a new one.',
+  denied: 'Your company sign-in did not go through. You can try again.',
+  expired: 'That sign-in took too long. Start again.',
+  state: 'That sign-in could not be matched to this browser. Start again.',
+  nocode: 'Your company sign-in came back incomplete. Start again.',
+  token: 'Sofra could not complete the sign-in with your company. Try again shortly.',
+  unknown:
+    'You signed in, but that account cannot use Sofra here. Ask an admin to allow your domain.',
+  provider: 'Sofra cannot reach your company sign-in at the moment.',
+};
 
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; next?: string }>;
+  searchParams: Promise<{
+    error?: string;
+    next?: string;
+    reauth?: string;
+    [TEAMS_RETRY_PARAM]?: string;
+  }>;
 }) {
   const params = await searchParams;
   const next = safeRedirectPath(params.next);
-  if (await currentEmployeeId(getStore())) redirect(next);
+  const reauth = params.reauth === '1';
 
-  // When a company has wired up its own identity provider, that is the way in.
-  // The shared password stays only where demo mode is deliberately on.
+  // Somebody already signed in has nothing to do here, unless the console has
+  // asked them to prove who they are again.
+  if (!reauth && (await current())) redirect(next);
+
+  if (teamsOnly()) {
+    return (
+      <main className="signin">
+        <div className="page-head">
+          <h1>Sofra</h1>
+        </div>
+        <TeamsTheme />
+        <TeamsBootstrap
+          teamsOnly
+          openInTeamsUrl={openInTeamsUrl()}
+          retried={params[TEAMS_RETRY_PARAM] === 'retry'}
+        />
+      </main>
+    );
+  }
+
   const company = oidcConfig();
-  const showPassword = !company || demoModeEnabled();
+  const error = params.error ? ERRORS[params.error] : null;
 
   return (
     <main className="signin">
       <div className="page-head">
         <h1>Sofra</h1>
         <p>
-          You can spend years in a building with people whose work you never see. As more of the
-          routine gets automated, what is left is the part that runs on knowing who to ask, and that
-          is not on any org chart. Sofra spends an hour you were going to spend anyway on three
-          people most likely to teach you something.
+          Lunch with two or three colleagues from other teams, on the days you are in the office
+          anyway.
         </p>
       </div>
 
-      {/* Inside Teams this signs you in and reloads; elsewhere it does nothing. */}
+      {/* Inside Teams this signs you in; in a browser it does nothing. */}
       <TeamsBootstrap />
 
+      {reauth ? (
+        <div className="note" role="status">
+          The console needs a recent sign-in. Sign in again to carry on.
+        </div>
+      ) : null}
+      {error ? (
+        <p className="error-text" role="alert">
+          {error}
+        </p>
+      ) : null}
+
+      <form action={requestLinkAction} className="card stack" style={{ maxWidth: 420 }}>
+        <input type="hidden" name="next" value={next} />
+        <label className="field">
+          <span>Work email</span>
+          <input
+            name="email"
+            type="email"
+            autoComplete="email"
+            inputMode="email"
+            required
+            placeholder="you@company.com"
+          />
+        </label>
+        <button type="submit" data-variant="primary">
+          Email me a sign-in link
+        </button>
+        <p className="faint">
+          No password. The link works once, for fifteen minutes. Only addresses at your company can
+          sign in.
+        </p>
+      </form>
+
       {company ? (
-        <div className="card stack" style={{ maxWidth: 380 }}>
-          <a
-            className="button"
-            data-variant="primary"
-            href={`/api/auth/oidc/start?next=${encodeURIComponent(next)}`}
-          >
+        <div className="card stack" style={{ maxWidth: 420, marginTop: 12 }}>
+          <a className="button" href={`/api/auth/oidc/start?next=${encodeURIComponent(next)}`}>
             Sign in with your company account
           </a>
-          {OIDC_ERRORS[params.error ?? ''] ? (
-            <p className="error-text">{OIDC_ERRORS[params.error ?? '']}</p>
-          ) : null}
-          <p className="faint">
-            Takes you to your company&apos;s usual sign-in. Sofra never sees your password, and when
-            your account is closed your access to Sofra closes with it.
-          </p>
         </div>
       ) : null}
 
-      {showPassword ? (
-        <form action={signIn} className="card stack" style={{ maxWidth: 380 }}>
-          <input type="hidden" name="next" value={next} />
-
-          <label className="field">
-            <span>Username</span>
-            <input name="username" autoComplete="username" defaultValue={DEMO_USERNAME} required />
-          </label>
-
-          <label className="field">
-            <span>Password</span>
-            <input name="password" type="password" autoComplete="current-password" required />
-          </label>
-
-          {params.error === 'throttled' ? (
-            <p className="error-text">Too many attempts. Try again in {WINDOW_MINUTES} minutes.</p>
-          ) : params.error === 'bad-credentials' ? (
-            <p className="error-text">That username and password did not match.</p>
-          ) : null}
-
-          <button type="submit" data-variant="primary">
-            Sign in
-          </button>
-
-          {/* Impersonation, so it lives and dies with demo mode, like the
-              account switcher. formNoValidate because it collects no password:
-              without it the browser refused to submit over an empty field the
-              visitor was never asked to fill, and the button did nothing. */}
-          {demoModeEnabled() ? (
-            <>
-              <div className="or">
-                <span>or</span>
-              </div>
-
-              <button type="submit" name="mode" value="random" formNoValidate>
-                Sign in as a random colleague
-              </button>
-            </>
-          ) : null}
-
-          <p className="faint">
-            Demo account: <strong>{DEMO_USERNAME}</strong> / <strong>{DEMO_PASSWORD}</strong>, which
-            signs you in as {FEATURED_EMPLOYEE.displayName}, {FEATURED_EMPLOYEE.title}. If several
-            people are trying this at once, take a random colleague instead, so you have your own
-            account rather than all ticking the same boxes. Either way the password is the same: one
-            shared password so anyone with the link can try it, which makes this a demo gate and not
-            authentication.
-          </p>
-        </form>
+      {mailboxEnabled() && process.env.NODE_ENV !== 'production' ? (
+        <p className="faint" style={{ marginTop: 16 }}>
+          Development: mail is not sent, it is kept at <a href="/dev/mailbox">/dev/mailbox</a>.
+        </p>
       ) : null}
     </main>
   );
 }
-
-/**
- * What went wrong, in terms that name the next thing to do. The provider's own
- * reason is in the server log; it can mention client ids and redirect URIs, and
- * says nothing useful to the person standing there.
- */
-const OIDC_ERRORS: Record<string, string> = {
-  denied: 'Your company sign-in did not go through. You can try again.',
-  expired: 'That sign-in took too long. Start again.',
-  state: 'That sign-in could not be matched to this browser. Start again.',
-  nocode: 'Your company sign-in came back incomplete. Start again.',
-  token: 'Sofra could not complete the sign-in with your company. Try again shortly.',
-  unknown: 'You signed in, but nobody with that account is in the company directory yet.',
-  provider: 'Sofra cannot reach your company sign-in at the moment.',
-};

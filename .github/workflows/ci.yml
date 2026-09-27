@@ -8,7 +8,27 @@ on:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
+
+    # The tests and the end-to-end walk run against a real PostgreSQL, each test
+    # file in a schema of its own.
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: sofra
+          POSTGRES_PASSWORD: sofra
+          POSTGRES_DB: sofra_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U sofra"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      TEST_DATABASE_URL: postgresql://sofra:sofra@localhost:5432/sofra_test
 
     steps:
       - uses: actions/checkout@v5
@@ -31,6 +51,9 @@ jobs:
 
       - name: Tests
         run: npm test
+
+      - name: End to end
+        run: npm run e2e
 
       - name: Build
         run: npm run build

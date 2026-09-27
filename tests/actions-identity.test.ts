@@ -1,77 +1,93 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
-const source = readFileSync(new URL('../app/actions.ts', import.meta.url), 'utf8');
-
 /**
- * A source-level guard, deliberately.
+ * Source-level guards over the server actions, deliberately.
  *
- * Server actions need a request context, so calling them here would mean
- * mocking Next's cookies, the store singleton and the redirect. What actually
- * needs protecting is narrower than that and can be stated exactly: no action
- * may decide who is acting from a field in the form it was handed.
- *
- * It mattered. Three actions took `employeeId` from the form, so any signed-in
- * employee could decline a colleague's lunch, opt them into one they never
- * asked for, or mark them out of the office, which collapses their table and
- * mails the three people still expecting them.
+ * Calling an action needs a request context, cookies and a database. What
+ * actually needs protecting is narrower than that and can be stated exactly:
+ * who an action acts as comes from the session, never from the form, and every
+ * console action checks the admin's rights before it does anything else.
  */
-function bodyOf(name: string): string {
-  const start = source.indexOf(`export async function ${name}(`);
-  expect(start, `${name} not found in app/actions.ts`).toBeGreaterThan(-1);
-
-  const next = source.indexOf('\nexport async function ', start + 1);
-  return source.slice(start, next === -1 ? source.length : next);
+function source(file: string): string {
+  return readFileSync(new URL(`../app/actions/${file}`, import.meta.url), 'utf8');
 }
 
-/** Everything a person can do to their own lunch. */
-const SELF_SERVICE = [
-  'setAttendance',
-  'toggleLunch',
-  'respondToInvite',
-  'setReminders',
-  'updateProfile',
-];
+function actions(file: string): { name: string; body: string }[] {
+  const text = source(file);
+  return [...text.matchAll(/export async function (\w+)\(/g)].map((match) => {
+    const start = match.index!;
+    const next = text.indexOf('\nexport async function ', start + 1);
+    return { name: match[1]!, body: text.slice(start, next === -1 ? text.length : next) };
+  });
+}
 
 describe('who an action acts as', () => {
-  it.each(SELF_SERVICE)('%s takes the person from the session, not the form', (name) => {
-    const body = bodyOf(name);
-
-    expect(body).not.toContain("required(formData, 'employeeId')");
-    expect(body).not.toContain("formData.get('employeeId')");
-    expect(body).toMatch(/actingEmployee\(\)|currentEmployeeId\(/);
+  it.each(actions('lunch.ts'))('$name takes the person from the session', ({ body }) => {
+    expect(body).toContain('requireOnboarded()');
+    expect(body).not.toMatch(/formData\.get\('employeeId'\)|field\(formData, 'employeeId'\)/);
   });
 
-  it('respondToInvite refuses a table the replier is not seated at', () => {
-    // Otherwise the group id, which is guessable, is enough to reply on behalf
-    // of four strangers.
-    expect(bodyOf('respondToInvite')).toContain('group.members.some');
+  it.each(actions('profile.ts'))('$name edits only the signed-in person', ({ body }) => {
+    expect(body).toContain('requirePerson()');
+    expect(body).not.toContain("'employeeId'");
   });
+});
 
-  it('only the gated impersonation door reads an employee id from a form', () => {
-    // switchEmployee is the account switcher and is behind demoModeEnabled().
-    // grantAdmin and revokeAdmin name somebody else on purpose, and take the
-    // actor from requireAdmin() rather than the form.
-    const readers = [...source.matchAll(/export async function (\w+)\(/g)]
-      .map((match) => match[1]!)
-      .filter((name) => bodyOf(name).includes("required(formData, 'employeeId')"));
+describe('the console', () => {
+  const admin = actions('admin.ts');
 
-    expect(readers.sort()).toEqual(['grantAdmin', 'revokeAdmin', 'switchEmployee']);
-  });
-
-  it('signing in as a random colleague is behind demo mode, like the switcher', () => {
-    // It is the same affordance: a way to try the product as somebody else.
-    // Leaving it outside demo mode made it a second, looser door into a
-    // deployment whose password is printed on the sign-in page.
-    const body = bodyOf('signIn');
-    expect(body).toContain('demoModeEnabled()');
-  });
-
-  it('every action that is not self-service checks admin or demo mode first', () => {
-    const guarded = ['runMatching', 'clearMatching', 'sendInvites', 'grantAdmin', 'revokeAdmin'];
-    for (const name of guarded) {
-      expect(bodyOf(name), name).toContain('requireAdmin()');
+  it('has every action check the admin first', () => {
+    for (const { name, body } of admin) {
+      const guard = body.indexOf('requireAdmin(');
+      expect(guard, name).toBeGreaterThan(-1);
+      // Nothing touches the database before the guard.
+      const firstWrite = body.search(/getDb\(\)|await (add|remove|set|update|create|delete)/);
+      expect(firstWrite === -1 || firstWrite > guard, name).toBe(true);
     }
-    expect(bodyOf('switchEmployee')).toContain('demoModeEnabled()');
+  });
+
+  it('keeps company-wide actions to every-office admins', () => {
+    const companyWide = [
+      'addDomainAction',
+      'removeDomainAction',
+      'addDepartmentAction',
+      'renameDepartmentAction',
+      'removeDepartmentAction',
+      'setCompanyNameAction',
+      'syncDirectoryAction',
+      'setPersonActiveAction',
+      'signOutPersonAction',
+      'setPersonOfficeAction',
+      'grantAdminAction',
+      'revokeAdminAction',
+    ];
+    for (const name of companyWide) {
+      const found = admin.find((a) => a.name === name);
+      expect(found, name).toBeDefined();
+      expect(found!.body, name).toContain('requireAdmin({ everyOffice: true })');
+    }
+  });
+
+  it('scopes office actions to the office being changed', () => {
+    for (const name of [
+      'addHolidayAction',
+      'removeHolidayAction',
+      'planNowAction',
+      'remindNowAction',
+    ]) {
+      const found = admin.find((a) => a.name === name)!;
+      expect(found.body, name).toContain('requireAdmin({ officeId })');
+    }
+  });
+
+  it('records every change in the audit log', () => {
+    for (const { name, body } of admin) {
+      if (name === 'saveOfficeAction') continue;
+      expect(body, name).toMatch(/audit\(admin,/);
+    }
+    expect(admin.find((a) => a.name === 'saveOfficeAction')!.body).toMatch(
+      /office\.(create|update)/,
+    );
   });
 });

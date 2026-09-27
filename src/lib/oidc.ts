@@ -2,6 +2,7 @@ import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { assertWithinLifetime, audienceIncludes, verifySignature } from './jwt';
 import { BASE_URL } from './config';
 import { envOptional, envText } from './env';
+import { teamsOnly } from './teams-mode';
 
 /**
  * Signing in with the company's own account.
@@ -30,6 +31,10 @@ export interface OidcConfig {
 
 /** Null when this deployment has not been given a provider. */
 export function oidcConfig(): OidcConfig | null {
+  // A Teams-only deployment signs in through the tab and nowhere else, even if
+  // an issuer is still configured from before.
+  if (teamsOnly()) return null;
+
   const issuer = envOptional('SOFRA_OIDC_ISSUER');
   const clientId = envOptional('SOFRA_OIDC_CLIENT_ID');
   if (!issuer || !clientId) return null;

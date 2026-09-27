@@ -38,42 +38,39 @@ without being a protected characteristic.
 
 ## Being in the office is not consent to be matched
 
-Attendance and intent are separate, deliberately. Most office days people are
+Presence and intent are separate, deliberately. Most office days people are
 there to work with their own team, and a tool that treats presence as
-availability would be reading something into the desk booking that the person
-never said.
+availability would be reading something into a calendar that the person never
+said.
 
-So opting in is per day and explicit: a box you tick for one specific date,
-which does nothing to any other day. Nobody is enrolled by their manager, there
-is no standing setting to forget about, and untick is always available until
-matching runs the evening before.
+So asking is per day and explicit: one press for one specific date, which does
+nothing to any other day, or a weekly pattern the person set up themselves and
+can skip for any single week. Nobody is enrolled by their manager, and dropping
+out is always possible until the reply cut-off.
 
-Being asked is a different thing from being matched, and the distinction is
-worth stating because the reminder does use the desk booking. On a day the
-system says you will be in, you get one short question with one link. It is one
-message per person per day, it never leads anywhere by itself, and it can be
-turned off for good at `/you`. An explicit opt-in that nobody is ever offered is
-not consent, it is a page nobody visits, so the asking is what makes the rest of
-this honest rather than a loophole in it. What presence never does is put you at
-a table: no message is the same as no.
+Being asked is a different thing from being matched. The evening before, one
+short question goes to people likely to want lunch: those who have eaten through
+Sofra in the last four weeks, and, where the company has turned it on, those
+whose Outlook says they will be in. It is one message per person per day, it
+never leads anywhere by itself, and it can be turned off for good on the profile
+page. What a calendar never does is put somebody at a table: no answer is the
+same as no.
 
 ## Your table is yours
 
-The confirm page shows a table only to the people seated at it. That is not
-incidental: group ids are predictable, so without the check any signed-in
-employee could walk them and read every table in the building, which is exactly
-the list of who ticked the box that day. Somebody who follows an old link after
-being moved is told they were moved and pointed at their own table, and is told
+A table's page shows it only to the people seated at it. Table ids are random,
+and still: belonging to the table is the only thing that makes its roster yours,
+because the roster is exactly the list of who asked for lunch that day. Somebody
+who follows an old link after being moved is pointed at their own table and told
 nothing about the one they landed on.
 
 The same rule holds for writes. Every action takes the person acting from the
-session, never from a field in the form, so a reply, an opt-in or an "I am not
-in" applies to the person making it and nobody else. The one exception is the
-demo account switcher, which exists to let a visitor become a colleague and is
-off in production unless explicitly enabled.
+session, never from a field in the form, so a reply, a request or a drop-out
+applies to the person making it and nobody else. Tests check the actions' source
+for exactly this.
 
-The whole-office view belongs to the matching console, which is behind the
-administrator list.
+The whole-office view belongs to the console, which is for admins, office by
+office, and returns 404 to everybody else.
 
 ## Data minimisation
 
@@ -84,13 +81,14 @@ The matcher needs surprisingly little, and takes nothing beyond it:
 | Department, team | The whole point: avoid seating colleagues together     | Org chart                  |
 | Seniority, title | Seniority spread                                       | Org chart                  |
 | Tenure (months)  | Tenure spread, and an icebreaker                       | Org chart                  |
-| Office, date     | Only match people in the same building on the same day | Attendance provider        |
+| Office, date     | Only match people in the same building on the same day | The person, per day        |
 | Languages        | Hard constraint; a table must be able to talk          | Directory or self-declared |
 | Interests        | Icebreakers                                            | Self-declared, optional    |
 
 No location beyond building, no desk number, no meeting-title content, no
-calendar contents, and no free text from anyone's calendar. The Graph provider
-reads calendar entries only to answer "office or not" and keeps nothing else.
+calendar contents, and no free text from anyone's calendar. Where Outlook hints
+are turned on, calendar entries are read only to answer "which office, or none"
+for each day, and that answer is all that is kept.
 
 No dietary information either. It is the field every tool like this collects
 without thinking, and it is the most sensitive thing on the list: vegetarian,
@@ -101,24 +99,30 @@ mail tells the table to settle the venue by replying to each other, which is
 where that conversation belongs. A test asserts the invite never mentions food
 restrictions.
 
-## Attendance data stays where it is
+## What signing in leaves behind
 
-`AttendanceProvider` returns `{ employeeId, officeId, date }` and nothing more.
-Sofra does not mirror the desk-booking system, does not store a booking history,
-and does not need write access to anything. When the day is over, the only record
-worth keeping is which four people ate together, which is exactly what the
-repeat-avoidance cooldown needs, and it can be reduced to hashed pairs with a
-timestamp if your DPO prefers.
+No passwords exist to leak. For each session Sofra keeps a hash of its token,
+when it was created and last used, and the browser's user agent and network
+address, so a person can see where they are signed in and end it. For each
+emailed link it keeps a hash, the address it was for and when it was used.
+Rate limits keep a key and a time for fifteen minutes. Expired sessions and
+links are deleted by the scheduler.
+
+Admin actions are recorded in an audit log with who did what to what, which is
+the record a works council or an auditor will ask for.
 
 ## Retention
 
-`PastMatch` records only need to outlive the cooldown window (60 days by
-default). Anything older contributes nothing to matching, so delete it. The
-novelty score already treats "never met" and "met long ago" almost identically.
+Past tables only need to outlive the repeat cooldown (60 days by default);
+matching reads the last 400 days at most. Anything older contributes nothing,
+so it can be deleted on whatever schedule the company's retention policy sets.
+Deactivated people are kept, so that the tables they sat at stay intact for
+everybody else, and can be deleted outright when policy says so: their rows
+cascade.
 
 ## No measurement of who socialises
 
-Attendance is not reported anywhere and there is no leaderboard. A tool that
+Who asked for lunch is not reported anywhere and there is no leaderboard. A tool that
 measures who socialises is a different, much worse product, and the moment
 people suspect it exists, they stop ticking the box.
 

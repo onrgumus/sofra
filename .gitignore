@@ -12,3 +12,6 @@ next-env.d.ts
 tsconfig.tsbuildinfo
 sofra.db
 *.db
+
+# Local HTTPS certificates from `next dev --experimental-https`.
+certificates/

@@ -113,6 +113,14 @@ describe('verifyTeamsToken', () => {
     ).rejects.toThrow(/not issued by Microsoft/);
   });
 
+  it('names the setting when the registration still issues v1 tokens', async () => {
+    // The default for a new registration, and the step most often missed. The
+    // log has to say what to change rather than suggest a forgery.
+    await expect(
+      verifyTeamsToken(token({ iss: `https://sts.windows.net/${TENANT_ID}/` }), options),
+    ).rejects.toThrow(/requestedAccessTokenVersion to 2/);
+  });
+
   it('refuses a token that identifies nobody at all', async () => {
     await expect(
       verifyTeamsToken(

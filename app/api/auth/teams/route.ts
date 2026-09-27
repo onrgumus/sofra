@@ -1,25 +1,39 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { verifyTeamsToken } from '../../../../src/lib/teams-auth';
-import { getStore } from '../../../../src/store/instance';
-import { ENTRA } from '../../../../src/directory/identity';
-import { startSession } from '../../../../src/lib/session';
+import { signIn } from '../../../../src/auth/session';
+import { personForIdentity } from '../../../../src/auth/signin';
+import { getDb } from '../../../../src/db';
+import { hitRateLimit } from '../../../../src/data/sessions';
 import { envOptional, envText } from '../../../../src/lib/env';
+import { verifyTeamsToken } from '../../../../src/lib/teams-auth';
 
 export const dynamic = 'force-dynamic';
 
 /**
- * Exchanges the token Teams gives a tab for a Sofra session.
+ * Exchanges the token Teams gives the tab for a Sofra session.
  *
- * The tab calls `authentication.getAuthToken()`, posts the result here, and the
- * server decides who that is. Nothing the browser claims about its own identity
- * is taken at face value, only what the signature proves.
+ * Nothing the browser says about itself is taken at face value, only what the
+ * token's signature proves. Somebody Teams vouches for who is not here yet is
+ * created, if they belong: the configured tenant, or an allowed domain. They
+ * then fill in their office and the rest on the welcome page.
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const clientId = envOptional('AAD_CLIENT_ID');
   const tenantId = envText('AAD_TENANT_ID', 'common');
-
   if (!clientId) {
     return NextResponse.json({ error: 'Teams sign-in is not configured' }, { status: 503 });
+  }
+
+  // Only this site's own pages may ask: a form on another site posting here
+  // would otherwise be a way to sign a visitor in as somebody else.
+  const origin = request.headers.get('origin');
+  if (origin && origin !== request.nextUrl.origin) {
+    return NextResponse.json({ error: 'Cross-site request refused' }, { status: 403 });
+  }
+
+  const db = getDb();
+  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown';
+  if (!(await hitRateLimit(db, `teams-ip:${ip}`, 60, 15 * 60))) {
+    return NextResponse.json({ error: 'Too many attempts' }, { status: 429 });
   }
 
   let token: unknown;
@@ -41,29 +55,20 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  // The object id first, because it is the only identifier here that survives
-  // somebody changing their name. Addresses second, all of them: a tenant whose
-  // UPN is not its mail attribute is the common case, and the company's export
-  // carries whichever one HR uses.
-  const store = getStore();
-  const employee = await store.findByIdentity({
-    externalId: identity.objectId ? { system: ENTRA, value: identity.objectId } : undefined,
+  const person = await personForIdentity(db, {
+    objectId: identity.objectId || null,
     addresses: identity.addresses,
+    name: identity.name,
+    // A pinned tenant has already been checked by verifyTeamsToken.
+    trustedTenant: tenantId !== 'common',
   });
-
-  if (!employee) {
+  if (!person) {
     console.warn(
-      `[sofra] Teams sign-in matched nobody. oid=${identity.objectId || 'none'} addresses=${identity.addresses.join(', ') || 'none'}`,
+      `[sofra] Teams sign-in refused. oid=${identity.objectId || 'none'} addresses=${identity.addresses.join(', ') || 'none'}`,
     );
-    return NextResponse.json({ error: 'No colleague with that address' }, { status: 403 });
+    return NextResponse.json({ error: 'Not allowed here' }, { status: 403 });
   }
 
-  // Learn the mapping, so the next sign-in is exact rather than a guess, and so
-  // it keeps working after HR changes their address.
-  if (identity.objectId && employee.externalIds?.[ENTRA] !== identity.objectId) {
-    await store.linkExternalId(employee.id, ENTRA, identity.objectId);
-  }
-
-  await startSession(employee.id);
-  return NextResponse.json({ employee: { id: employee.id, name: employee.displayName } });
+  await signIn(person, 'teams');
+  return NextResponse.json({ onboarded: person.onboardedAt !== null });
 }

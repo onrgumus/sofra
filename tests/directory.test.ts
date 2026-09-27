@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { CsvDirectory, readDirectoryCsv, staticDirectory } from '../src/directory';
-import { SqliteStore } from '../src/store/sqlite';
-import { ManualAttendanceProvider } from '../src/providers';
+import { CsvDirectory, readDirectoryCsv } from '../src/directory';
+import { parseCsv } from '../src/directory/parse-csv';
 
 const HEADER =
   'employee_id,display_name,email,title,seniority,department,team,office_id,languages,tenure_months,interests';
@@ -153,81 +152,17 @@ describe('reading a company directory', () => {
   });
 });
 
-describe('a store built on a directory', () => {
-  it('matches the people the directory gave it, whoever they are', async () => {
-    // The point of the seam: nothing below the store can tell a CSV from a
-    // fixture from a company's real export.
-    const store = new SqliteStore({
-      path: ':memory:',
-      directory: new CsvDirectory({
-        load: async () =>
-          [
-            'employee_id,display_name,email,department,office_id',
-            'e1,Ada Lovelace,ada@acme.com,Engineering,IST-HQ',
-            'e2,Grace Hopper,grace@acme.com,Risk,IST-HQ',
-          ].join('\n'),
-      }),
-      offices: [
-        {
-          id: 'IST-HQ',
-          displayName: 'Istanbul HQ',
-          timeZone: 'Europe/Istanbul',
-          meetingPoint: 'Cafeteria',
-        },
-      ],
-      attendance: new ManualAttendanceProvider([]),
-    });
-
-    expect((await store.listEmployees()).map((e) => e.displayName)).toEqual([
-      'Ada Lovelace',
-      'Grace Hopper',
-    ]);
-    expect((await store.getEmployee('e2'))?.department).toBe('Risk');
-    store.close();
+describe('parseCsv', () => {
+  it('reads quoted fields, escaped quotes and CRLF', () => {
+    const rows = parseCsv('a,b\r\n"x,1","he said ""hi"""\r\n');
+    expect(rows).toEqual([{ a: 'x,1', b: 'he said "hi"' }]);
   });
 
-  it('reads the directory once, not once per lookup', async () => {
-    // Every page calls getEmployee. A directory is a file read or an HTTP call,
-    // so doing it per lookup would turn one page into hundreds.
-    let reads = 0;
-    const store = new SqliteStore({
-      path: ':memory:',
-      directory: {
-        name: 'counting',
-        listEmployees: async () => {
-          reads++;
-          return [];
-        },
-      },
-      offices: [],
-      attendance: new ManualAttendanceProvider([]),
-    });
-
-    await store.listEmployees();
-    await store.getEmployee('e1');
-    await store.listEmployees();
-
-    expect(reads).toBe(1);
-    store.close();
+  it('ignores blank lines and trims cells', () => {
+    expect(parseCsv('a,b\n 1 , 2 \n\n')).toEqual([{ a: '1', b: '2' }]);
   });
 
-  it('hands a static list through unchanged', async () => {
-    const directory = staticDirectory([
-      {
-        id: 'e1',
-        displayName: 'Ada Lovelace',
-        email: 'ada@acme.com',
-        title: 'Engineer',
-        seniority: 'senior',
-        department: 'Engineering',
-        team: 'Eng',
-        officeId: 'IST-HQ',
-        languages: ['en'],
-        tenureMonths: 10,
-        interests: [],
-      },
-    ]);
-
-    expect((await directory.listEmployees())[0]?.id).toBe('e1');
+  it('returns nothing for an empty file', () => {
+    expect(parseCsv('')).toEqual([]);
   });
 });

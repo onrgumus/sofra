@@ -1,228 +1,192 @@
-import Link from 'next/link';
-import { getStore } from '../../../src/store/instance';
-import { currentEmployeeId } from '../../../src/lib/session';
-import { bootstrapAdmins, isAdmin, isBootstrapAdmin } from '../../../src/lib/authz';
-import { formatDay } from '../../../src/lib/dates';
-import { grantAdmin, revokeAdmin } from '../../actions';
-import { Initials, Pill } from '../../ui';
+import { requireAdmin } from '../../../src/auth/session';
+import { bootstrapAdminEmails } from '../../../src/auth/roles';
+import { getDb } from '../../../src/db';
+import { listGrants } from '../../../src/data/admin';
+import { listOffices } from '../../../src/data/offices';
+import { countPeople, listPeople } from '../../../src/data/people';
+import { envOptional } from '../../../src/lib/env';
+import { SENIORITY_LABELS } from '../../../src/services/forms';
+import {
+  grantAdminAction,
+  revokeAdminAction,
+  setPersonActiveAction,
+  setPersonOfficeAction,
+  signOutPersonAction,
+  syncDirectoryAction,
+} from '../../actions/admin';
+import { Pill } from '../../ui';
 
-/** Enough to pick somebody from, few enough that picking the wrong one is hard. */
-const MAX_RESULTS = 8;
-
-// Reads who currently holds the console, which changes while the app runs.
 export const dynamic = 'force-dynamic';
+export const metadata = { title: 'People · Sofra' };
 
-export const metadata = { title: 'Who has the console · Sofra' };
+const ERRORS: Record<string, string> = {
+  self: 'You cannot take away your own access that way.',
+  bootstrap: 'That person is named in SOFRA_ADMINS; remove them there instead.',
+  inactive: 'Reactivate the person first.',
+  nodirectory: 'No directory is configured. Set SOFRA_DIRECTORY.',
+};
 
-/**
- * Granting and removing the console, from inside the application.
- *
- * Administration that needs a deployment is not administration. SOFRA_ADMINS
- * stays as the bootstrap and is deliberately not editable here: it is the way
- * back in if the granted list ends up empty, and a list that can delete itself
- * is not a way back.
- */
-export default async function AdminPeoplePage({
+export default async function PeoplePage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{
+    q?: string;
+    office?: string;
+    error?: string;
+    note?: string;
+    synced?: string;
+  }>;
 }) {
-  const { q } = await searchParams;
-  const store = getStore();
-  const viewerId = await currentEmployeeId(store);
-  const viewer = viewerId ? await store.getEmployee(viewerId) : undefined;
-
-  if (!viewer || !(await isAdmin(store, viewer))) {
-    return (
-      <main>
-        <div className="page-head">
-          <h1>Not your console</h1>
-          <p>Only named people can see or change who administers Sofra.</p>
-        </div>
-        <Link className="button" href="/">
-          Back to your lunches
-        </Link>
-      </main>
-    );
-  }
-
-  const grants = await store.listAdmins();
-  const employees = await store.listEmployees();
-  const byId = new Map(employees.map((e) => [e.id, e]));
-
-  const grantedIds = new Set(grants.map((g) => g.employeeId));
-  const fromEnvironment = employees.filter((e) => isBootstrapAdmin(e));
-  // Searched rather than listed. A company of any size makes a dropdown of
-  // everybody unusable, and this page exists to be used rarely and carefully.
-  const query = (q ?? '').trim().toLowerCase();
-  const eligible = employees.filter((e) => !grantedIds.has(e.id) && !isBootstrapAdmin(e));
-  const matches =
-    query.length < 2
-      ? []
-      : eligible
-          .filter((e) =>
-            [e.displayName, e.email, e.department, e.title].some((field) =>
-              field.toLowerCase().includes(query),
-            ),
-          )
-          .sort((a, b) => a.displayName.localeCompare(b.displayName));
+  await requireAdmin({ everyOffice: true });
+  const params = await searchParams;
+  const db = getDb();
+  const offices = await listOffices(db);
+  const officeFilter = params.office === 'none' ? null : params.office || undefined;
+  const [people, grants, counts] = await Promise.all([
+    listPeople(db, { search: params.q, officeId: officeFilter, limit: 100 }),
+    listGrants(db),
+    countPeople(db),
+  ]);
+  const officeName = new Map(offices.map((o) => [o.id, o.name]));
+  const bootstrap = bootstrapAdminEmails();
 
   return (
     <main>
       <div className="page-head">
-        <h1>Who has the console</h1>
+        <h1>People</h1>
         <p>
-          The console shows every table and every reply for a whole office, and its buttons re-plan
-          the day and mail everyone in it. Keep this list short.
+          {counts.active} active, {counts.onboarded} set up, {counts.noOffice} without an office.
+          People add themselves by signing in; a deactivated person is signed out everywhere and
+          cannot sign back in.
         </p>
       </div>
 
-      <section>
-        <div className="section-head">
-          <h2>Granted in the app</h2>
-          <p>Takes effect on their next page load. No deployment.</p>
+      {params.error && ERRORS[params.error] ? (
+        <p className="error-text">{ERRORS[params.error]}</p>
+      ) : null}
+      {params.note === 'signedout' ? <div className="note">Signed out everywhere.</div> : null}
+      {params.synced ? (
+        <div className="note" data-tone="good">
+          Directory synced: {params.synced.split('-').join(' new, ')} updated, deactivated.
         </div>
+      ) : null}
 
-        {grants.length === 0 ? (
-          <div className="empty">
-            Nobody yet. Everyone with the console is here from the environment.
-          </div>
-        ) : (
-          <div className="stack">
-            {grants.map((grant) => {
-              const person = byId.get(grant.employeeId);
-              return (
-                <div className="card" key={grant.employeeId}>
-                  <div className="spread">
-                    <div className="person">
-                      <Initials name={person?.displayName ?? grant.employeeId} />
-                      <div className="person-body">
-                        <div className="person-name">{person?.displayName ?? grant.employeeId}</div>
-                        <div className="person-meta">
-                          {person
-                            ? `${person.title}, ${person.department}`
-                            : 'no longer in the directory'}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="row">
-                      <span className="faint">
-                        granted by {byId.get(grant.grantedBy)?.displayName ?? grant.grantedBy} on{' '}
-                        {formatDay(grant.grantedAt.slice(0, 10))}
-                      </span>
-                      {grant.employeeId === viewer.id ? (
-                        <Pill tone="neutral">you</Pill>
-                      ) : (
-                        <form action={revokeAdmin}>
-                          <input type="hidden" name="employeeId" value={grant.employeeId} />
-                          <button type="submit" data-variant="danger">
-                            Remove
-                          </button>
-                        </form>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+      <section>
+        <form method="get" className="inline">
+          <input
+            name="q"
+            defaultValue={params.q ?? ''}
+            placeholder="Name, email or department"
+            aria-label="Search"
+          />
+          <select name="office" defaultValue={params.office ?? ''} aria-label="Office">
+            <option value="">Every office</option>
+            <option value="none">No office yet</option>
+            {offices.map((o) => (
+              <option key={o.id} value={o.id}>
+                {o.name}
+              </option>
+            ))}
+          </select>
+          <button type="submit">Search</button>
+          {envOptional('SOFRA_DIRECTORY') ? (
+            <button type="submit" formAction={syncDirectoryAction} formMethod="post">
+              Sync from directory now
+            </button>
+          ) : null}
+        </form>
       </section>
 
       <section>
-        <div className="section-head">
-          <h2>Give someone the console</h2>
-          <p>They will be able to grant it to others as well.</p>
-        </div>
-
-        <form method="get" action="/admin/people" className="inline">
-          <label className="sr-only" htmlFor="q">
-            Search your colleagues by name, address, role or department
-          </label>
-          <input
-            id="q"
-            name="q"
-            type="search"
-            defaultValue={q ?? ''}
-            placeholder="Name, address, role or department"
-            autoComplete="off"
-          />
-          <button type="submit">Search</button>
-        </form>
-
-        {eligible.length === 0 ? (
-          <div className="empty">Everyone in the directory already has it.</div>
-        ) : query.length < 2 ? (
-          <p className="faint">
-            {employees.length} people in the directory. Type at least two characters.
-          </p>
-        ) : matches.length === 0 ? (
-          <div className="empty">Nobody matches “{q}”.</div>
-        ) : (
-          <div className="stack">
-            {matches.slice(0, MAX_RESULTS).map((person) => (
-              <div className="card" key={person.id}>
+        <div className="stack">
+          {people.map((p) => {
+            const mine = grants.filter((g) => g.employeeId === p.id);
+            return (
+              <article className="card" key={p.id}>
                 <div className="spread">
-                  <div className="person">
-                    <Initials name={person.displayName} />
-                    <div className="person-body">
-                      <div className="person-name">{person.displayName}</div>
-                      <div className="person-meta">
-                        {person.title}, {person.department} · {person.email}
-                      </div>
+                  <div>
+                    <strong>{p.displayName || p.email}</strong>{' '}
+                    <span className="faint">{p.email}</span>
+                    <div className="faint">
+                      {[p.title, p.department, p.seniority ? SENIORITY_LABELS[p.seniority] : null]
+                        .filter(Boolean)
+                        .join(' · ') || 'Profile not finished'}
                     </div>
                   </div>
-                  <form action={grantAdmin}>
-                    <input type="hidden" name="employeeId" value={person.id} />
-                    <button type="submit" data-variant="primary">
-                      Grant
+                  <div className="row">
+                    {!p.active ? <Pill tone="bad">deactivated</Pill> : null}
+                    {!p.onboardedAt ? <Pill tone="warn">not set up</Pill> : null}
+                    {bootstrap.includes(p.email) ? (
+                      <Pill tone="accent">admin (SOFRA_ADMINS)</Pill>
+                    ) : null}
+                    {mine.map((g) => (
+                      <form key={g.id} action={revokeAdminAction} className="inline">
+                        <input type="hidden" name="grantId" value={g.id} />
+                        <Pill tone="accent">
+                          admin:{' '}
+                          {g.officeId ? (officeName.get(g.officeId) ?? g.officeId) : 'every office'}
+                        </Pill>
+                        <button type="submit" data-variant="quiet" aria-label="Revoke">
+                          ×
+                        </button>
+                      </form>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="row" style={{ marginTop: 10 }}>
+                  <form action={setPersonOfficeAction} className="inline">
+                    <input type="hidden" name="employeeId" value={p.id} />
+                    <select name="officeId" defaultValue={p.officeId ?? ''} aria-label="Office">
+                      <option value="">No office</option>
+                      {offices.map((o) => (
+                        <option key={o.id} value={o.id}>
+                          {o.name}
+                        </option>
+                      ))}
+                    </select>
+                    <button type="submit" data-variant="quiet">
+                      Move
+                    </button>
+                  </form>
+
+                  {p.active ? (
+                    <form action={grantAdminAction} className="inline">
+                      <input type="hidden" name="employeeId" value={p.id} />
+                      <select name="officeId" defaultValue="" aria-label="Admin of">
+                        <option value="">Admin of every office</option>
+                        {offices.map((o) => (
+                          <option key={o.id} value={o.id}>
+                            Admin of {o.name}
+                          </option>
+                        ))}
+                      </select>
+                      <button type="submit" data-variant="quiet">
+                        Grant
+                      </button>
+                    </form>
+                  ) : null}
+
+                  <form action={signOutPersonAction}>
+                    <input type="hidden" name="employeeId" value={p.id} />
+                    <button type="submit" data-variant="quiet">
+                      Sign out everywhere
+                    </button>
+                  </form>
+
+                  <form action={setPersonActiveAction}>
+                    <input type="hidden" name="employeeId" value={p.id} />
+                    <input type="hidden" name="active" value={p.active ? 'false' : 'true'} />
+                    <button type="submit" data-variant={p.active ? 'danger' : undefined}>
+                      {p.active ? 'Deactivate' : 'Reactivate'}
                     </button>
                   </form>
                 </div>
-              </div>
-            ))}
-            {matches.length > MAX_RESULTS ? (
-              <p className="faint">
-                {matches.length - MAX_RESULTS} more match. Narrow the search rather than scrolling.
-              </p>
-            ) : null}
-          </div>
-        )}
-      </section>
-
-      <section>
-        <div className="section-head">
-          <h2>From the environment</h2>
-          <p>
-            Set with SOFRA_ADMINS and not removable here, on purpose: this is how the first person
-            gets in, and how anyone gets back in if the list above ends up empty by mistake.
-          </p>
+              </article>
+            );
+          })}
+          {people.length === 0 ? <p className="faint">Nobody matches.</p> : null}
         </div>
-
-        {fromEnvironment.length === 0 ? (
-          <div className="empty">
-            {bootstrapAdmins().length === 0
-              ? 'SOFRA_ADMINS is not set. If the list above is also empty, nobody can open the console.'
-              : 'SOFRA_ADMINS is set, but nobody in the directory matches it. Check the ids and addresses in it.'}
-          </div>
-        ) : (
-          <div className="stack">
-            {fromEnvironment.map((e) => (
-              <div className="card" key={e.id}>
-                <div className="person">
-                  <Initials name={e.displayName} />
-                  <div className="person-body">
-                    <div className="person-name">{e.displayName}</div>
-                    <div className="person-meta">
-                      {e.title}, {e.department}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
       </section>
     </main>
   );

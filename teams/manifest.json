@@ -1,7 +1,7 @@
 {
   "$schema": "https://developer.microsoft.com/en-us/json-schemas/teams/v1.17/MicrosoftTeams.schema.json",
   "manifestVersion": "1.17",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "id": "${{TEAMS_APP_ID}}",
   "packageName": "com.sofra.lunch",
   "developer": {
@@ -12,11 +12,11 @@
   },
   "name": {
     "short": "Sofra",
-    "full": "Sofra \u2014 lunch with people you would never otherwise meet"
+    "full": "Sofra: lunch with colleagues from other teams"
   },
   "description": {
-    "short": "Tick a box on an office day; eat with three people from other teams.",
-    "full": "On days you are already in the office, Sofra seats you with three colleagues from other departments and seniorities that you have not had lunch with before. One tick per day, nothing automatic, and a group chat with the people you are actually eating with."
+    "short": "Say which days you are in; get seated with colleagues from other teams.",
+    "full": "Pick the days you will be in the office and want lunch. Before your office opens, Sofra seats you with two or three colleagues from other departments and levels you have not had lunch with before, and sends the table its invite. Reply from the card, or drop out, and the table is reseated."
   },
   "icons": {
     "color": "color.png",
@@ -29,26 +29,11 @@
       "name": "Your lunches",
       "contentUrl": "${{SOFRA_BASE_URL}}/?context=teams",
       "websiteUrl": "${{SOFRA_BASE_URL}}/",
-      "scopes": [
-        "personal"
-      ]
-    },
-    {
-      "entityId": "sofra.console",
-      "name": "Matching console",
-      "contentUrl": "${{SOFRA_BASE_URL}}/admin?context=teams",
-      "websiteUrl": "${{SOFRA_BASE_URL}}/admin",
-      "scopes": [
-        "personal"
-      ]
+      "scopes": ["personal"]
     }
   ],
-  "permissions": [
-    "identity"
-  ],
-  "validDomains": [
-    "${{SOFRA_DOMAIN}}"
-  ],
+  "permissions": ["identity"],
+  "validDomains": ["${{SOFRA_DOMAIN}}"],
   "webApplicationInfo": {
     "id": "${{AAD_CLIENT_ID}}",
     "resource": "api://${{SOFRA_DOMAIN}}/${{AAD_CLIENT_ID}}"
