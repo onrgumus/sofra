@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { demoOpen } from '../../src/auth/demo';
+import { demoMode, demoOpen } from '../../src/auth/demo';
 import { current } from '../../src/auth/session';
 import { getDb } from '../../src/db';
 import { oidcConfig } from '../../src/lib/oidc';
@@ -70,8 +70,9 @@ export default async function LoginPage({
   const error = params.error ? ERRORS[params.error] : null;
 
   // A public demo has one door, and it asks for nothing: no mail could reach
-  // a visitor's invented colleague anyway.
-  if (await demoOpen(getDb())) {
+  // a visitor's invented colleague anyway. The database is only asked when
+  // the deployment says demo, so this page still renders without one.
+  if (demoMode() && (await demoOpen(getDb()))) {
     return (
       <main className="signin">
         <div className="page-head">
