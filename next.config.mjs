@@ -21,6 +21,8 @@ const production = process.env.NODE_ENV === 'production';
 export default {
   // No reason to tell every caller which framework and version to look up CVEs for.
   poweredByHeader: false,
+  // No framework badge in the corner of a page being shown to people in development.
+  devIndicators: false,
   experimental: {
     // The matching engine lives outside app/, so let the server bundle reach it.
     externalDir: true,
@@ -36,7 +38,10 @@ export default {
           { key: 'X-Content-Type-Options', value: 'nosniff' },
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
           // Nothing here needs a camera, a microphone or a location.
-          { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(), payment=()' },
+          {
+            key: 'Permissions-Policy',
+            value: 'camera=(), microphone=(), geolocation=(), payment=()',
+          },
           // Once a browser has seen the site over HTTPS it never tries HTTP, so a
           // session cookie is never offered to a network in between.
           ...(production

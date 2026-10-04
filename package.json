@@ -24,7 +24,8 @@
     "e2e": "tsx scripts/e2e.ts",
     "coverage": "vitest run --coverage --coverage.reporter=text --coverage.include=src/**",
     "db:migrate": "tsx scripts/migrate.ts",
-    "db:seed": "tsx scripts/seed.ts"
+    "db:seed": "tsx scripts/seed.ts",
+    "scheduler": "tsx scripts/scheduler.ts"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
