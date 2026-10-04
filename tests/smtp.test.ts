@@ -4,7 +4,9 @@ import { startFakeSmtp, type FakeSmtp } from './support/fake-smtp';
 
 /**
  * The SMTP transport against a real SMTP conversation: a server on this
- * machine that speaks STARTTLS and AUTH, with a certificate of its own.
+ * machine that speaks STARTTLS and AUTH, with a certificate of its own. It is
+ * reached at 127.0.0.1, where it listens, not "localhost", which some
+ * networks resolve to ::1 first; the certificate names both.
  */
 let server: FakeSmtp;
 let plain: FakeSmtp;
@@ -21,7 +23,7 @@ afterAll(async () => {
 describe('sending through the company mail server', () => {
   it('upgrades to TLS, trusts the relay only through the CA it was given, and delivers', async () => {
     const transport = new SmtpTransport({
-      host: 'localhost',
+      host: '127.0.0.1',
       port: server.port,
       secure: false,
       user: 'sofra',
@@ -59,7 +61,7 @@ describe('sending through the company mail server', () => {
   });
 
   it('refuses a relay whose certificate it has no reason to trust', async () => {
-    const transport = new SmtpTransport({ host: 'localhost', port: server.port, secure: false });
+    const transport = new SmtpTransport({ host: '127.0.0.1', port: server.port, secure: false });
     await expect(
       transport.send({
         from: 'sofra@acme.test',
@@ -73,7 +75,7 @@ describe('sending through the company mail server', () => {
 
   it('never sends a sign-in link in the clear to a relay that does not encrypt', async () => {
     const before = plain.received.length;
-    const transport = new SmtpTransport({ host: 'localhost', port: plain.port, secure: false });
+    const transport = new SmtpTransport({ host: '127.0.0.1', port: plain.port, secure: false });
     await expect(
       transport.send({
         from: 'sofra@acme.test',
