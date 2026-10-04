@@ -57,11 +57,14 @@ export function bootstrapDomains(): string[] {
 export async function mayUseEmailSignIn(db: Queryable, email: string): Promise<boolean> {
   const address = normaliseEmail(email);
   if (bootstrapAdminEmails().includes(address)) return true;
+  // Somebody an admin deactivated gets nothing, whatever their domain: a link
+  // they could not use is still a mail to a person who has left.
+  const existing = await getPersonByEmail(db, address);
+  if (existing && !existing.active) return false;
   const domain = address.slice(address.lastIndexOf('@') + 1);
   if (bootstrapDomains().includes(domain)) return true;
   if (await isDomainAllowed(db, address)) return true;
-  const existing = await getPersonByEmail(db, address);
-  return existing !== null && existing.active;
+  return existing !== null;
 }
 
 export type LinkRequestOutcome = 'sent' | 'rate-limited' | 'invalid';
@@ -89,7 +92,9 @@ export async function requestSignInLink(
   }
 
   if (!(await mayUseEmailSignIn(db, email))) {
-    console.warn(`[sofra] sign-in link refused for ${email}: not an allowed domain`);
+    console.warn(
+      `[sofra] sign-in link refused for ${email}: deactivated, or not at an allowed domain`,
+    );
     return 'sent';
   }
 

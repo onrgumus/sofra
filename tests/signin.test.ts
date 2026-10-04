@@ -103,6 +103,16 @@ describe('asking for a sign-in link', () => {
     expect(outcomes).toEqual(['sent', 'sent', 'sent', 'sent', 'sent', 'rate-limited']);
   });
 
+  it('sends nothing to somebody deactivated, though their domain is allowed', async () => {
+    const left = await createPerson(t.db, { email: 'left@acme.test', source: 'self' });
+    await setActive(t.db, left.id, false);
+    expect(await mayUseEmailSignIn(t.db, 'left@acme.test')).toBe(false);
+    expect(
+      await requestSignInLink(t.db, deps, { email: 'left@acme.test', meta: freshMeta() }),
+    ).toBe('sent');
+    expect(inbox.sent).toEqual([]);
+  });
+
   it('lets a bootstrap admin in before any domain is allowed', async () => {
     vi.stubEnv('SOFRA_ADMINS', 'boss@elsewhere.test');
     expect(await mayUseEmailSignIn(t.db, 'Boss@Elsewhere.test')).toBe(true);
