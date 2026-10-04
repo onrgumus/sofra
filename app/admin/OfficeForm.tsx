@@ -60,7 +60,10 @@ export function OfficeForm({
     state.errors[key] ? <span className="field-error">{state.errors[key]}</span> : null;
 
   return (
-    <form action={action} className="card form-grid" noValidate>
+    // Keyed by what came back, so a form returned with errors is built afresh
+    // from those values. React resets a form after its action, and a select
+    // left in place would go back to the value it was first drawn with.
+    <form key={JSON.stringify(state.values)} action={action} className="card form-grid" noValidate>
       {existingId ? <input type="hidden" name="existingId" value={existingId} /> : null}
 
       {existingId ? null : (
