@@ -67,7 +67,15 @@ export function buildReminder(options: ReminderOptions): Reminder {
     employee,
     subject: t.subject(dayLabel),
     text,
-    html: toHtml(text, optInUrl, t.actionLabel),
+    html: [
+      `<div style="font-family:system-ui,-apple-system,'Segoe UI',sans-serif;font-size:15px;line-height:1.55;color:#1f1b16;max-width:600px">`,
+      `<p style="margin:0 0 12px">${esc(t.greeting(firstName(employee.displayName)))}</p>`,
+      `<p style="margin:0 0 12px">${esc(t.body(dayLabel, venue.displayName, closesAt))}</p>`,
+      `<p style="margin:20px 0"><a href="${esc(optInUrl)}" style="background:#1f6f4a;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;display:inline-block">${esc(t.actionLabel)}</a></p>`,
+      `<p style="margin:0 0 12px;color:#6b6258">${esc(t.noThanks)}</p>`,
+      `<p style="margin:20px 0 0;color:#6b6258;font-size:13px">${esc(t.reason(because))} <a href="${esc(settingsUrl)}" style="color:#6b6258">${esc(t.turnOff)}</a></p>`,
+      '</div>',
+    ].join(''),
     actionUrl: optInUrl,
     actionLabel: t.actionLabel,
   };
@@ -81,22 +89,12 @@ function pickLanguage(languages: readonly string[]): SupportedLanguage {
   return languages.includes('tr') && !languages.includes('en') ? 'tr' : 'en';
 }
 
-/** A real button, because the whole message exists to get one click. */
-function toHtml(text: string, url: string, label: string): string {
-  const escaped = text
+function esc(value: string): string {
+  return value
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
-    .replace(/\n/g, '<br>');
-
-  return [
-    '<div style="font-family:system-ui,-apple-system,Segoe UI,sans-serif;font-size:15px;line-height:1.55">',
-    escaped,
-    '<p style="margin:24px 0">',
-    `<a href="${url}" style="background:#1f6f4a;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;display:inline-block">${label}</a>`,
-    '</p>',
-    '</div>',
-  ].join('');
+    .replace(/"/g, '&quot;');
 }
 
 const STRINGS = {
@@ -108,18 +106,28 @@ const STRINGS = {
     action: (url: string) => `Count me in: ${url}`,
     actionLabel: 'Count me in',
     noThanks: 'If you would rather not, ignore this. Nothing happens unless you say yes.',
+    reason: (because: 'recent' | 'calendar') =>
+      because === 'calendar'
+        ? 'You are getting this because your calendar shows you in the office that day.'
+        : 'You are getting this because you have used Sofra for lunch recently.',
+    turnOff: 'Turn these off',
     footer: (because: 'recent' | 'calendar', url: string) =>
-      `${because === 'calendar' ? 'You are getting this because your calendar shows you in the office that day.' : 'You are getting this because you have had lunch through Sofra recently.'} Turn these off at ${url}`,
+      `${STRINGS.en.reason(because)} Turn these off at ${url}`,
   },
   tr: {
     subject: (day: string) => `${day} tanımadığın kişilerle öğle yemeği`,
     greeting: (name: string) => `Merhaba ${name},`,
     body: (day: string, office: string, closes: string) =>
-      `${day} günü ${office} ofisine geleceksen, seni öğle yemeğinde başka ekiplerden iki üç kişiyle aynı masaya oturtalım. Masalar o sabah ${closes}'de kurulur, saat ve yer hemen herkese gider.`,
+      `${day} günü ${office} ofisine geleceksen, seni öğle yemeğinde başka ekiplerden iki üç kişiyle aynı masaya oturtalım. Masalar o sabah saat ${closes} itibarıyla kurulur, saat ve yer hemen herkese gider.`,
     action: (url: string) => `Varım: ${url}`,
     actionLabel: 'Varım',
     noThanks: 'İstemiyorsan bu maili yok say. Sen evet demeden hiçbir şey olmaz.',
+    reason: (because: 'recent' | 'calendar') =>
+      because === 'calendar'
+        ? 'Bu mail, takviminde o gün ofiste göründüğün için geldi.'
+        : 'Bu mail, son zamanlarda Sofra ile öğle yemeğine katıldığın için geldi.',
+    turnOff: 'Bunları kapat',
     footer: (because: 'recent' | 'calendar', url: string) =>
-      `${because === 'calendar' ? 'Bu mail, takviminde o gün ofiste göründüğün için geldi.' : 'Bu mail, son zamanlarda Sofra ile öğle yemeğine katıldığın için geldi.'} Kapatmak için: ${url}`,
+      `${STRINGS.tr.reason(because)} Kapatmak için: ${url}`,
   },
-} as const;
+};

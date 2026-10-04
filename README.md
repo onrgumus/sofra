@@ -183,7 +183,13 @@ npm install
 cp .env.example .env.local        # set DATABASE_URL, and SOFRA_ADMINS=onur@sofra.test
 npm run db:seed                   # two offices, 241 invented people at @sofra.test
 npm run dev
+npm run scheduler                 # in a second terminal: the tick, every minute
 ```
+
+The seed is a company that has been using Sofra for three weeks: past tables,
+replies and evening questions, made by the scheduler's own code, and requests
+for the coming twelve days. `npm run db:seed -- --reset` starts it over from
+today, which is the way to get a fresh week before showing it to anybody.
 
 Open http://localhost:3000, sign in as `onur@sofra.test`, and follow the link
 from http://localhost:3000/dev/mailbox: in development, mail is kept in the
@@ -195,7 +201,9 @@ with `EADDRINUSE` if something already holds it. It does not move to 3001: sign-
 links would then point at the wrong server, and two dev servers share one
 `.next` folder, so each breaks the other's pages.
 
-To run the morning job by hand:
+`npm run scheduler` calls the tick every minute, as a company's scheduler does
+every fifteen, so each office's tables and evening question arrive on their own
+at the office's hour. Without it nothing happens by itself. To run a tick once:
 
 ```bash
 curl -H "Authorization: Bearer $CRON_SECRET" http://localhost:3000/api/cron/tick

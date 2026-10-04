@@ -38,14 +38,18 @@ export function inviteFor(
   office: Office,
   from: string,
   method: 'REQUEST' | 'CANCEL' = 'REQUEST',
+  cancelReason?: 'too-small' | 'replanned',
 ) {
   return buildInvite({
     group: table,
     venue: venueOf(office, table.timeZone),
     organizer: { name: 'Sofra', email: fromAddress(from) },
-    ...(method === 'REQUEST' ? { confirmUrl: confirmUrl(table.id) } : {}),
+    ...(method === 'REQUEST'
+      ? { confirmUrl: confirmUrl(table.id), confirmBy: office.confirmBy }
+      : {}),
     sequence: table.sequence,
     method,
+    ...(cancelReason ? { cancelReason } : {}),
   });
 }
 

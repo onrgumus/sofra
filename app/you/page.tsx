@@ -5,6 +5,7 @@ import { signOutAction, signOutElsewhereAction } from '../actions/auth';
 import { ProfileForm } from '../ProfileForm';
 import { profileFormProps } from '../profile-props';
 import { teamsOnly } from '../../src/lib/teams-mode';
+import { describeDevice } from '../../src/lib/device';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Profile · Sofra' };
@@ -84,9 +85,7 @@ export default async function YouPage({
                       <span className="faint"> · this one</span>
                     ) : null}
                   </td>
-                  <td className="truncate" title={s.userAgent}>
-                    {s.userAgent || 'unknown'}
-                  </td>
+                  <td title={s.userAgent}>{describeDevice(s.userAgent)}</td>
                   <td>{when(s.lastSeenAt)}</td>
                   <td>{when(s.expiresAt)}</td>
                 </tr>

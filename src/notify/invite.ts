@@ -18,6 +18,8 @@ export interface InviteOptions {
   durationMinutes?: number;
   /** Page where someone can confirm or drop out before the cut-off. */
   confirmUrl?: string;
+  /** The office's reply cut-off, local "HH:MM", said beside the link. */
+  confirmBy?: string;
   /**
    * Bump when the table has changed since the last send, so calendar clients
    * update the existing event instead of adding a second one.
@@ -28,6 +30,11 @@ export interface InviteOptions {
    * lunch back off everyone's calendar.
    */
   method?: 'REQUEST' | 'CANCEL';
+  /**
+   * Why a cancelled table is off: too few were left on it, or an admin made
+   * the day's tables again and this one is not among them.
+   */
+  cancelReason?: 'too-small' | 'replanned';
   /** Overrides the language picked from the group's shared languages. */
   language?: SupportedLanguage;
 }
@@ -63,8 +70,11 @@ export function buildInvite(options: InviteOptions): Invite {
   // The invite is sent the evening before, so it has to name the day rather
   // than say "today", which was false for every recipient who read it.
   const day = formatDayLong(group.date, lang === 'tr' ? 'tr-TR' : 'en-GB');
+  const replanned = options.cancelReason === 'replanned';
   const subject = cancelling
-    ? t.cancelledSubject(day, group.slot)
+    ? replanned
+      ? t.replannedSubject(day, group.slot)
+      : t.cancelledSubject(day, group.slot)
     : t.subject(group.members.length, day, group.slot);
 
   const attendees: IcsAttendee[] = group.members.map((m) => ({
@@ -105,12 +115,14 @@ export function buildInvite(options: InviteOptions): Invite {
     t.socialBody,
   ];
 
+  const confirmBy = options.confirmBy ?? '10:00';
   if (options.confirmUrl) {
-    sections.push('', t.confirm(options.confirmUrl));
+    sections.push('', t.confirm(confirmBy, options.confirmUrl));
   }
   sections.push('', t.footer);
 
   const text = sections.join('\n');
+  const icebreakers = buildIcebreakers(group, lang);
 
   const ics = buildIcs({
     uid: `${group.id}@sofra`,
@@ -126,10 +138,43 @@ export function buildInvite(options: InviteOptions): Invite {
     sequence: options.sequence ?? 0,
   });
 
+  const html = layout([
+    paragraph(t.intro(group.members.length, group.slot, day)),
+    card(
+      [
+        label(t.whenHeading),
+        `<div style="font-size:17px;font-weight:600">${esc(day)}, ${esc(group.slot)}</div>`,
+        `<div style="height:10px"></div>`,
+        label(t.whereHeading),
+        `<div>${esc(venue.displayName)} — ${esc(venue.meetingPoint)}</div>`,
+      ].join(''),
+    ),
+    heading(t.whoHeading),
+    list(
+      group.members.map(
+        (m) =>
+          `<strong>${esc(m.displayName)}</strong> — ${esc(m.title)}, ${esc(m.department)} (${esc(teamName(m.team))})`,
+      ),
+    ),
+    heading(t.startHeading),
+    paragraph(t.startBody),
+    list(t.startPrompts.map(esc)),
+    heading(t.topicHeading),
+    `<p style="margin:0 0 12px;font-style:italic">${esc(topic)}</p>`,
+    heading(t.icebreakerHeading),
+    list(icebreakers.map(esc)),
+    heading(t.socialHeading),
+    paragraph(t.socialBody),
+    ...(options.confirmUrl
+      ? [paragraph(t.confirmLead(confirmBy)), button(options.confirmUrl, t.confirmLabel)]
+      : []),
+    `<p style="margin:24px 0 0;color:${MUTED};font-size:13px">${esc(t.footer)}</p>`,
+  ]);
+
   return {
     subject,
     text,
-    html: toHtml(text),
+    html,
     ics,
     to: attendees,
     topic,
@@ -153,9 +198,11 @@ function buildCancellation(
   const { group, venue, organizer, lang, subject, roster, attendees, day } = options;
   const t = STRINGS[lang];
 
-  const text = [t.cancelledBody(group.slot, day), '', t.whoHeading, roster, '', t.footer].join(
-    '\n',
-  );
+  const body =
+    options.cancelReason === 'replanned'
+      ? t.replannedBody(group.slot, day)
+      : t.cancelledBody(group.slot, day);
+  const text = [body, '', t.whoHeading, roster, '', t.footer].join('\n');
 
   const ics = buildIcs({
     uid: `${group.id}@sofra`,
@@ -172,7 +219,14 @@ function buildCancellation(
     method: 'CANCEL',
   });
 
-  return { subject, text, html: toHtml(text), ics, to: attendees, topic: '', confirmUrl: null };
+  const html = layout([
+    paragraph(body),
+    heading(t.whoHeading),
+    list(group.members.map((m) => esc(m.displayName))),
+    `<p style="margin:24px 0 0;color:${MUTED};font-size:13px">${esc(t.footer)}</p>`,
+  ]);
+
+  return { subject, text, html, ics, to: attendees, topic: '', confirmUrl: null };
 }
 
 /**
@@ -234,12 +288,48 @@ function sharedInterest(group: MatchedGroup): string | null {
   return first.interests.find((i) => rest.every((m) => m.interests.includes(i))) ?? null;
 }
 
-function toHtml(text: string): string {
-  const escaped = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  return `<div style="font-family:system-ui,-apple-system,Segoe UI,sans-serif;font-size:15px;line-height:1.55">${escaped.replace(
-    /\n/g,
-    '<br>',
-  )}</div>`;
+// --- the mail's HTML -------------------------------------------------------------
+// Inline styles and tables only: mail clients, Outlook above all, ignore the rest.
+
+const INK = '#1f1b16';
+const MUTED = '#6b6258';
+const ACCENT = '#b4531f';
+
+function esc(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function layout(parts: string[]): string {
+  return `<div style="font-family:system-ui,-apple-system,'Segoe UI',sans-serif;font-size:15px;line-height:1.55;color:${INK};max-width:600px">${parts.join('')}</div>`;
+}
+
+function paragraph(text: string): string {
+  return `<p style="margin:0 0 12px">${esc(text)}</p>`;
+}
+
+function heading(text: string): string {
+  return `<h3 style="margin:22px 0 6px;font-size:15px">${esc(text)}</h3>`;
+}
+
+function label(text: string): string {
+  return `<div style="font-size:12px;letter-spacing:0.06em;text-transform:uppercase;color:${MUTED}">${esc(text)}</div>`;
+}
+
+/** Items already escaped, so they may carry their own emphasis. */
+function list(items: string[]): string {
+  return `<ul style="margin:0 0 12px;padding-left:20px">${items.map((i) => `<li style="margin:2px 0">${i}</li>`).join('')}</ul>`;
+}
+
+function card(inner: string): string {
+  return `<table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:separate;width:100%;margin:16px 0;background:#fbf6f0;border:1px solid #eadccd;border-radius:10px"><tr><td style="padding:14px 16px">${inner}</td></tr></table>`;
+}
+
+function button(url: string, text: string): string {
+  return `<p style="margin:12px 0 4px"><a href="${esc(url)}" style="background:${ACCENT};color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;display:inline-block">${esc(text)}</a></p>`;
 }
 
 /** Tables are three or four, so the subject line can say so in words. */
@@ -251,10 +341,14 @@ const STRINGS = {
     subject: (count: number, day: string, slot: string) =>
       `Lunch ${day} at ${slot}, the ${EN_NUMBERS[count] ?? count} of you`,
     cancelledSubject: (day: string, slot: string) => `Lunch cancelled: ${day} at ${slot}`,
+    replannedSubject: (day: string, slot: string) => `Table changed: lunch ${day} at ${slot}`,
+    replannedBody: (slot: string, day: string) =>
+      `The tables for ${day} were made again, so this ${slot} table is off and has been taken off your calendar. If you are still having lunch that day, your new table is in a separate mail.`,
     cancelledBody: (slot: string, day: string) =>
       `Too many people dropped out, so the ${slot} lunch on ${day} is off and it has been taken off your calendar. Anyone who still wanted to go was offered a seat at another table first; if you did not get one, there was genuinely nowhere to put you that day. Tick the box again for another one.`,
     intro: (count: number, slot: string, day: string) =>
       `The ${count} of you are having lunch together on ${day} at ${slot}. You work at the same company, you are all in the building that day, and none of you have had lunch together before. This mail went to all ${count} of you at once, so just reply here to sort out where you are going.`,
+    whenHeading: 'When',
     whereHeading: 'Where',
     whoHeading: 'Who',
     startHeading: 'How to start',
@@ -272,8 +366,10 @@ const STRINGS = {
     socialHeading: 'And do not let it turn into a work meeting',
     socialBody:
       'Leave room for the rest of it: sport, music and films, the city, where you grew up, what you actually care about. You can get a status update over Slack. The point of this table is the people sitting at it.',
-    confirm: (url: string) =>
-      `Cannot make it? Let us know by 10:00 so we can reseat the table: ${url}`,
+    confirm: (by: string, url: string) =>
+      `Cannot make it? Let us know by ${by} so we can reseat the table: ${url}`,
+    confirmLead: (by: string) => `Cannot make it? Let us know by ${by} so we can reseat the table.`,
+    confirmLabel: 'Open your table',
     footer: 'Sent by Sofra. You asked for this one day; you are not signed up for anything else.',
     icebreakerShared: (interest: string) =>
       `You all put "${interest}" on your profile. Start there.`,
@@ -304,10 +400,14 @@ const STRINGS = {
     subject: (count: number, day: string, slot: string) =>
       `${day} ${slot} öğle yemeği, ${TR_TOGETHER[count] ?? `${count} kişi`}`,
     cancelledSubject: (day: string, slot: string) => `Öğle yemeği iptal: ${day} ${slot}`,
+    replannedSubject: (day: string, slot: string) => `Masa değişti: ${day} ${slot} öğle yemeği`,
+    replannedBody: (slot: string, day: string) =>
+      `${day} gününün masaları yeniden kuruldu; bu yüzden saat ${slot} masası iptal oldu ve takviminden kaldırıldı. O gün hâlâ yemeğe katılıyorsan yeni masan ayrı bir mailde.`,
     cancelledBody: (slot: string, day: string) =>
       `Çok fazla kişi çıktığı için ${day} günü ${slot} yemeği iptal oldu ve takviminizden kaldırıldı. Hâlâ gelmek isteyenlere önce başka bir masada yer arandı; size bir yer çıkmadıysa o gün gerçekten yerleştirecek yer kalmamıştı. Başka bir gün için kutucuğu tekrar işaretleyebilirsin.`,
     intro: (count: number, slot: string, day: string) =>
       `${day} günü saat ${slot}'de ${count} kişi birlikte yemek yiyeceksiniz. Aynı şirkette çalışıyorsunuz, o gün hepiniz ofistesiniz ve daha önce hiç birlikte yemek yemediniz. Bu mail ${count}'inize aynı anda gitti; nereye gideceğinizi buradan yanıtlayarak kararlaştırabilirsiniz.`,
+    whenHeading: 'Ne zaman',
     whereHeading: 'Nerede',
     whoHeading: 'Kimler',
     startHeading: 'Nasıl başlanır',
@@ -325,8 +425,11 @@ const STRINGS = {
     socialHeading: 'Ve bunu bir iş toplantısına çevirmeyin',
     socialBody:
       'Gerisine de yer bırakın: spor, müzik ve filmler, şehir, nerede büyüdüğünüz, gerçekten önemsediğiniz şeyler. Durum güncellemesini zaten Slack üzerinden alabilirsiniz. Bu masanın amacı, masada oturan insanlar.',
-    confirm: (url: string) =>
-      `Gelemiyor musun? Masayı yeniden kurabilmemiz için 10:00'a kadar haber ver: ${url}`,
+    confirm: (by: string, url: string) =>
+      `Gelemiyor musun? Cevaplar saat ${by} itibarıyla kapanıyor; ondan önce haber ver ki masayı yeniden kuralım: ${url}`,
+    confirmLead: (by: string) =>
+      `Gelemiyor musun? Cevaplar saat ${by} itibarıyla kapanıyor; ondan önce haber ver ki masayı yeniden kuralım.`,
+    confirmLabel: 'Masanı aç',
     footer:
       'Sofra tarafından gönderildi. Sadece bu gün için katılmayı seçtin; başka hiçbir şeye kaydolmadın.',
     icebreakerShared: (interest: string) =>

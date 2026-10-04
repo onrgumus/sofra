@@ -3,7 +3,10 @@ import { visibleOffices } from '../../../src/auth/roles';
 import { getDb } from '../../../src/db';
 import { listRuns } from '../../../src/data/jobs';
 import { listOffices } from '../../../src/data/offices';
+import { formatDay } from '../../../src/lib/dates';
+import { formatLocalTime, localNow } from '../../../src/lib/zoned';
 import { Pill } from '../../ui';
+import { dayLabel, jobLabel, runSummary } from '../describe';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Runs · Sofra' };
@@ -18,6 +21,13 @@ export default async function RunsPage() {
     role.everyOffice ? { limit: 150 } : { officeIds: offices.map((o) => o.id), limit: 150 },
   );
   const names = new Map(offices.map((o) => [o.id, o.name]));
+  const zones = new Map(offices.map((o) => [o.id, o.timeZone]));
+  // On the office's own clock, as everything else in the console is.
+  const when = (startedAt: string, officeId: string | null) => {
+    const zone = (officeId && zones.get(officeId)) || 'UTC';
+    const at = new Date(startedAt);
+    return `${formatDay(localNow(zone, at).date)}, ${formatLocalTime(at, zone)}${zone === 'UTC' ? ' UTC' : ''}`;
+  };
 
   return (
     <main>
@@ -32,7 +42,7 @@ export default async function RunsPage() {
         <table className="data">
           <thead>
             <tr>
-              <th>Started (UTC)</th>
+              <th>When</th>
               <th>Job</th>
               <th>Office</th>
               <th>For</th>
@@ -43,13 +53,15 @@ export default async function RunsPage() {
           <tbody>
             {runs.map((r) => (
               <tr key={r.id}>
-                <td className="mono">{r.startedAt.slice(0, 16).replace('T', ' ')}</td>
+                <td title={`${r.startedAt.slice(0, 16).replace('T', ' ')} UTC`}>
+                  {when(r.startedAt, r.officeId)}
+                </td>
                 <td>
-                  {r.kind}
+                  {jobLabel(r.kind)}
                   {r.trigger === 'manual' ? <span className="faint"> · by hand</span> : null}
                 </td>
                 <td>{r.officeId ? (names.get(r.officeId) ?? r.officeId) : 'company'}</td>
-                <td className="mono">{r.runKey}</td>
+                <td>{dayLabel(r.runKey)}</td>
                 <td>
                   <Pill
                     tone={
@@ -66,12 +78,8 @@ export default async function RunsPage() {
                   </Pill>
                   {r.attempts > 1 ? <span className="faint"> · attempt {r.attempts}</span> : null}
                 </td>
-                <td className="faint small">
-                  {r.error ??
-                    Object.entries(r.summary)
-                      .filter(([, v]) => typeof v !== 'object')
-                      .map(([k, v]) => `${k} ${String(v)}`)
-                      .join(', ')}
+                <td className="faint small" title={r.error ?? JSON.stringify(r.summary)}>
+                  {r.error ?? runSummary(r.kind, r.summary)}
                 </td>
               </tr>
             ))}

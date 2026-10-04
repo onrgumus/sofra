@@ -1,8 +1,8 @@
 /**
  * Fills an empty database with a synthetic company, for trying Sofra on a
  * laptop: two offices in different time zones, the departments, an allowed
- * mail domain, 240 invented people, and some of them asking for lunch over the
- * coming days.
+ * mail domain, 240 invented people, some of them asking for lunch over the
+ * coming days, and the three weeks of lunches before today.
  *
  *   npm run db:seed            only into an empty database
  *   npm run db:seed -- --reset wipes Sofra's tables first
@@ -12,7 +12,7 @@
  * mailbox.
  */
 import { existsSync } from 'node:fs';
-import { createDb } from '../src/db';
+import { createDb, type Db } from '../src/db';
 import { createOffice, listOffices } from '../src/data/offices';
 import { createPerson } from '../src/data/people';
 import { setPattern, setRequest } from '../src/data/lunch';
@@ -21,6 +21,10 @@ import type { Office, Weekday } from '../src/data/types';
 import { createRng } from '../src/core/rng';
 import { generateCompany } from '../src/sim/company';
 import { addDays, isoWeekday, localNow } from '../src/lib/zoned';
+import type { InviteChannel } from '../src/notify/channels';
+import { planOfficeDay } from '../src/services/planning';
+import { sendEveningReminders } from '../src/services/reminders';
+import { matchInstant, reminderInstant } from '../src/services/schedule';
 
 const DOMAIN = 'sofra.test';
 
@@ -177,13 +181,118 @@ async function main(): Promise<void> {
       await setPattern(db, { employeeId: id, weekdays: [2, 4] as Weekday[], slot: null });
     }
 
+    const history = await seedHistory(db, ids, today);
+
     console.log(
       `Seeded ${OFFICES.length} offices, ${ids.length + 1} people at @${DOMAIN}, ${asked} lunch requests.`,
+    );
+    console.log(
+      `And three weeks behind them: ${history.days} office-days, ${history.tables} tables, every one in Runs.`,
     );
     console.log(`Sign in as onur@${DOMAIN}; with SOFRA_ADMINS=onur@${DOMAIN} that is an admin.`);
   } finally {
     await db.end();
   }
+}
+
+/**
+ * Three weeks of what already happened, so the console, Runs and the evening
+ * question start from a company that has been using Sofra rather than from
+ * nothing. Made by the code the scheduler runs, day by day in order, so every
+ * table knows who has met before. Nothing is sent: the mail went weeks ago.
+ */
+async function seedHistory(
+  db: Db,
+  ids: { id: string; officeId: string }[],
+  today: string,
+): Promise<{ days: number; tables: number }> {
+  const rng = createRng(23);
+  const silent: InviteChannel = {
+    name: 'seed',
+    sendInvite: async () => undefined,
+    sendCancellation: async () => undefined,
+    sendReminder: async () => undefined,
+  };
+  let days = 0;
+  let tables = 0;
+
+  for (let back = 21; back >= 0; back--) {
+    const date = addDays(today, -back);
+    for (const office of OFFICES) {
+      if (!office.workingDays.includes(isoWeekday(date) as Weekday)) continue;
+
+      // Today's requests are already in, and its tables are the scheduler's to make.
+      if (back > 0) {
+        for (const { id, officeId } of ids) {
+          if (officeId === office.id && rng() < 0.3) {
+            await setRequest(db, { employeeId: id, date, officeId, slot: null, source: 'manual' });
+          }
+        }
+      }
+
+      const reminder = await sendEveningReminders(db, silent, office, date);
+      await recordRun(db, 'reminder', office.id, date, reminderInstant(office, date, new Set()), {
+        ...reminder,
+        failed: reminder.failed.length,
+      });
+      if (back === 0) continue;
+
+      const plan = await planOfficeDay(db, office, date);
+      const madeAt = matchInstant(office, date);
+      await db.query(
+        'UPDATE lunch_tables SET invites_sent_at = $3 WHERE office_id = $1 AND date = $2',
+        [office.id, date, madeAt],
+      );
+      // Most people said they were coming; a few never replied.
+      await db.query(
+        `UPDATE table_seats s
+            SET rsvp = CASE WHEN abs(hashtext(s.employee_id || s.table_id)) % 10 = 0
+                            THEN 'pending' ELSE 'accepted' END
+           FROM lunch_tables t
+          WHERE t.id = s.table_id AND t.office_id = $1 AND t.date = $2`,
+        [office.id, date],
+      );
+      await recordRun(db, 'match', office.id, date, madeAt, {
+        ...plan,
+        invitesSent: plan.tables,
+        unseatedTold: plan.unseated,
+        failedToDeliver: 0,
+      });
+      days++;
+      tables += plan.tables;
+    }
+  }
+  // The evening question for the next working day, when its hour has passed: on
+  // a Sunday, Monday's went on Friday.
+  for (const office of OFFICES) {
+    let next = addDays(today, 1);
+    while (!office.workingDays.includes(isoWeekday(next) as Weekday)) next = addDays(next, 1);
+    const due = reminderInstant(office, next, new Set());
+    if (due.getTime() > Date.now()) continue;
+    const reminder = await sendEveningReminders(db, silent, office, next);
+    await recordRun(db, 'reminder', office.id, next, due, {
+      ...reminder,
+      failed: reminder.failed.length,
+    });
+  }
+
+  return { days, tables };
+}
+
+/** A scheduled run, as the scheduler would have recorded it at the time. */
+async function recordRun(
+  db: Db,
+  kind: 'match' | 'reminder',
+  officeId: string,
+  date: string,
+  at: Date,
+  summary: object,
+): Promise<void> {
+  await db.query(
+    `INSERT INTO job_runs (kind, office_id, run_key, dedupe_key, trigger, status, started_at, finished_at, summary)
+     VALUES ($1, $2, $3, $4, 'schedule', 'done', $5, $5::timestamptz + interval '2 seconds', $6)`,
+    [kind, officeId, date, `${kind}:${officeId}:${date}`, at, JSON.stringify(summary)],
+  );
 }
 
 function ascii(name: string): string {

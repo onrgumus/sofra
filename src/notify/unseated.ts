@@ -59,9 +59,15 @@ function pickLanguage(languages: readonly string[]): SupportedLanguage {
   return languages.includes('tr') && !languages.includes('en') ? 'tr' : 'en';
 }
 
+/** The text as it reads, with its one link something to click rather than copy. */
 function toHtml(text: string): string {
-  const escaped = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  return `<div style="font-family:system-ui,-apple-system,Segoe UI,sans-serif;font-size:15px;line-height:1.55">${escaped.replace(
+  const escaped = text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+  const linked = escaped.replace(/https?:\/\/[^\s<]+/g, (url) => `<a href="${url}">${url}</a>`);
+  return `<div style="font-family:system-ui,-apple-system,'Segoe UI',sans-serif;font-size:15px;line-height:1.55;color:#1f1b16;max-width:600px">${linked.replace(
     /\n/g,
     '<br>',
   )}</div>`;

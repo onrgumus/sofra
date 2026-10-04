@@ -230,3 +230,61 @@ describe('sendInvite', () => {
     ).resolves.toBeUndefined();
   });
 });
+
+describe('the invite’s reply cut-off and its HTML', () => {
+  const at = (confirmBy?: string) =>
+    buildInvite({
+      group: group({
+        members: group().members.map((m) => ({ ...m, displayName: `${m.displayName} <b>` })),
+      }),
+      venue: VENUE,
+      organizer,
+      confirmUrl: 'https://sofra.acme.test/c/table-1',
+      ...(confirmBy ? { confirmBy } : {}),
+    });
+
+  it('names the office’s own cut-off, not a fixed hour', () => {
+    const invite = at('11:30');
+    expect(invite.text).toContain('Let us know by 11:30');
+    expect(invite.html).toContain('Let us know by 11:30');
+    expect(invite.text).not.toContain('10:00');
+  });
+
+  it('is laid out for a mail client, with the table page behind a button', () => {
+    const { html } = at('11:30');
+    expect(html).toContain('<h3');
+    expect(html).toContain('<li');
+    expect(html).toContain('href="https://sofra.acme.test/c/table-1"');
+    expect(html).toContain('Open your table');
+  });
+
+  it('escapes what people typed about themselves', () => {
+    const { html } = at();
+    expect(html).toContain('Ada Yılmaz &lt;b&gt;');
+    expect(html).not.toContain('Yılmaz <b>');
+  });
+});
+
+describe('a cancellation says why', () => {
+  const cancel = (cancelReason?: 'too-small' | 'replanned') =>
+    buildInvite({
+      group: group(),
+      venue: VENUE,
+      organizer,
+      method: 'CANCEL',
+      ...(cancelReason ? { cancelReason } : {}),
+    });
+
+  it('blames drop-outs only when there were drop-outs', () => {
+    expect(cancel().text).toContain('Too many people dropped out');
+    expect(cancel('too-small').subject).toMatch(/^Lunch cancelled/);
+  });
+
+  it('says the day was made again when an admin re-planned it', () => {
+    const replanned = cancel('replanned');
+    expect(replanned.subject).toMatch(/^Table changed/);
+    expect(replanned.text).toContain('were made again');
+    expect(replanned.text).not.toContain('dropped out');
+    expect(replanned.ics).toContain('METHOD:CANCEL');
+  });
+});
