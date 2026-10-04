@@ -133,3 +133,16 @@ export async function requireAdmin(
   }
   return { ...me, role };
 }
+
+/**
+ * An admin about to change something. Every console action goes through this
+ * rather than requireAdmin: somebody who may only look, a guest in a public
+ * demo, is sent back to the console with a line saying so.
+ */
+export async function requireAdminToChange(
+  scope: { officeId?: string; everyOffice?: boolean } = {},
+): Promise<AdminContext> {
+  const admin = await requireAdmin(scope);
+  if (admin.role.readOnly) redirect('/admin?note=readonly');
+  return admin;
+}

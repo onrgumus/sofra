@@ -39,8 +39,11 @@ describe('the console', () => {
 
   it('has every action check the admin first', () => {
     for (const { name, body } of admin) {
-      const guard = body.indexOf('requireAdmin(');
+      // The guard for changes, not the one for looking: a guest in a public
+      // demo passes requireAdmin and must not pass this.
+      const guard = body.indexOf('requireAdminToChange(');
       expect(guard, name).toBeGreaterThan(-1);
+      expect(body, name).not.toContain('requireAdmin(');
       // Nothing touches the database before the guard.
       const firstWrite = body.search(/getDb\(\)|await (add|remove|set|update|create|delete)/);
       expect(firstWrite === -1 || firstWrite > guard, name).toBe(true);
@@ -65,7 +68,7 @@ describe('the console', () => {
     for (const name of companyWide) {
       const found = admin.find((a) => a.name === name);
       expect(found, name).toBeDefined();
-      expect(found!.body, name).toContain('requireAdmin({ everyOffice: true })');
+      expect(found!.body, name).toContain('requireAdminToChange({ everyOffice: true })');
     }
   });
 
@@ -77,7 +80,7 @@ describe('the console', () => {
       'remindNowAction',
     ]) {
       const found = admin.find((a) => a.name === name)!;
-      expect(found.body, name).toContain('requireAdmin({ officeId })');
+      expect(found.body, name).toContain('requireAdminToChange({ officeId })');
     }
   });
 

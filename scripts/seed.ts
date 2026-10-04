@@ -17,6 +17,7 @@ import { createOffice, listOffices } from '../src/data/offices';
 import { createPerson } from '../src/data/people';
 import { setPattern, setRequest } from '../src/data/lunch';
 import { addAllowedDomain, addDepartment, setSetting } from '../src/data/settings';
+import { DEMO_SETTING } from '../src/auth/demo';
 import type { Office, Weekday } from '../src/data/types';
 import { createRng } from '../src/core/rng';
 import { generateCompany } from '../src/sim/company';
@@ -107,6 +108,8 @@ async function main(): Promise<void> {
     }
 
     await setSetting(db, 'company_name', 'Acme (demo)');
+    // What lets a public demo open its door on this database and on no other.
+    await setSetting(db, DEMO_SETTING, true);
     await addAllowedDomain(db, DOMAIN);
     for (const office of OFFICES) await createOffice(db, office);
 
@@ -162,12 +165,13 @@ async function main(): Promise<void> {
       onboarded: true,
     });
 
-    // About a third ask for lunch on each of the next working days, and a few
-    // come every Tuesday and Thursday.
+    // About a third ask for lunch on each working day of the next two weeks,
+    // and a quarter of the company comes on the same two days every week, so
+    // an instance left running goes on having lunches after those two weeks.
     const rng = createRng(11);
     const today = localNow('Europe/Istanbul').date;
     let asked = 0;
-    for (let i = 0; i < 12; i++) {
+    for (let i = 0; i < 14; i++) {
       const date = addDays(today, i);
       if (isoWeekday(date) > 5) continue;
       for (const { id, officeId } of ids) {
@@ -177,8 +181,13 @@ async function main(): Promise<void> {
         }
       }
     }
-    for (const { id } of ids.slice(0, 20)) {
-      await setPattern(db, { employeeId: id, weekdays: [2, 4] as Weekday[], slot: null });
+    const habits = createRng(17);
+    for (const { id } of ids) {
+      if (habits() >= 0.25) continue;
+      const first = (1 + Math.floor(habits() * 5)) as Weekday;
+      const second = ((first % 5) + 1 + Math.floor(habits() * 3)) as number;
+      const weekdays = [...new Set([first, ((second - 1) % 5) + 1])].sort() as Weekday[];
+      await setPattern(db, { employeeId: id, weekdays, slot: null });
     }
 
     const history = await seedHistory(db, ids, today);

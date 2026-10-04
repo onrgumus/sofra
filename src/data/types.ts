@@ -65,7 +65,7 @@ export interface Person {
   lastSeenAt: string | null;
 }
 
-export type SignInMethod = 'email' | 'oidc' | 'teams';
+export type SignInMethod = 'email' | 'oidc' | 'teams' | 'demo';
 
 export interface Session {
   employeeId: string;

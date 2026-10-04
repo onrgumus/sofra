@@ -21,6 +21,12 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         <Link href="/admin/runs">Runs</Link>
         {role.everyOffice ? <Link href="/admin/audit">Audit log</Link> : null}
       </nav>
+      {role.readOnly ? (
+        <div className="note" role="note" style={{ marginBottom: 16 }}>
+          You are a guest in a public demo. This is the console as an admin sees it; nothing in it
+          can be changed from here.
+        </div>
+      ) : null}
       {children}
     </div>
   );

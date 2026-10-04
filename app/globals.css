@@ -637,6 +637,17 @@ form.inline input[type='search']:focus-visible {
   font-size: 0.82rem;
 }
 
+/* --- the public demo's banner --- */
+
+.demo-bar {
+  background: var(--accent-soft);
+  border-bottom: 1px solid var(--accent-border);
+  color: var(--text);
+  font-size: 0.85rem;
+  padding: 8px 16px;
+  text-align: center;
+}
+
 /* --- metrics --- */
 
 /* The lines between metrics are each metric's own outline, drawn in the 1px

@@ -288,4 +288,13 @@ export const MIGRATIONS: readonly Migration[] = [
       );
     `,
   },
+  {
+    id: '002_demo_sessions',
+    sql: `
+      -- A session opened at the door of a public demo, with no identity behind it.
+      ALTER TABLE sessions DROP CONSTRAINT sessions_method_check;
+      ALTER TABLE sessions ADD CONSTRAINT sessions_method_check
+        CHECK (method IN ('email','oidc','teams','demo'));
+    `,
+  },
 ];

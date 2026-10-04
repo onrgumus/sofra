@@ -35,6 +35,7 @@ const NOTES: Record<string, string> = {
   planned: 'The tables are made and the invites have gone.',
   reminded: 'The reminder has gone to the people likely to want it.',
   failed: 'That did not work. The run is in Runs with the reason.',
+  readonly: 'The console is read-only in the public demo, so nothing was changed.',
 };
 
 function utc(instant: Date): string {

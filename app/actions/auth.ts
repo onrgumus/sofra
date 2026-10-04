@@ -2,14 +2,16 @@
 
 import { redirect } from 'next/navigation';
 import { current, requestMeta, setSessionCookie, signOut } from '../../src/auth/session';
-import { redeemSignInLink, requestSignInLink } from '../../src/auth/signin';
+import { openSession, redeemSignInLink, requestSignInLink } from '../../src/auth/signin';
 import { getDb } from '../../src/db';
 import { deleteSessionsOf } from '../../src/data/sessions';
 import { hashToken } from '../../src/auth/tokens';
 import { BASE_URL } from '../../src/lib/config';
 import { safeRedirectPath } from '../../src/lib/redirect';
 import { teamsOnly } from '../../src/lib/teams-mode';
+import { enterDemo } from '../../src/services/demo';
 import { configuredTransport, FROM_EMAIL } from '../../src/services/mail';
+import { dayDeps } from '../../src/services/runtime';
 import { cookies } from 'next/headers';
 import { SESSION_COOKIE } from '../../src/lib/session-cookie';
 
@@ -46,6 +48,27 @@ export async function confirmLinkAction(formData: FormData): Promise<void> {
 
   await setSessionCookie(session.token, session.expiresAt);
   redirect(session.person.onboardedAt ? session.next : '/welcome');
+}
+
+/**
+ * The public demo's door: whoever presses it gets a guest of their own, already
+ * at a table. Refused unless the deployment and the database both say this is
+ * a demo, so it does nothing at all on a real company's instance.
+ */
+export async function enterDemoAction(): Promise<void> {
+  const meta = await requestMeta();
+  const entry = await enterDemo(dayDeps(), { ip: meta.ip });
+  if (!entry.ok) {
+    redirect(`/login?error=${entry.reason === 'busy' ? 'demo-busy' : 'demo-closed'}`);
+  }
+
+  // A visitor gave no address, and none is kept for them.
+  const session = await openSession(getDb(), entry.guest, 'demo', {
+    ip: '',
+    userAgent: meta.userAgent,
+  });
+  await setSessionCookie(session.token, session.expiresAt);
+  redirect(entry.seatedOn ? `/?day=${entry.seatedOn}&note=demo` : '/?note=demo');
 }
 
 export async function signOutAction(): Promise<void> {

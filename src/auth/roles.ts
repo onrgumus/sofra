@@ -2,6 +2,7 @@ import type { Queryable } from '../db';
 import { grantsOf } from '../data/admin';
 import type { Person } from '../data/types';
 import { envOptional } from '../lib/env';
+import { demoOpen } from './demo';
 
 /**
  * What somebody may administer. Two levels:
@@ -17,6 +18,11 @@ export interface AdminRole {
   officeIds: string[];
   /** Named in SOFRA_ADMINS: the way back in, which the UI cannot take away. */
   bootstrap: boolean;
+  /**
+   * May look and may not change: a guest in a public demo, who is shown the
+   * console because it is half the product and can alter nothing in it.
+   */
+  readOnly: boolean;
 }
 
 /**
@@ -39,8 +45,12 @@ export async function roleOf(db: Queryable, person: Person | null): Promise<Admi
   const everyOffice = bootstrap || grants.some((g) => g.officeId === null);
   const officeIds = [...new Set(grants.flatMap((g) => (g.officeId ? [g.officeId] : [])))];
 
-  if (!everyOffice && officeIds.length === 0) return null;
-  return { everyOffice, officeIds, bootstrap };
+  if (!everyOffice && officeIds.length === 0) {
+    return (await demoOpen(db))
+      ? { everyOffice: true, officeIds: [], bootstrap: false, readOnly: true }
+      : null;
+  }
+  return { everyOffice, officeIds, bootstrap, readOnly: false };
 }
 
 export function canManageOffice(role: AdminRole | null, officeId: string): boolean {

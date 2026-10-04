@@ -23,16 +23,17 @@ const METHOD: Record<string, string> = {
   email: 'Email link',
   oidc: 'Company sign-in',
   teams: 'Teams',
+  demo: 'Demo guest',
 };
 
 /** What Sofra holds about you, all of it editable here, and where you are signed in. */
 export default async function YouPage({
   searchParams,
 }: {
-  searchParams: Promise<{ saved?: string; signedOut?: string }>;
+  searchParams: Promise<{ saved?: string; signedOut?: string; guest?: string }>;
 }) {
   const { person, session } = await requireOnboarded();
-  const { saved, signedOut } = await searchParams;
+  const { saved, signedOut, guest } = await searchParams;
   const db = getDb();
   const sessions = await listSessionsOf(db, person.id);
 
@@ -50,6 +51,12 @@ export default async function YouPage({
       {saved ? (
         <div className="note" data-tone="good" role="status">
           Saved.
+        </div>
+      ) : null}
+      {guest || session.method === 'demo' ? (
+        <div className="note" role="note">
+          You are a guest in the public demo, with an invented colleague&apos;s profile. It is shown
+          here as anybody&apos;s would be, and cannot be changed.
         </div>
       ) : null}
       {signedOut ? (

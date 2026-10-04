@@ -90,7 +90,12 @@ const MIGRATION_LOCK = 7_310_424_117;
 export async function migrate(pool: pg.Pool, migrations: readonly Migration[]): Promise<void> {
   const client = await pool.connect();
   try {
-    await client.query('SELECT pg_advisory_lock($1)', [MIGRATION_LOCK]);
+    // One transaction, under a lock that ends with it. A session-level lock
+    // would be left behind on a pooled connection: PgBouncer, and the hosted
+    // databases built on it, hand each statement outside a transaction to
+    // whichever server connection is free, so the unlock can miss the lock.
+    await client.query('BEGIN');
+    await client.query('SELECT pg_advisory_xact_lock($1)', [MIGRATION_LOCK]);
     await client.query(
       `CREATE TABLE IF NOT EXISTS schema_migrations (
          id TEXT PRIMARY KEY,
@@ -105,18 +110,18 @@ export async function migrate(pool: pg.Pool, migrations: readonly Migration[]): 
 
     for (const migration of migrations) {
       if (applied.has(migration.id)) continue;
-      await client.query('BEGIN');
       try {
         await client.query(migration.sql);
         await client.query('INSERT INTO schema_migrations (id) VALUES ($1)', [migration.id]);
-        await client.query('COMMIT');
       } catch (error) {
-        await client.query('ROLLBACK');
         throw new Error(`Migration ${migration.id} failed: ${String(error)}`);
       }
     }
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => undefined);
+    throw error;
   } finally {
-    await client.query('SELECT pg_advisory_unlock($1)', [MIGRATION_LOCK]).catch(() => undefined);
     client.release();
   }
 }
