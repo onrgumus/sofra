@@ -188,7 +188,14 @@ npm run dev
 Open http://localhost:3000, sign in as `onur@sofra.test`, and follow the link
 from http://localhost:3000/dev/mailbox: in development, mail is kept in the
 database and shown there instead of being sent (`SOFRA_MAIL_TRANSPORT=outbox`).
-Any seeded person can sign in the same way. To run the morning job by hand:
+Any seeded person can sign in the same way.
+
+`npm run dev` always takes port 3000, the port in `SOFRA_BASE_URL`, and stops
+with `EADDRINUSE` if something already holds it. It does not move to 3001: sign-in
+links would then point at the wrong server, and two dev servers share one
+`.next` folder, so each breaks the other's pages.
+
+To run the morning job by hand:
 
 ```bash
 curl -H "Authorization: Bearer $CRON_SECRET" http://localhost:3000/api/cron/tick
