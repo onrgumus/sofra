@@ -1,14 +1,19 @@
 import { redirect } from 'next/navigation';
+import { demoOpen } from '../../src/auth/demo';
 import { current } from '../../src/auth/session';
+import { getDb } from '../../src/db';
 import { oidcConfig } from '../../src/lib/oidc';
 import { safeRedirectPath } from '../../src/lib/redirect';
 import { openInTeamsUrl, TEAMS_RETRY_PARAM, teamsOnly } from '../../src/lib/teams-mode';
 import { mailboxEnabled } from '../../src/services/mail';
 import { requestLinkAction } from '../actions/auth';
+import { DemoDoor } from '../DemoDoor';
 import { TeamsBootstrap } from '../TeamsBootstrap';
 import { TeamsTheme } from '../TeamsTheme';
 
 export const dynamic = 'force-dynamic';
+// Walking into the demo can make a day's tables on the way.
+export const maxDuration = 60;
 export const metadata = { title: 'Sign in · Sofra' };
 
 const ERRORS: Record<string, string> = {
@@ -23,6 +28,8 @@ const ERRORS: Record<string, string> = {
   unknown:
     'You signed in, but that account cannot use Sofra here. Ask an admin to allow your domain.',
   provider: 'Sofra cannot reach your company sign-in at the moment.',
+  'demo-busy': 'A lot of people are trying the demo right now. Give it a few minutes.',
+  'demo-closed': 'The demo is not open here.',
 };
 
 export default async function LoginPage({
@@ -61,6 +68,28 @@ export default async function LoginPage({
 
   const company = oidcConfig();
   const error = params.error ? ERRORS[params.error] : null;
+
+  // A public demo has one door, and it asks for nothing: no mail could reach
+  // a visitor's invented colleague anyway.
+  if (await demoOpen(getDb())) {
+    return (
+      <main className="signin">
+        <div className="page-head">
+          <h1>Sofra</h1>
+          <p>
+            Lunch with two or three colleagues from other teams, on the days you are in the office
+            anyway.
+          </p>
+        </div>
+        {error ? (
+          <p className="error-text" role="alert">
+            {error}
+          </p>
+        ) : null}
+        <DemoDoor />
+      </main>
+    );
+  }
 
   return (
     <main className="signin">

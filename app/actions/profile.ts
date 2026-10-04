@@ -22,7 +22,11 @@ export async function saveProfileAction(
   _previous: ProfileFormState,
   formData: FormData,
 ): Promise<ProfileFormState> {
-  const { person } = await requirePerson();
+  const { person, session } = await requirePerson();
+  // A guest in a public demo keeps the invented colleague they were given:
+  // what they typed would be shown to the next visitor seated beside them.
+  if (session.method === 'demo') redirect('/you?guest=1');
+
   const db = getDb();
   const parsed = parseProfileForm(formData, {
     departments: await listDepartments(db),

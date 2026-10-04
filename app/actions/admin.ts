@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import { requireAdmin, type AdminContext } from '../../src/auth/session';
+import { requireAdminToChange, type AdminContext } from '../../src/auth/session';
 import { bootstrapAdminEmails } from '../../src/auth/roles';
 import { getDb } from '../../src/db';
 import { addGrant, grantsOf, recordAudit, removeGrant } from '../../src/data/admin';
@@ -69,8 +69,8 @@ export async function saveOfficeAction(
 ): Promise<OfficeFormState> {
   const existingId = field(formData, 'existingId', 40) || undefined;
   const admin = existingId
-    ? await requireAdmin({ officeId: existingId })
-    : await requireAdmin({ everyOffice: true });
+    ? await requireAdminToChange({ officeId: existingId })
+    : await requireAdminToChange({ everyOffice: true });
   const db = getDb();
 
   const parsed = parseOfficeForm(formData, existingId);
@@ -95,7 +95,7 @@ export async function saveOfficeAction(
 
 export async function addHolidayAction(formData: FormData): Promise<void> {
   const officeId = field(formData, 'officeId', 40);
-  const admin = await requireAdmin({ officeId });
+  const admin = await requireAdminToChange({ officeId });
   const date = field(formData, 'date', 10);
   const name = field(formData, 'name', 80);
   if (!isValidDate(date)) redirect(`/admin/offices/${encodeURIComponent(officeId)}?error=date`);
@@ -108,7 +108,7 @@ export async function addHolidayAction(formData: FormData): Promise<void> {
 
 export async function removeHolidayAction(formData: FormData): Promise<void> {
   const officeId = field(formData, 'officeId', 40);
-  const admin = await requireAdmin({ officeId });
+  const admin = await requireAdminToChange({ officeId });
   const date = field(formData, 'date', 10);
   await removeHoliday(getDb(), officeId, date);
   await audit(admin, 'holiday.remove', officeId, { date });
@@ -121,7 +121,7 @@ export async function removeHolidayAction(formData: FormData): Promise<void> {
 /** Plans a day now. Re-planning cancels the invites people already have. */
 export async function planNowAction(formData: FormData): Promise<void> {
   const officeId = field(formData, 'officeId', 40);
-  const admin = await requireAdmin({ officeId });
+  const admin = await requireAdminToChange({ officeId });
   const date = field(formData, 'date', 10);
   const office = await getOffice(getDb(), officeId);
   if (!office || !isValidDate(date)) redirect('/admin');
@@ -140,7 +140,7 @@ export async function planNowAction(formData: FormData): Promise<void> {
 
 export async function remindNowAction(formData: FormData): Promise<void> {
   const officeId = field(formData, 'officeId', 40);
-  const admin = await requireAdmin({ officeId });
+  const admin = await requireAdminToChange({ officeId });
   const date = field(formData, 'date', 10);
   const office = await getOffice(getDb(), officeId);
   if (!office || !isValidDate(date)) redirect('/admin');
@@ -157,7 +157,7 @@ export async function remindNowAction(formData: FormData): Promise<void> {
 const DOMAIN = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*\.[a-z]{2,}$/;
 
 export async function addDomainAction(formData: FormData): Promise<void> {
-  const admin = await requireAdmin({ everyOffice: true });
+  const admin = await requireAdminToChange({ everyOffice: true });
   const domain = field(formData, 'domain', 100).toLowerCase().replace(/^@/, '');
   if (!DOMAIN.test(domain)) redirect('/admin/settings?error=domain');
   await addAllowedDomain(getDb(), domain);
@@ -166,7 +166,7 @@ export async function addDomainAction(formData: FormData): Promise<void> {
 }
 
 export async function removeDomainAction(formData: FormData): Promise<void> {
-  const admin = await requireAdmin({ everyOffice: true });
+  const admin = await requireAdminToChange({ everyOffice: true });
   const domain = field(formData, 'domain', 100);
   await removeAllowedDomain(getDb(), domain);
   await audit(admin, 'domain.remove', domain);
@@ -174,7 +174,7 @@ export async function removeDomainAction(formData: FormData): Promise<void> {
 }
 
 export async function addDepartmentAction(formData: FormData): Promise<void> {
-  const admin = await requireAdmin({ everyOffice: true });
+  const admin = await requireAdminToChange({ everyOffice: true });
   const name = field(formData, 'name', 80);
   if (!name) redirect('/admin/settings?error=department');
   const saved = await addDepartment(getDb(), name);
@@ -183,7 +183,7 @@ export async function addDepartmentAction(formData: FormData): Promise<void> {
 }
 
 export async function renameDepartmentAction(formData: FormData): Promise<void> {
-  const admin = await requireAdmin({ everyOffice: true });
+  const admin = await requireAdminToChange({ everyOffice: true });
   const from = field(formData, 'from', 80);
   const to = field(formData, 'to', 80);
   if (!to) redirect('/admin/settings?error=department');
@@ -197,7 +197,7 @@ export async function renameDepartmentAction(formData: FormData): Promise<void> 
 }
 
 export async function removeDepartmentAction(formData: FormData): Promise<void> {
-  const admin = await requireAdmin({ everyOffice: true });
+  const admin = await requireAdminToChange({ everyOffice: true });
   const name = field(formData, 'name', 80);
   const removed = await removeDepartment(getDb(), name);
   if (!removed) redirect('/admin/settings?error=inuse');
@@ -206,7 +206,7 @@ export async function removeDepartmentAction(formData: FormData): Promise<void> 
 }
 
 export async function setCompanyNameAction(formData: FormData): Promise<void> {
-  const admin = await requireAdmin({ everyOffice: true });
+  const admin = await requireAdminToChange({ everyOffice: true });
   const name = field(formData, 'companyName', 80);
   await setSetting(getDb(), 'company_name', name || 'your company');
   await audit(admin, 'company.rename', name);
@@ -214,7 +214,7 @@ export async function setCompanyNameAction(formData: FormData): Promise<void> {
 }
 
 export async function syncDirectoryAction(): Promise<void> {
-  const admin = await requireAdmin({ everyOffice: true });
+  const admin = await requireAdminToChange({ everyOffice: true });
   const db = getDb();
   const configured = configuredDirectory(await listOffices(db));
   if (!configured) redirect('/admin/people?error=nodirectory');
@@ -236,7 +236,7 @@ async function targetPerson(formData: FormData) {
  * signing back in; their past lunches stay, for everyone else's history.
  */
 export async function setPersonActiveAction(formData: FormData): Promise<void> {
-  const admin = await requireAdmin({ everyOffice: true });
+  const admin = await requireAdminToChange({ everyOffice: true });
   const person = await targetPerson(formData);
   const active = field(formData, 'active') === 'true';
 
@@ -254,7 +254,7 @@ export async function setPersonActiveAction(formData: FormData): Promise<void> {
 }
 
 export async function signOutPersonAction(formData: FormData): Promise<void> {
-  const admin = await requireAdmin({ everyOffice: true });
+  const admin = await requireAdminToChange({ everyOffice: true });
   const person = await targetPerson(formData);
   const count = await deleteSessionsOf(getDb(), person.id);
   await audit(admin, 'person.signout', person.email, { sessions: count });
@@ -262,7 +262,7 @@ export async function signOutPersonAction(formData: FormData): Promise<void> {
 }
 
 export async function setPersonOfficeAction(formData: FormData): Promise<void> {
-  const admin = await requireAdmin({ everyOffice: true });
+  const admin = await requireAdminToChange({ everyOffice: true });
   const person = await targetPerson(formData);
   const officeId = field(formData, 'officeId', 40) || null;
   if (officeId && !(await getOffice(getDb(), officeId))) redirect('/admin/people');
@@ -273,7 +273,7 @@ export async function setPersonOfficeAction(formData: FormData): Promise<void> {
 
 /** Makes somebody an admin of every office, or of one. Only every-office admins can. */
 export async function grantAdminAction(formData: FormData): Promise<void> {
-  const admin = await requireAdmin({ everyOffice: true });
+  const admin = await requireAdminToChange({ everyOffice: true });
   const person = await targetPerson(formData);
   if (!person.active) redirect('/admin/people?error=inactive');
   const officeId = field(formData, 'officeId', 40) || null;
@@ -285,7 +285,7 @@ export async function grantAdminAction(formData: FormData): Promise<void> {
 }
 
 export async function revokeAdminAction(formData: FormData): Promise<void> {
-  const admin = await requireAdmin({ everyOffice: true });
+  const admin = await requireAdminToChange({ everyOffice: true });
   const grantId = Number(field(formData, 'grantId', 20));
   const db = getDb();
 

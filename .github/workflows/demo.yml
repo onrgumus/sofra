@@ -1,0 +1,54 @@
+name: demo
+
+# Keeps a public demo instance alive. It calls the instance's scheduler every
+# fifteen minutes, which a free hosting plan's own cron cannot, and starts the
+# demo over from a fresh seed once a week, so visitors' guests and old mail do
+# not pile up. Does nothing until the repository has a DEMO_URL variable.
+#
+#   variable  DEMO_URL             https://your-demo.example
+#   secret    DEMO_CRON_SECRET     the instance's CRON_SECRET
+#   secret    DEMO_DATABASE_URL    the instance's database, for the weekly seed
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+    - cron: '40 0 * * 1'
+  workflow_dispatch:
+    inputs:
+      reset:
+        description: Wipe the demo database and seed it again
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  tick:
+    if: ${{ vars.DEMO_URL != '' && github.event.schedule != '40 0 * * 1' && !inputs.reset }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Call the scheduler
+        env:
+          DEMO_URL: ${{ vars.DEMO_URL }}
+          CRON_SECRET: ${{ secrets.DEMO_CRON_SECRET }}
+        run: |
+          curl --fail-with-body --silent --show-error --max-time 120 \
+            -X POST -H "Authorization: Bearer $CRON_SECRET" "$DEMO_URL/api/cron/tick"
+
+  reset:
+    if: ${{ vars.DEMO_URL != '' && (github.event.schedule == '40 0 * * 1' || inputs.reset) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Seed the demo again
+        env:
+          DATABASE_URL: ${{ secrets.DEMO_DATABASE_URL }}
+        run: npm run db:seed -- --reset

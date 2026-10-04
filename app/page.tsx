@@ -31,6 +31,10 @@ const NOTES: Record<string, { tone: 'good' | 'bad'; text: string }> = {
     text: 'You have a seat at a table that day. Who you are with is below.',
   },
   welcome: { tone: 'good', text: 'You are all set. Pick the days you will be in for lunch.' },
+  demo: {
+    tone: 'good',
+    text: 'You are in, as a guest at an invented company, and already at a lunch table: open it below. Reply, pick more days, look at the console. Nothing here is real.',
+  },
   pattern: { tone: 'good', text: 'Your weekly days are saved.' },
   closed: { tone: 'bad', text: 'Replies for that day have closed, so it can no longer change.' },
   off: { tone: 'bad', text: 'That office is closed that day.' },

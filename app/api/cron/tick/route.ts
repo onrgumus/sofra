@@ -4,6 +4,8 @@ import { tickDeps } from '../../../../src/services/runtime';
 import { runTick } from '../../../../src/services/tick';
 
 export const dynamic = 'force-dynamic';
+// A morning with several offices on a hosted database takes more than the default few seconds.
+export const maxDuration = 60;
 
 /**
  * What the scheduler calls every fifteen minutes. It works out, office by

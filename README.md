@@ -216,7 +216,7 @@ npm run scheduler                 # in a second terminal: the tick, every minute
 
 The seed is a company that has been using Sofra for three weeks: past tables,
 replies and evening questions, made by the scheduler's own code, and requests
-for the coming twelve days. `npm run db:seed -- --reset` starts it over from
+for the coming two weeks. `npm run db:seed -- --reset` starts it over from
 today, which is the way to get a fresh week before showing it to anybody.
 
 Open http://localhost:3000, sign in as `onur@sofra.test`, and follow the link
@@ -238,6 +238,42 @@ curl -H "Authorization: Bearer $CRON_SECRET" http://localhost:3000/api/cron/tick
 ```
 
 or press "Make the tables now" in the console.
+
+## A public demo
+
+An instance can be opened to anybody, to show what Sofra is without asking them
+for an address. With `SOFRA_DEMO=true`, on a database filled by
+`npm run db:seed`:
+
+- The sign-in page has one button, "Try the demo". Pressing it makes the visitor
+  an invented colleague of their own (so what one visitor does never changes
+  what another sees of themselves), already seated at a table on the next day
+  that still takes replies.
+- They can do everything an employee can: pick days, set a weekly pattern, open
+  their table, reply, drop out. Their profile stays as given, because the next
+  visitor at their table would read whatever they typed.
+- They see the console as an admin does, and can change nothing in it: every
+  console action refuses a guest.
+- No address is kept for a visitor. The door is rate-limited per visitor, by a
+  digest that is dropped within the hour.
+
+Both conditions have to hold, so a stray setting cannot open a real company's
+instance: the environment says it is a demo, and the database carries the mark
+only the seed writes.
+
+On Vercel's free plan, with a hosted PostgreSQL:
+
+1. Add a PostgreSQL database to the project (Storage, then Neon), which sets
+   `DATABASE_URL`.
+2. Set `SOFRA_DEMO=true`, `SOFRA_BASE_URL` (the site's https address),
+   `SOFRA_MAIL_TRANSPORT=outbox`, `DATABASE_POOL_MAX=3`, and long random
+   `CRON_SECRET` and `SOFRA_SESSION_SECRET`. Redeploy.
+3. Fill it once from your machine:
+   `DATABASE_URL='<the database url>' npm run db:seed`.
+4. Let GitHub Actions be the scheduler ([demo.yml](.github/workflows/demo.yml)):
+   set the repository variable `DEMO_URL` and the secrets `DEMO_CRON_SECRET`
+   and `DEMO_DATABASE_URL`. It calls the tick every fifteen minutes and seeds
+   the demo again every Monday.
 
 ## Installing it in a company
 

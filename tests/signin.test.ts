@@ -226,7 +226,12 @@ describe('admin roles', () => {
 
     expect(await roleOf(t.db, plain)).toBeNull();
     const localRole = await roleOf(t.db, local);
-    expect(localRole).toEqual({ everyOffice: false, officeIds: ['IST'], bootstrap: false });
+    expect(localRole).toEqual({
+      everyOffice: false,
+      officeIds: ['IST'],
+      bootstrap: false,
+      readOnly: false,
+    });
     expect(canManageOffice(localRole, 'IST')).toBe(true);
     expect(canManageOffice(localRole, 'AMS')).toBe(false);
     expect(visibleOffices(localRole!, [{ id: 'IST' }, { id: 'AMS' }])).toEqual([{ id: 'IST' }]);
@@ -237,6 +242,7 @@ describe('admin roles', () => {
       everyOffice: true,
       officeIds: [],
       bootstrap: true,
+      readOnly: false,
     });
   });
 

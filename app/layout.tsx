@@ -1,6 +1,9 @@
 import './globals.css';
 import Link from 'next/link';
+import { demoOpen } from '../src/auth/demo';
 import { adminRole, current } from '../src/auth/session';
+import { getDb } from '../src/db';
+import { envOptional } from '../src/lib/env';
 import { embeddedInTeams, teamsOnly } from '../src/lib/teams-mode';
 import { signOutAction } from './actions/auth';
 import { TeamsTheme } from './TeamsTheme';
@@ -17,6 +20,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const me = await current();
   const role = me ? await adminRole() : null;
   const onboarded = me?.person.onboardedAt != null;
+  const demo = me ? await demoOpen(getDb()) : false;
+  const source = envOptional('SOFRA_DEMO_SOURCE_URL');
 
   return (
     <html lang="en">
@@ -50,6 +55,17 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               </nav>
             </div>
           </header>
+        ) : null}
+        {demo ? (
+          <div className="demo-bar" role="note">
+            Public demo: invented people at an invented company, reset regularly.
+            {source?.startsWith('https://') ? (
+              <>
+                {' '}
+                <a href={source}>The code</a>
+              </>
+            ) : null}
+          </div>
         ) : null}
         <div className="shell">{children}</div>
       </body>
