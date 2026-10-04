@@ -252,6 +252,7 @@ export async function planNow(
             office,
             deps.from,
             'CANCEL',
+            'replanned',
           ),
         });
         cancelled++;

@@ -32,7 +32,7 @@ export function buildSignInMail(options: {
     `<p style="margin:24px 0"><a href="${escapeHtml(url)}" style="background:#b4531f;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;display:inline-block">Sign in</a></p>`,
     `<p>The link works once, for ${minutes} minutes, on any device.<br>If you did not ask to sign in, ignore this mail. Nobody can use the link without it.</p>`,
     `<p style="color:#6b6258">Sofra'ya giriş bağlantın ${minutes} dakika geçerli ve tek kullanımlık. Sen istemediysen bu maili yok say.</p>`,
-    `<p style="color:#6b6258;font-size:13px">${escapeHtml(url)}</p>`,
+    `<p style="color:#6b6258;font-size:13px;word-break:break-all">${escapeHtml(url)}</p>`,
     '</div>',
   ].join('');
 

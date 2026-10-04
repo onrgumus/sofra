@@ -293,6 +293,7 @@ describe('the console', () => {
     );
     expect(action).toMatchObject({ status: 'done', summary: { previousCancelled: 2 } });
     expect(channel.cancellations).toHaveLength(2);
+    expect(channel.cancellations[0]!.invite.subject).toMatch(/^Table changed/);
     expect(channel.invites).toHaveLength(2);
 
     const runs = await listRuns(t.db, { officeId: 'IST' });
