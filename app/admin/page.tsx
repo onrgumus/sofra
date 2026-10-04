@@ -26,6 +26,7 @@ import {
 import { planNowAction, remindNowAction } from '../actions/admin';
 import { AutoSubmitSelect } from '../AutoSubmit';
 import { Metric, PersonRow, Pill, relaxationLabel, relaxationTone, ScoreBars } from '../ui';
+import { runSummary } from './describe';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Console · Sofra' };
@@ -179,30 +180,50 @@ export default async function ConsolePage({
             </Pill>
             {matchRun ? (
               <span className="faint">
-                Matching {matchRun.trigger === 'manual' ? 'run by hand' : 'ran'} at{' '}
-                {formatLocalTime(new Date(matchRun.startedAt), office.timeZone)}: {matchRun.status}
-                {matchRun.error ? ` (${matchRun.error})` : ''}
+                {matchRun.status === 'skipped'
+                  ? 'Tables not made: '
+                  : matchRun.status === 'failed'
+                    ? 'Making the tables failed: '
+                    : matchRun.status === 'running'
+                      ? 'Making the tables now… '
+                      : `Tables made${matchRun.trigger === 'manual' ? ' by hand' : ''} at ${formatLocalTime(new Date(matchRun.startedAt), office.timeZone)}: `}
+                {matchRun.error ?? runSummary('match', matchRun.summary)}
               </span>
             ) : (
               <span className="faint">
-                Matching has not run for this day
+                Tables not made yet
                 {isWorkingDay(office, date, holidays) ? '' : ' (the office is closed)'}.
               </span>
             )}
             {reminderRun ? (
-              <span className="faint">Reminder: {reminderRun.status}.</span>
+              <span className="faint">
+                Evening question
+                {reminderRun.status === 'done' ? (
+                  <>
+                    {' '}
+                    (
+                    {reminderRun.trigger === 'manual'
+                      ? `sent by hand at ${formatLocalTime(new Date(reminderRun.startedAt), office.timeZone)}`
+                      : `${formatDay(previousWorkingDay(office, date, holidays))} ${office.reminderAt}`}
+                    ): {runSummary('reminder', reminderRun.summary)}
+                  </>
+                ) : (
+                  <>: {reminderRun.error ?? runSummary('reminder', reminderRun.summary)}</>
+                )}
+                .
+              </span>
             ) : !isWorkingDay(office, date, holidays) ? null : reminderInstant(
                 office,
                 date,
                 holidays,
               ).getTime() > now.getTime() ? (
               <span className="faint">
-                Reminder due {formatDay(previousWorkingDay(office, date, holidays))}{' '}
+                Evening question due {formatDay(previousWorkingDay(office, date, holidays))}{' '}
                 {office.reminderAt}.
               </span>
             ) : (
               <span className="faint">
-                The reminder was due {formatDay(previousWorkingDay(office, date, holidays))}{' '}
+                The evening question was due {formatDay(previousWorkingDay(office, date, holidays))}{' '}
                 {office.reminderAt} and did not go out.
               </span>
             )}
