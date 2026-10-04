@@ -212,8 +212,17 @@ Apps) with Azure Database for PostgreSQL:
    `/api/health` answers when the process and the database both do.
 3. Point a scheduler at `/api/cron/tick` every fifteen minutes with
    `Authorization: Bearer $CRON_SECRET`: an Azure Logic App or Container Apps
-   job, a Kubernetes CronJob, or a line in crontab. On Vercel, `vercel.json`
-   already does it.
+   job, a Kubernetes CronJob, or a line in crontab:
+
+   ```cron
+   */15 * * * * curl -fsS -H "Authorization: Bearer <CRON_SECRET>" https://sofra.company.com/api/cron/tick
+   ```
+
+   Sofra does not schedule itself, and the repository carries no host's cron
+   configuration: nothing runs until something calls the tick. Vercel's free
+   plan runs cron jobs at most once a day, too seldom for any office's morning;
+   on Vercel, a Pro plan's cron or an outside scheduler does it.
+
 4. Choose how mail goes out: the company's SMTP relay, Microsoft 365 through
    Graph (`Mail.Send`, ideally restricted to one mailbox), or Resend.
 5. Sign in as a bootstrap admin, create the offices, the departments and the
