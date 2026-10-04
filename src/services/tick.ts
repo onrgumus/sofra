@@ -2,13 +2,14 @@ import type { Db } from '../db';
 import {
   claimScheduled,
   finishRun,
+  plannedByHand,
   recordSkipped,
   scheduledRunExists,
   startManual,
 } from '../data/jobs';
 import { listHolidays, listOffices } from '../data/offices';
 import { pruneExpiredSessions } from '../data/sessions';
-import { listTables } from '../data/tables';
+import { isPlanned, listTables } from '../data/tables';
 import type { Office } from '../data/types';
 import { addDays } from '../lib/zoned';
 import type { InviteChannel } from '../notify/channels';
@@ -189,6 +190,17 @@ async function runMatch(
   jobId: number,
 ): Promise<TickAction> {
   try {
+    // An admin made this day's tables early and people have their invites.
+    // Making them again on schedule would send everybody a second lunch.
+    if (
+      (await plannedByHand(deps.db, office.id, date)) &&
+      (await isPlanned(deps.db, office.id, date))
+    ) {
+      const reason = 'the tables were already made by hand';
+      await finishRun(deps.db, jobId, { status: 'skipped', summary: { reason } });
+      return { officeId: office.id, kind: 'match', date, status: 'skipped' };
+    }
+
     const plan = await planOfficeDay(deps.db, office, date);
     const delivery = await deliverPending(deps.db, deps.channel, office, date, deps.from);
     const summary = {

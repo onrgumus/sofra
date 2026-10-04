@@ -103,6 +103,22 @@ export async function recordSkipped(
   );
 }
 
+/** Whether an admin made this office's tables for the day by hand, successfully. */
+export async function plannedByHand(
+  db: Queryable,
+  officeId: string,
+  date: string,
+): Promise<boolean> {
+  const { rows } = await db.query(
+    `SELECT 1 FROM job_runs
+      WHERE kind = 'match' AND office_id = $1 AND run_key = $2
+        AND trigger = 'manual' AND status = 'done'
+      LIMIT 1`,
+    [officeId, date],
+  );
+  return rows.length > 0;
+}
+
 export async function scheduledRunExists(
   db: Queryable,
   job: { kind: JobKind; officeId: string | null; runKey: string },

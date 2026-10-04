@@ -298,4 +298,56 @@ describe('the console', () => {
     const runs = await listRuns(t.db, { officeId: 'IST' });
     expect(runs.some((r) => r.trigger === 'manual' && r.runKey === day)).toBe(true);
   });
+
+  describe('tables made by hand the day before', () => {
+    // Wednesday 2026-10-21: an admin presses the button on Tuesday afternoon,
+    // long before the 06:00 run.
+    const DAY = '2026-10-21';
+    const tuesday = (hhmm: string) => new Date(`2026-10-20T${hhmm}:00Z`);
+    const deps = (now: Date) => ({ db: t.db, channel, from: FROM, now });
+
+    beforeAll(async () => {
+      for (const p of people.slice(0, 7)) await ask(p, DAY);
+      channel.clear();
+      const office = (await getOffice(t.db, 'IST'))!;
+      await planNow(deps(tuesday('12:00')), office, DAY);
+    });
+
+    it('count as the day’s tables: somebody asking later takes a free seat', async () => {
+      expect(await listTables(t.db, 'IST', DAY)).toHaveLength(2);
+      const late = people[7]!;
+      const outcome = await wantLunch(deps(tuesday('13:00')), late, {
+        date: DAY,
+        officeId: 'IST',
+        slot: null,
+      });
+      expect(outcome).toMatchObject({ ok: true });
+      expect((await tableOf(t.db, late.id, DAY))?.members.map((m) => m.id)).toContain(late.id);
+      expect(channel.invites).toHaveLength(1);
+    });
+
+    it('are not made again on schedule, and nobody gets a second lunch', async () => {
+      const seated = await tableOf(t.db, people[0]!.id, DAY);
+      await respond(deps(tuesday('14:00')), people[0]!, seated!.id, 'accepted');
+      channel.clear();
+
+      const actions = await jobs('2026-10-21T03:00:00Z', 'IST');
+      expect(actions).toEqual([{ officeId: 'IST', kind: 'match', date: DAY, status: 'skipped' }]);
+      expect(channel.invites).toHaveLength(0);
+      expect(channel.cancellations).toHaveLength(0);
+
+      // The tables and the replies on them are the ones people were sent.
+      const after = await tableOf(t.db, people[0]!.id, DAY);
+      expect(after?.id).toBe(seated!.id);
+      expect(after?.rsvps[people[0]!.id]).toBe('accepted');
+
+      const run = (await listRuns(t.db, { officeId: 'IST' })).find(
+        (r) => r.runKey === DAY && r.trigger === 'schedule',
+      );
+      expect(run).toMatchObject({
+        status: 'skipped',
+        summary: { reason: 'the tables were already made by hand' },
+      });
+    });
+  });
 });

@@ -73,6 +73,12 @@ describe('where a day stands', () => {
     expect(at('2026-10-05T09:00:00Z')).toBe('past');
   });
 
+  it('is matched as soon as it has tables, even ones made early by hand', () => {
+    const planned = (iso: string) => dayPhase(IST, '2026-10-05', none, new Date(iso), true);
+    expect(planned('2026-10-04T12:00:00Z')).toBe('matched');
+    expect(planned('2026-10-05T07:00:00Z')).toBe('closed');
+  });
+
   it('is off on a holiday', () => {
     expect(
       dayPhase(IST, '2026-10-05', new Set(['2026-10-05']), new Date('2026-10-04T00:00:00Z')),

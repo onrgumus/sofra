@@ -3,7 +3,7 @@ import type { Queryable } from '../src/db';
 import { listOffices } from '../src/data/offices';
 import { listDepartments } from '../src/data/settings';
 import type { Person } from '../src/data/types';
-import { LANGUAGES, SENIORITY_LABELS } from '../src/services/forms';
+import { LANGUAGES, nameFromEmail, SENIORITY_LABELS } from '../src/services/forms';
 import type { ProfileFormProps } from './ProfileForm';
 
 /** Everything the profile form needs, filled from what is known about the person. */
@@ -15,7 +15,7 @@ export async function profileFormProps(
   const offices = await listOffices(db, { activeOnly: true });
   return {
     initial: {
-      displayName: person.displayName,
+      displayName: person.displayName || nameFromEmail(person.email),
       title: person.title,
       department: person.department ?? '',
       team: person.team.startsWith('manager:') ? '' : person.team,

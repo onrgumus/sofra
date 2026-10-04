@@ -6,6 +6,7 @@ import { isMatchable, toEmployee } from '../data/people';
 import {
   addUnseated,
   getTable,
+  isPlanned,
   listTables,
   lockDay,
   pastMatches,
@@ -45,7 +46,7 @@ export async function phaseOf(db: Db, office: Office, date: string, now: Date): 
   const holidays = new Set(
     (await listHolidays(db, office.id, { from: date, to: date })).map((h) => h.date),
   );
-  return dayPhase(office, date, holidays, now);
+  return dayPhase(office, date, holidays, now, await isPlanned(db, office.id, date));
 }
 
 /**

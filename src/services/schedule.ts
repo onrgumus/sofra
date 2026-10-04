@@ -80,20 +80,28 @@ export function reminderInstant(office: Office, date: string, holidays: Holidays
  * Where a day stands for somebody who wants to change their mind about it.
  *
  *   open      requests are still being collected
- *   matched   tables exist; a late request can take a free seat, a drop-out reseats
+ *   matched   tables exist, on schedule or made early by hand; a late request can
+ *             take a free seat, a drop-out reseats
  *   closed    past the reply cut-off, tables are final
  *   past      lunch has happened
  *   off       not a working day here
  */
 export type DayPhase = 'open' | 'matched' | 'closed' | 'past' | 'off';
 
-export function dayPhase(office: Office, date: string, holidays: Holidays, now: Date): DayPhase {
+export function dayPhase(
+  office: Office,
+  date: string,
+  holidays: Holidays,
+  now: Date,
+  /** The day already has tables: an admin made them early, by hand. */
+  planned = false,
+): DayPhase {
   if (!isWorkingDay(office, date, holidays)) return 'off';
   const t = now.getTime();
   const lastSlot = office.lunchSlots[office.lunchSlots.length - 1] ?? '12:00';
   if (t >= lunchInstant(office, date, lastSlot).getTime()) return 'past';
   if (t >= confirmInstant(office, date).getTime()) return 'closed';
-  if (t >= matchInstant(office, date).getTime()) return 'matched';
+  if (planned || t >= matchInstant(office, date).getTime()) return 'matched';
   return 'open';
 }
 

@@ -95,6 +95,24 @@ export async function listTables(
   return hydrate(db, rows);
 }
 
+/** The office-days among these that have tables, keyed `${officeId} ${date}`. */
+export async function plannedDays(
+  db: Queryable,
+  officeIds: readonly string[],
+  dates: readonly string[],
+): Promise<Set<string>> {
+  const { rows } = await db.query<{ office_id: string; date: string }>(
+    `SELECT DISTINCT office_id, date FROM lunch_tables
+      WHERE office_id = ANY($1::text[]) AND date = ANY($2::date[])`,
+    [[...officeIds], [...dates]],
+  );
+  return new Set(rows.map((r) => `${r.office_id} ${r.date}`));
+}
+
+export async function isPlanned(db: Queryable, officeId: string, date: string): Promise<boolean> {
+  return (await plannedDays(db, [officeId], [date])).size > 0;
+}
+
 export async function getTable(db: Queryable, id: string): Promise<LunchTable | null> {
   const { rows } = await db.query<TableRow>('SELECT * FROM lunch_tables WHERE id = $1', [id]);
   return (await hydrate(db, rows))[0] ?? null;

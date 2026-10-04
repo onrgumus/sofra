@@ -61,7 +61,7 @@ export default async function TablePage({
   const holidays = new Set(
     (await listHolidays(db, office.id, { from: table.date, to: table.date })).map((h) => h.date),
   );
-  const phase = dayPhase(office, table.date, holidays, new Date());
+  const phase = dayPhase(office, table.date, holidays, new Date(), true);
   const mine = table.rsvps[person.id];
   const coming = Object.values(table.rsvps).filter((s) => s === 'accepted').length;
   const out = Object.values(table.rsvps).filter((s) => s === 'declined').length;
