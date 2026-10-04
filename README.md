@@ -19,6 +19,33 @@ It is built to be installed by a company, on its own infrastructure: one
 PostgreSQL database, one Next.js server, a scheduler that calls it every fifteen
 minutes, and optionally a Teams app on top.
 
+## Why a company would run it
+
+For the people at the table:
+
+- **One press, no organising.** Mark a day, or set a weekly pattern once. No
+  group chat, no poll, nobody who has to be the organiser.
+- **People worth knowing.** Colleagues from other departments and levels, chosen
+  because they have not met yet.
+- **An easy first five minutes.** Every invite carries a topic and two or three
+  openers drawn from what the table has in common.
+- **Always their choice.** Opt in per day, drop out until the cut-off. Nobody
+  sees who asked for lunch, and office days are not reported to anyone.
+
+For the company:
+
+- **Ties across teams.** People who have shared a table ask each other first.
+  Projects later run on that informal network, and an org chart does not build
+  it.
+- **Faster onboarding.** Newcomers meet several teams in their first weeks, not
+  only their own.
+- **Office days that pay off.** Coming in buys something a video call cannot: an
+  hour with people you would not otherwise meet.
+- **It runs itself.** Employees serve themselves. An admin sets up an office
+  once, and the scheduler makes the tables every morning after that.
+- **The data stays inside.** Who works where, and who is in which building when,
+  never leaves the company's own servers and database.
+
 ## How it works for somebody who uses it
 
 1. They sign in. By an emailed link at a company address, with the company's
