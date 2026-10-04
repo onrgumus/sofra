@@ -30,8 +30,8 @@ export default async function WelcomePage() {
         <h1>Welcome{person.displayName ? `, ${person.displayName.split(' ')[0]}` : ''}</h1>
         <p>
           A few answers and you are ready. Sofra seats you with colleagues from other departments
-          and levels, so it needs to know yours. Nobody sees these except the people at your table,
-          who see your name, title and department.
+          and levels, so it needs to know yours. The people at your table see your name, title and
+          department; the admins who run Sofra can see your profile, and nobody else can.
         </p>
       </div>
 

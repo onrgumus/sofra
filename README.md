@@ -29,8 +29,8 @@ For the people at the table:
   because they have not met yet.
 - **An easy first five minutes.** Every invite carries a topic and two or three
   openers drawn from what the table has in common.
-- **Always their choice.** Opt in per day, drop out until the cut-off. Nobody
-  sees who asked for lunch, and office days are not reported to anyone.
+- **Always their choice.** Opt in per day, drop out until the cut-off. Who asked
+  for lunch is never reported to anyone, and neither are office days.
 
 For the company:
 
@@ -64,8 +64,9 @@ For the company:
    the reply cut-off they can reply, drop out (the table is reseated) or join
    late (a free seat that keeps every rule). After it, nothing moves.
 
-Nobody sees who asked for lunch. The people at your table see your name, title
-and department, and nothing else.
+Who asked for lunch is never reported. The people at your table see your name,
+title and department, and nothing else; an office's admins see the day's
+requests and tables in the console; nobody else sees anything.
 
 ## When the tables are made
 

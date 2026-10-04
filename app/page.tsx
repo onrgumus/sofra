@@ -260,8 +260,9 @@ export default async function CalendarPage({
 
       <section>
         <div className="note">
-          Nobody sees who asked for lunch, and your office days are not reported to anyone. The
-          people at your table see your name, title and department.
+          Who asked for lunch is never reported, and neither are your office days. The people at
+          your table see your name, title and department, and the admins who run your office&apos;s
+          lunches see the day&apos;s tables. Nobody else sees anything.
         </div>
       </section>
     </main>
