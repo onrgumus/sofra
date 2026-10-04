@@ -639,11 +639,14 @@ form.inline input[type='search']:focus-visible {
 
 /* --- metrics --- */
 
+/* The lines between metrics are each metric's own outline, drawn in the 1px
+   gap, so a row that is not full ends in plain surface rather than a block of
+   border colour. The outer edge of each outline is clipped by the frame. */
 .metrics {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 1px;
-  background: var(--border);
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   overflow: hidden;
@@ -651,6 +654,7 @@ form.inline input[type='search']:focus-visible {
 .metric {
   background: var(--surface);
   padding: 14px 16px;
+  outline: 1px solid var(--border);
 }
 .metric-value {
   font-size: 1.5rem;

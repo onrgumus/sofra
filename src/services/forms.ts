@@ -152,6 +152,18 @@ export interface ProfileForm extends ProfileUpdate {
 }
 
 /**
+ * A first guess at somebody's name from a company address, to save them
+ * typing it: "deniz.yeni@" is Deniz Yeni. Only for two or more parts made of
+ * letters; "dyeni@" or "d.yeni2@" could be anybody, and guess nothing.
+ */
+export function nameFromEmail(email: string): string {
+  const local = email.split('@')[0] ?? '';
+  const parts = local.split(/[._-]+/).filter(Boolean);
+  if (parts.length < 2 || !parts.every((p) => /^\p{L}+$/u.test(p))) return '';
+  return parts.map((p) => p[0]!.toLocaleUpperCase() + p.slice(1).toLocaleLowerCase()).join(' ');
+}
+
+/**
  * What somebody says about themselves. The department comes from the admin's
  * list and the office from the active ones; languages from a known list, since
  * a shared one is a hard rule and "Englsh" would share nothing.

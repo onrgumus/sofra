@@ -20,6 +20,7 @@ import {
   matchInstant,
   officeToday,
   previousWorkingDay,
+  reminderInstant,
   workingDaysFrom,
 } from '../../src/services/schedule';
 import { planNowAction, remindNowAction } from '../actions/admin';
@@ -39,12 +40,21 @@ function utc(instant: Date): string {
   return instant.toISOString().slice(11, 16);
 }
 
+/** 180 → "3 hours", 90 → "1 hour 30 minutes". */
+function duration(minutes: number): string {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return [h ? `${h} hour${h === 1 ? '' : 's'}` : '', m ? `${m} minutes` : '']
+    .filter(Boolean)
+    .join(' ');
+}
+
 export default async function ConsolePage({
   searchParams,
 }: {
   searchParams: Promise<{ office?: string; date?: string; note?: string }>;
 }) {
-  const { role } = await requireAdmin();
+  const { person, role } = await requireAdmin();
   const params = await searchParams;
   const db = getDb();
   const offices = visibleOffices(role, await listOffices(db));
@@ -65,7 +75,11 @@ export default async function ConsolePage({
     );
   }
 
-  const office = offices.find((o) => o.id === params.office) ?? offices[0]!;
+  // Without a choice, the admin's own office, when theirs to see.
+  const office =
+    offices.find((o) => o.id === params.office) ??
+    offices.find((o) => o.id === person.officeId) ??
+    offices[0]!;
   const now = new Date();
   const today = officeToday(office, now);
   const holidays = new Set(
@@ -96,7 +110,7 @@ export default async function ConsolePage({
   );
   const history = new MatchHistory(await pastMatches(db, date), date);
   const config = officeConfig(office);
-  const phase = dayPhase(office, date, holidays, now);
+  const phase = dayPhase(office, date, holidays, now, tables.length > 0);
   const seated = tables.filter((t) => !t.cancelled).reduce((n, t) => n + t.members.length, 0);
 
   return (
@@ -106,7 +120,7 @@ export default async function ConsolePage({
         <p>
           Tables for a day at {office.name} are made at{' '}
           <strong>{formatLocalTime(matchInstant(office, date), office.timeZone)}</strong> local (
-          {utc(matchInstant(office, date))} UTC), {office.matchLeadMinutes / 60} hours before the
+          {utc(matchInstant(office, date))} UTC), {duration(office.matchLeadMinutes)} before the
           office opens at {office.opensAt}. Replies close at{' '}
           {formatLocalTime(confirmInstant(office, date), office.timeZone)}; the evening question
           goes at {office.reminderAt} on {formatDay(previousWorkingDay(office, date, holidays))}.
@@ -177,10 +191,19 @@ export default async function ConsolePage({
             )}
             {reminderRun ? (
               <span className="faint">Reminder: {reminderRun.status}.</span>
-            ) : (
+            ) : !isWorkingDay(office, date, holidays) ? null : reminderInstant(
+                office,
+                date,
+                holidays,
+              ).getTime() > now.getTime() ? (
               <span className="faint">
                 Reminder due {formatDay(previousWorkingDay(office, date, holidays))}{' '}
                 {office.reminderAt}.
+              </span>
+            ) : (
+              <span className="faint">
+                The reminder was due {formatDay(previousWorkingDay(office, date, holidays))}{' '}
+                {office.reminderAt} and did not go out.
               </span>
             )}
           </div>
@@ -238,8 +261,12 @@ export default async function ConsolePage({
                   <ScoreBars breakdown={scoreGroup(table.members, { history, config })} />
                 ) : null}
                 <p className="faint">
-                  {table.invitesSentAt ? 'Invite sent.' : 'Invite not sent yet.'} Version{' '}
-                  {table.sequence}.
+                  {table.invitesSentAt ? 'Invite sent' : 'Invite not sent yet'}
+                  {table.sequence === 1
+                    ? ', updated once since.'
+                    : table.sequence > 1
+                      ? `, updated ${table.sequence} times since.`
+                      : '.'}
                 </p>
               </article>
             ))}

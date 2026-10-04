@@ -17,7 +17,7 @@ function field(formData: FormData, key: string): string {
 
 /** Back to the calendar, on the day that changed, with what happened. */
 function back(date: string, outcome: DayOutcome): never {
-  const note = outcome.ok ? 'saved' : outcome.reason;
+  const note = !outcome.ok ? outcome.reason : outcome.seated ? 'seated' : 'saved';
   redirect(`/?day=${encodeURIComponent(date)}&note=${encodeURIComponent(note)}#${date}`);
 }
 

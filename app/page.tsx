@@ -4,7 +4,7 @@ import { getDb } from '../src/db';
 import { calendarHints } from '../src/data/messages';
 import { getPattern, intentsFor } from '../src/data/lunch';
 import { getOffice, listHolidays, listOffices } from '../src/data/offices';
-import { tablesOf, type LunchTable } from '../src/data/tables';
+import { plannedDays, tablesOf, type LunchTable } from '../src/data/tables';
 import type { Office } from '../src/data/types';
 import { formatDay } from '../src/lib/dates';
 import { addDays, formatLocalTime, isoWeekday, startOfWeek } from '../src/lib/zoned';
@@ -19,12 +19,17 @@ import {
   type DayPhase,
 } from '../src/services/schedule';
 import { savePatternAction, setDayAction } from './actions/lunch';
+import { DayForm } from './DayForm';
 import { Pill, PersonRow } from './ui';
 
 export const dynamic = 'force-dynamic';
 
 const NOTES: Record<string, { tone: 'good' | 'bad'; text: string }> = {
   saved: { tone: 'good', text: 'Saved.' },
+  seated: {
+    tone: 'good',
+    text: 'You have a seat at a table that day. Who you are with is below.',
+  },
   welcome: { tone: 'good', text: 'You are all set. Pick the days you will be in for lunch.' },
   pattern: { tone: 'good', text: 'Your weekly days are saved.' },
   closed: { tone: 'bad', text: 'Replies for that day have closed, so it can no longer change.' },
@@ -84,11 +89,16 @@ export default async function CalendarPage({
   const last = span[span.length - 1] ?? today;
 
   await ensureFreshHints(db, calendarGraph(), person, offices, { from: today, to: last });
-  const [intents, tables, hints, pattern] = await Promise.all([
+  const [intents, tables, hints, pattern, planned] = await Promise.all([
     intentsFor(db, person, span),
     tablesOf(db, person.id, span),
     calendarHints(db, person.id, span),
     getPattern(db, person.id),
+    plannedDays(
+      db,
+      offices.map((o) => o.id),
+      span,
+    ),
   ]);
 
   const byId = new Map(offices.map((o) => [o.id, o]));
@@ -110,7 +120,13 @@ export default async function CalendarPage({
     days.push({
       date,
       office,
-      phase: dayPhase(office, date, new Set(holidays.keys()), now),
+      phase: dayPhase(
+        office,
+        date,
+        new Set(holidays.keys()),
+        now,
+        planned.has(`${office.id} ${date}`),
+      ),
       holiday: holidays.get(date) ?? null,
       requested: intent?.request != null,
       weekly: intent?.request?.source === 'weekly',
@@ -271,6 +287,8 @@ function DayRow({
   const table = day.table;
   const mine = table?.rsvps[meId];
   const canChange = day.phase === 'open' || day.phase === 'matched';
+  // Times are the office's own; say whose when that is not the clock at home.
+  const elsewhere = day.office.timeZone !== home.timeZone ? ` ${day.office.name} time` : '';
 
   return (
     <article
@@ -327,9 +345,11 @@ function DayRow({
         ) : day.requested && day.phase === 'open' ? (
           <p className="faint" style={{ marginTop: 6 }}>
             Your table arrives at{' '}
-            {formatLocalTime(matchInstant(day.office, day.date), day.office.timeZone)} that morning,
-            here and by email. You can change your mind until then, and drop out until{' '}
-            {formatLocalTime(confirmInstant(day.office, day.date), day.office.timeZone)}.
+            {formatLocalTime(matchInstant(day.office, day.date), day.office.timeZone)}
+            {elsewhere} that morning, here and by email. You can change your mind until then, and
+            drop out until{' '}
+            {formatLocalTime(confirmInstant(day.office, day.date), day.office.timeZone)}
+            {elsewhere}.
           </p>
         ) : null}
       </div>
@@ -352,34 +372,12 @@ function DayRow({
         ) : null}
 
         {canChange && day.holiday === null && !day.requested && !(table && mine !== 'declined') ? (
-          <form action={setDayAction} className="inline day-form">
-            <input type="hidden" name="date" value={day.date} />
-            <input type="hidden" name="want" value="yes" />
-            {offices.length > 1 ? (
-              <select name="officeId" defaultValue={home.id} aria-label="Office that day">
-                {offices.map((o) => (
-                  <option key={o.id} value={o.id}>
-                    {o.name}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <input type="hidden" name="officeId" value={home.id} />
-            )}
-            {home.lunchSlots.length > 1 ? (
-              <select name="slot" defaultValue="" aria-label="Lunch time">
-                <option value="">Any time</option>
-                {home.lunchSlots.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
-            ) : null}
-            <button type="submit" data-variant="primary">
-              {day.phase === 'matched' ? 'Join a table' : "I'm in, lunch please"}
-            </button>
-          </form>
+          <DayForm
+            date={day.date}
+            homeId={home.id}
+            offices={offices.map((o) => ({ id: o.id, name: o.name, slots: o.lunchSlots }))}
+            label={day.phase === 'matched' ? 'Join a table' : "I'm in, lunch please"}
+          />
         ) : null}
       </div>
     </article>

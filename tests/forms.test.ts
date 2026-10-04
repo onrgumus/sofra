@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseOfficeForm, parseProfileForm } from '../src/services/forms';
+import { nameFromEmail, parseOfficeForm, parseProfileForm } from '../src/services/forms';
 
 function form(values: Record<string, string | string[]>): FormData {
   const data = new FormData();
@@ -135,5 +135,19 @@ describe('the profile form', () => {
     );
     expect(parsed.ok).toBe(false);
     if (!parsed.ok) expect(Object.keys(parsed.errors).sort()).toEqual(['languages', 'startedOn']);
+  });
+});
+
+describe('a name guessed from an address', () => {
+  it('reads first.last, in any alphabet', () => {
+    expect(nameFromEmail('deniz.yeni@acme.test')).toBe('Deniz Yeni');
+    expect(nameFromEmail('ÇAĞLA_öz@acme.test')).toBe('Çağla Öz');
+    expect(nameFromEmail('anne-marie.van-dijk@acme.test')).toBe('Anne Marie Van Dijk');
+  });
+
+  it('guesses nothing when the address is not a name', () => {
+    expect(nameFromEmail('dyeni@acme.test')).toBe('');
+    expect(nameFromEmail('d.yeni2@acme.test')).toBe('');
+    expect(nameFromEmail('it.helpdesk+lunch@acme.test')).toBe('');
   });
 });
