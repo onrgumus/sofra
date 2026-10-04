@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { getDb } from '../../../src/db';
 import { getMail, listMail } from '../../../src/data/messages';
 import { mailboxEnabled } from '../../../src/services/mail';
+import { MailFrame } from './MailFrame';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Mailbox · Sofra (development)' };
@@ -36,10 +37,34 @@ export default async function MailboxPage({
             To {mail.recipients.join(', ')} · {mail.createdAt.slice(0, 19).replace('T', ' ')} UTC
           </p>
         </div>
-        <article className="card invite">{linkify(mail.text)}</article>
+        {mail.attachments.length > 0 ? (
+          <div className="row" style={{ marginBottom: 12 }}>
+            {mail.attachments.map((a) => (
+              <a
+                key={a.filename}
+                className="button"
+                download={a.filename}
+                href={`data:${a.contentType.split(';')[0]?.trim() || 'application/octet-stream'};charset=utf-8,${encodeURIComponent(a.content)}`}
+              >
+                Download {a.filename}
+              </a>
+            ))}
+            <span className="faint">Opens in the calendar app, as it does from the mail.</span>
+          </div>
+        ) : null}
+        {mail.html ? (
+          <section>
+            <h2 className="small faint">As it arrives</h2>
+            <MailFrame html={mail.html} />
+          </section>
+        ) : null}
+        <section>
+          <h2 className="small faint">Plain text</h2>
+          <article className="card invite">{linkify(mail.text)}</article>
+        </section>
         {mail.attachments.length > 0 ? (
           <details className="card">
-            <summary>Attachments ({mail.attachments.map((a) => a.filename).join(', ')})</summary>
+            <summary>Attachments, as sent</summary>
             {mail.attachments.map((a) => (
               <pre key={a.filename} className="mono small">
                 {a.content}

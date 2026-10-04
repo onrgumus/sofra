@@ -823,8 +823,20 @@ ul.plain li:first-child {
 
 /* --- misc --- */
 
+/* A mail's HTML in the development mailbox: on white, as a mail client shows it. */
+.mail-frame {
+  display: block;
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: #fff;
+  margin-bottom: 16px;
+}
+
 .invite {
   white-space: pre-wrap;
+  /* A sign-in link is one long word; on a phone it has to break somewhere. */
+  overflow-wrap: anywhere;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.78rem;
   line-height: 1.6;
